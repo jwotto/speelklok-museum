@@ -12,14 +12,16 @@ class_name Sticker
 # === EXPORT VARIABELEN ===
 
 @export_group("Scale Limits")
+## Minimale schaal als multiplier van de start-grootte (0.3 = 30% van origineel)
 @export var min_scale: float = 0.3
-@export var max_scale: float = 3.0
+## Maximale schaal als multiplier van de start-grootte (5.0 = 5x zo groot)
+@export var max_scale: float = 5.0
 
 @export_group("Inertia")
 ## Hoeveel slide/momentum na loslaten (0 = geen, 1 = normaal, 2 = veel)
 @export var inertia_amount: float = 1.0
 ## Hoe snel de sticker vertraagt na loslaten (0-1, lager = sneller stoppen)
-@export var inertia_friction: float = 0.92
+@export var inertia_friction: float = 0.95
 ## Minimale snelheid voordat inertia stopt
 @export var inertia_min_velocity: float = 5.0
 
@@ -30,12 +32,14 @@ class_name Sticker
 @export_group("Shadow")
 ## Schaduw tonen bij draggen
 @export var shadow_enabled: bool = true
-## Kleur van de schaduw
-@export var shadow_color: Color = Color(0, 0, 0, 0.5)
-## Offset van de schaduw (in pixels)
-@export var shadow_offset: Vector2 = Vector2(15, 15)
-## Hoe snel de schaduw in/uit fade
-@export var shadow_fade_speed: float = 10.0
+## Transparantie van de schaduw (0 = onzichtbaar, 1 = volledig zichtbaar)
+@export_range(0.0, 1.0) var shadow_opacity: float = 0.21
+## Afstand van de schaduw tot de sticker (in pixels)
+@export var shadow_distance: float = 30.0
+## Richting van de schaduw in graden (0 = rechts, 90 = onder, 180 = links, 270 = boven)
+@export_range(0.0, 360.0) var shadow_direction: float = 45.0
+## Hoe snel de schaduw in/uit fade (hoger = sneller, 50+ = bijna instant)
+@export var shadow_fade_speed: float = 50.0
 
 
 # === INTERNE VARIABELEN ===
@@ -59,6 +63,7 @@ const VELOCITY_SAMPLE_COUNT: int = 5  # Aantal frames om te meten
 # Smooth scaling
 var _target_scale: Vector2 = Vector2.ONE
 var _scale_smoothing_active: bool = false
+var _base_scale: float = 1.0  # Start-grootte wordt basis voor min/max
 
 # Schaduw systeem
 var _shadow_opacity: float = 0.0
@@ -68,6 +73,7 @@ var _shadow_node: Node2D = null
 # === LIFECYCLE ===
 
 func _ready() -> void:
+	_base_scale = scale.x  # Sla start-grootte op als basis
 	_target_scale = scale
 	_create_shadow_node()
 
@@ -212,7 +218,10 @@ func _calculate_scale_from_pinch(p0: Vector2, p1: Vector2, local0: Vector2, loca
 
 	if local_dist > 10:
 		var new_scale_factor = current_dist / local_dist
-		var new_scale_val = clamp(new_scale_factor, min_scale, max_scale)
+		# Clamp relatief aan de basis-grootte
+		var actual_min = _base_scale * min_scale
+		var actual_max = _base_scale * max_scale
+		var new_scale_val = clamp(new_scale_factor, actual_min, actual_max)
 		_set_target_scale(Vector2(new_scale_val, new_scale_val))
 
 
@@ -309,11 +318,18 @@ func _draw_shadow() -> void:
 	if not shadow_enabled or _shadow_opacity <= 0.01 or texture == null:
 		return
 
-	var shadow_col = shadow_color
-	shadow_col.a *= _shadow_opacity
+	# Schaduw kleur met gecombineerde opacity
+	var shadow_col = Color(0, 0, 0, shadow_opacity * _shadow_opacity)
 
-	# Compenseer offset voor scale zodat visuele afstand constant blijft
-	var compensated_offset = shadow_offset / scale.x
+	# Bereken offset vanuit richting (in graden) en afstand
+	var direction_rad = deg_to_rad(shadow_direction)
+	var world_offset = Vector2(cos(direction_rad), sin(direction_rad)) * shadow_distance
+
+	# Counter-rotate zodat schaduw altijd vanuit dezelfde wereldrichting komt
+	var local_offset = world_offset.rotated(-rotation)
+
+	# Compenseer voor scale zodat visuele afstand constant blijft
+	var compensated_offset = local_offset / scale.x
 	_shadow_node.draw_texture(texture, compensated_offset - texture.get_size() / 2, shadow_col)
 
 
