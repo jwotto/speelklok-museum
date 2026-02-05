@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://dh83yh07377sh"]
+
+[ext_resource type="Script" uid="uid://b0rcg4npmldcg" path="res://sticker.gd" id="1_sticker"]
+[ext_resource type="Texture2D" uid="uid://bmr4xdkdu8auo" path="res://icon.svg" id="2_icon"]
+
+[node name="Main" type="Node2D" unique_id=1308764642]
+
+[node name="Background" type="ColorRect" parent="." unique_id=179618562]
+offset_right = 4012.0
+offset_bottom = 1920.0
+color = Color(0.2, 0.2, 0.25, 1)
+
+[node name="Sticker" type="Sprite2D" parent="." unique_id=1545494032]
+position = Vector2(1560, 953)
+texture = ExtResource("2_icon")
+script = ExtResource("1_sticker")
+min_scale = 1.0
+max_scale = 10.0

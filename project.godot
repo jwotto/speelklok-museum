@@ -10,15 +10,24 @@ config_version=5
 
 [application]
 
-config/name="speelklok museum"
+config/name="Speelklok Museum"
+run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.6", "Mobile")
 config/icon="res://icon.svg"
 
-[physics]
+[display]
 
-3d/physics_engine="Jolt Physics"
+window/size/viewport_width=1080
+window/size/viewport_height=1920
+window/size/mode=4
+window/size/borderless=true
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=false
 
 [rendering]
 
-rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
