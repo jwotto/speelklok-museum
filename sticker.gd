@@ -12,10 +12,9 @@ var drag_offset: Vector2 = Vector2.ZERO
 # Multitouch voor schalen en roteren
 var touches: Dictionary = {}
 var first_touch_index: int = -1
-var start_distance: float = 0.0
-var start_scale: Vector2 = Vector2.ONE
-var start_angle: float = 0.0
-var start_rotation: float = 0.0
+
+# Voor pinch: lokale posities waar vingers de sticker raken
+var touch_local_points: Dictionary = {}
 
 
 func _ready() -> void:
@@ -73,31 +72,41 @@ func _on_drag(event: InputEventScreenDrag) -> void:
 
 
 func _begin_transform() -> void:
-	var positions = touches.values()
-	start_distance = positions[0].distance_to(positions[1])
-	start_scale = scale
-	start_angle = (positions[1] - positions[0]).angle()
-	start_rotation = rotation
+	# Sla op waar elke vinger de sticker raakt in lokale coördinaten
+	touch_local_points.clear()
+	for idx in touches:
+		touch_local_points[idx] = to_local(touches[idx])
 
 
 func _update_transform() -> void:
-	var positions = touches.values()
-	var current_distance = positions[0].distance_to(positions[1])
-	var current_angle = (positions[1] - positions[0]).angle()
+	var indices = touches.keys()
+	var idx0 = indices[0]
+	var idx1 = indices[1]
 
-	# Schalen
-	if start_distance > 0:
-		var factor = current_distance / start_distance
-		var new_scale = start_scale * factor
-		new_scale = new_scale.clamp(Vector2(min_scale, min_scale), Vector2(max_scale, max_scale))
-		scale = new_scale
+	# Huidige en originele touch posities
+	var p0 = touches[idx0]
+	var p1 = touches[idx1]
+	var local0 = touch_local_points[idx0]
+	var local1 = touch_local_points[idx1]
 
-	# Roteren
-	rotation = start_rotation + (current_angle - start_angle)
+	# Bereken nieuwe schaal: afstand tussen vingers / originele lokale afstand
+	var current_dist = p0.distance_to(p1)
+	var original_local_dist = (local0 * scale).distance_to(local1 * scale)
 
-	# Positie = eerste vinger blijft bepalen
-	if first_touch_index >= 0 and touches.has(first_touch_index):
-		global_position = touches[first_touch_index] + drag_offset
+	if original_local_dist > 10:
+		var local_dist = local0.distance_to(local1)
+		var new_scale_factor = current_dist / local_dist
+		var new_scale_val = clamp(new_scale_factor, min_scale, max_scale)
+		scale = Vector2(new_scale_val, new_scale_val)
+
+	# Bereken rotatie
+	var original_angle = (local1 - local0).angle()
+	var current_angle = (p1 - p0).angle()
+	rotation = current_angle - original_angle
+
+	# Positie: zorg dat vinger 0 op zijn lokale punt blijft
+	var rotated_local = local0.rotated(rotation) * scale
+	global_position = p0 - rotated_local
 
 
 func _hit_test(pos: Vector2) -> bool:
