@@ -2,9 +2,43 @@ extends Sprite2D
 class_name Sticker
 
 ## Een sticker die je kunt verplaatsen, draaien en schalen met touch
+## Features:
+## - Drag met 1 vinger
+## - Pinch/zoom/rotate met 2 vingers (vingers blijven "geplakt")
+## - Inertia: sticker glijdt door na loslaten
+## - Smooth scaling: vloeiende schaal overgangen
+## - Schaduw: verschijnt bij oppakken
 
+# === EXPORT VARIABELEN ===
+
+@export_group("Scale Limits")
 @export var min_scale: float = 0.3
 @export var max_scale: float = 3.0
+
+@export_group("Inertia")
+## Hoeveel slide/momentum na loslaten (0 = geen, 1 = normaal, 2 = veel)
+@export var inertia_amount: float = 1.0
+## Hoe snel de sticker vertraagt na loslaten (0-1, lager = sneller stoppen)
+@export var inertia_friction: float = 0.92
+## Minimale snelheid voordat inertia stopt
+@export var inertia_min_velocity: float = 5.0
+
+@export_group("Smoothing")
+## Hoe snel de schaal interpoleert naar target (0-1, hoger = sneller)
+@export var scale_smoothing: float = 0.3
+
+@export_group("Shadow")
+## Schaduw tonen bij draggen
+@export var shadow_enabled: bool = true
+## Kleur van de schaduw
+@export var shadow_color: Color = Color(0, 0, 0, 0.5)
+## Offset van de schaduw (in pixels)
+@export var shadow_offset: Vector2 = Vector2(15, 15)
+## Hoe snel de schaduw in/uit fade
+@export var shadow_fade_speed: float = 10.0
+
+
+# === INTERNE VARIABELEN ===
 
 var dragging: bool = false
 var drag_offset: Vector2 = Vector2.ZERO
@@ -16,10 +50,35 @@ var first_touch_index: int = -1
 # Voor pinch: lokale posities waar vingers de sticker raken
 var touch_local_points: Dictionary = {}
 
+# Inertia systeem
+var _velocity: Vector2 = Vector2.ZERO
+var _velocity_samples: Array[Vector2] = []
+var _inertia_active: bool = false
+const VELOCITY_SAMPLE_COUNT: int = 5  # Aantal frames om te meten
+
+# Smooth scaling
+var _target_scale: Vector2 = Vector2.ONE
+var _scale_smoothing_active: bool = false
+
+# Schaduw systeem
+var _shadow_opacity: float = 0.0
+var _shadow_node: Node2D = null
+
+
+# === LIFECYCLE ===
 
 func _ready() -> void:
-	pass
+	_target_scale = scale
+	_create_shadow_node()
 
+
+func _process(delta: float) -> void:
+	_process_inertia(delta)
+	_process_smooth_scale(delta)
+	_process_shadow(delta)
+
+
+# === INPUT HANDLING ===
 
 func _input(event: InputEvent) -> void:
 	# ESC = afsluiten
@@ -35,50 +94,96 @@ func _input(event: InputEvent) -> void:
 
 func _on_touch(event: InputEventScreenTouch) -> void:
 	if event.pressed:
-		# Eerste vinger moet op sticker, tweede mag overal
-		if touches.size() == 0 and _hit_test(event.position):
-			touches[event.index] = event.position
-			first_touch_index = event.index
-			dragging = true
-			drag_offset = global_position - event.position
-		elif touches.size() == 1 and dragging:
-			# Tweede vinger mag overal zijn
-			touches[event.index] = event.position
-			_begin_transform()
+		_handle_touch_pressed(event)
 	else:
-		touches.erase(event.index)
-		if touches.size() == 0:
-			dragging = false
-			first_touch_index = -1
-		elif touches.size() == 1:
-			# Terug naar alleen draggen, eerste vinger is nu de overgebleven
-			first_touch_index = touches.keys()[0]
-			var remaining_pos = touches.values()[0]
-			drag_offset = global_position - remaining_pos
+		_handle_touch_released(event)
+
+
+func _handle_touch_pressed(event: InputEventScreenTouch) -> void:
+	"""Verwerkt een nieuwe touch (vinger naar beneden)"""
+	# Eerste vinger moet op sticker, tweede mag overal
+	if touches.size() == 0 and _hit_test(event.position):
+		touches[event.index] = event.position
+		first_touch_index = event.index
+		dragging = true
+		drag_offset = global_position - event.position
+		_start_drag()
+	elif touches.size() == 1 and dragging:
+		# Tweede vinger mag overal zijn
+		touches[event.index] = event.position
+		_begin_transform()
+
+
+func _handle_touch_released(event: InputEventScreenTouch) -> void:
+	"""Verwerkt een touch release (vinger omhoog)"""
+	if not touches.has(event.index):
+		return  # Deze touch was niet van ons
+
+	touches.erase(event.index)
+	touch_local_points.erase(event.index)
+
+	if touches.size() == 0:
+		_end_drag()
+	elif touches.size() == 1:
+		# Terug naar alleen draggen, eerste vinger is nu de overgebleven
+		first_touch_index = touches.keys()[0]
+		var remaining_pos = touches.values()[0]
+		drag_offset = global_position - remaining_pos
 
 
 func _on_drag(event: InputEventScreenDrag) -> void:
+	"""Verwerkt touch drag beweging"""
 	if not touches.has(event.index):
 		return
 
 	touches[event.index] = event.position
 
 	if touches.size() == 1 and dragging:
-		# Alleen verplaatsen
-		global_position = event.position + drag_offset
+		_update_single_finger_drag(event.position)
 	elif touches.size() == 2:
-		# Verplaatsen + schalen + roteren
 		_update_transform()
 
 
+# === DRAG SYSTEEM ===
+
+func _start_drag() -> void:
+	"""Start een drag operatie - stopt inertia en reset velocity tracking"""
+	_inertia_active = false
+	_velocity = Vector2.ZERO
+	_velocity_samples.clear()
+
+
+func _end_drag() -> void:
+	"""Beeindig drag - start inertia en reset visuele feedback"""
+	dragging = false
+	first_touch_index = -1
+	_start_inertia()
+
+
+func _update_single_finger_drag(finger_position: Vector2) -> void:
+	"""Update positie bij single finger drag en track velocity voor inertia"""
+	var new_position = finger_position + drag_offset
+	var frame_velocity = new_position - global_position
+
+	# Voeg velocity sample toe
+	_velocity_samples.append(frame_velocity)
+	if _velocity_samples.size() > VELOCITY_SAMPLE_COUNT:
+		_velocity_samples.remove_at(0)
+
+	global_position = new_position
+
+
+# === TRANSFORM SYSTEEM (PINCH/ZOOM/ROTATE) ===
+
 func _begin_transform() -> void:
-	# Sla op waar elke vinger de sticker raakt in lokale coördinaten
+	"""Start een twee-vinger transform - sla lokale touch punten op"""
 	touch_local_points.clear()
 	for idx in touches:
 		touch_local_points[idx] = to_local(touches[idx])
 
 
 func _update_transform() -> void:
+	"""Update schaal, rotatie en positie gebaseerd op twee-vinger gesture"""
 	var indices = touches.keys()
 	var idx0 = indices[0]
 	var idx1 = indices[1]
@@ -89,27 +194,131 @@ func _update_transform() -> void:
 	var local0 = touch_local_points[idx0]
 	var local1 = touch_local_points[idx1]
 
-	# Bereken nieuwe schaal: afstand tussen vingers / originele lokale afstand
-	var current_dist = p0.distance_to(p1)
-	var original_local_dist = (local0 * scale).distance_to(local1 * scale)
-
-	if original_local_dist > 10:
-		var local_dist = local0.distance_to(local1)
-		var new_scale_factor = current_dist / local_dist
-		var new_scale_val = clamp(new_scale_factor, min_scale, max_scale)
-		scale = Vector2(new_scale_val, new_scale_val)
+	# Bereken nieuwe schaal
+	_calculate_scale_from_pinch(p0, p1, local0, local1)
 
 	# Bereken rotatie
-	var original_angle = (local1 - local0).angle()
-	var current_angle = (p1 - p0).angle()
-	rotation = current_angle - original_angle
+	_calculate_rotation_from_pinch(p0, p1, local0, local1)
 
 	# Positie: zorg dat vinger 0 op zijn lokale punt blijft
 	var rotated_local = local0.rotated(rotation) * scale
 	global_position = p0 - rotated_local
 
 
+func _calculate_scale_from_pinch(p0: Vector2, p1: Vector2, local0: Vector2, local1: Vector2) -> void:
+	"""Bereken en pas schaal aan gebaseerd op pinch afstand"""
+	var current_dist = p0.distance_to(p1)
+	var local_dist = local0.distance_to(local1)
+
+	if local_dist > 10:
+		var new_scale_factor = current_dist / local_dist
+		var new_scale_val = clamp(new_scale_factor, min_scale, max_scale)
+		_set_target_scale(Vector2(new_scale_val, new_scale_val))
+
+
+func _calculate_rotation_from_pinch(p0: Vector2, p1: Vector2, local0: Vector2, local1: Vector2) -> void:
+	"""Bereken en pas rotatie aan gebaseerd op twee-vinger hoek"""
+	var original_angle = (local1 - local0).angle()
+	var current_angle = (p1 - p0).angle()
+	rotation = current_angle - original_angle
+
+
+# === INERTIA SYSTEEM ===
+
+func _start_inertia() -> void:
+	"""Start inertia beweging gebaseerd op gemiddelde swipe snelheid"""
+	# Bereken gemiddelde velocity van de laatste frames
+	if _velocity_samples.size() > 0:
+		var total = Vector2.ZERO
+		for sample in _velocity_samples:
+			total += sample
+		_velocity = total / _velocity_samples.size()
+	else:
+		_velocity = Vector2.ZERO
+
+	# Pas inertia_amount toe
+	_velocity *= inertia_amount
+
+	if _velocity.length() > inertia_min_velocity:
+		_inertia_active = true
+
+
+func _process_inertia(_delta: float) -> void:
+	"""Verwerk inertia - laat sticker doorglijden na loslaten"""
+	if not _inertia_active or dragging:
+		return
+
+	# Pas velocity toe op positie
+	global_position += _velocity
+
+	# Vertraag velocity met friction
+	_velocity *= inertia_friction
+
+	# Stop als velocity te laag is
+	if _velocity.length() < inertia_min_velocity:
+		_inertia_active = false
+		_velocity = Vector2.ZERO
+
+
+# === SMOOTH SCALING SYSTEEM ===
+
+func _set_target_scale(new_scale: Vector2) -> void:
+	"""Zet een target scale voor smooth interpolatie"""
+	_target_scale = new_scale
+	_scale_smoothing_active = true
+	# Direct toepassen tijdens drag voor responsive gevoel
+	if dragging:
+		scale = new_scale
+
+
+func _process_smooth_scale(_delta: float) -> void:
+	"""Interpoleer schaal naar target voor vloeiende overgangen"""
+	if not _scale_smoothing_active or dragging:
+		return
+
+	scale = scale.lerp(_target_scale, scale_smoothing)
+
+	# Stop smoothing als we dichtbij genoeg zijn
+	if scale.distance_to(_target_scale) < 0.01:
+		scale = _target_scale
+		_scale_smoothing_active = false
+
+
+# === SCHADUW SYSTEEM ===
+
+func _create_shadow_node() -> void:
+	"""Maak een child node voor de schaduw die onder de sticker getekend wordt"""
+	_shadow_node = Node2D.new()
+	_shadow_node.z_index = -1  # Onder de sticker
+	_shadow_node.z_as_relative = true
+	_shadow_node.name = "Shadow"
+	add_child(_shadow_node)
+	_shadow_node.draw.connect(_draw_shadow)
+
+
+func _process_shadow(delta: float) -> void:
+	"""Update schaduw opacity - fade in bij draggen, fade out bij loslaten"""
+	var target_opacity = 1.0 if dragging else 0.0
+	_shadow_opacity = lerpf(_shadow_opacity, target_opacity, shadow_fade_speed * delta)
+	if _shadow_node:
+		_shadow_node.queue_redraw()
+
+
+func _draw_shadow() -> void:
+	"""Teken de schaduw (aangeroepen door shadow node)"""
+	if not shadow_enabled or _shadow_opacity <= 0.01 or texture == null:
+		return
+
+	var shadow_col = shadow_color
+	shadow_col.a *= _shadow_opacity
+
+	_shadow_node.draw_texture(texture, shadow_offset - texture.get_size() / 2, shadow_col)
+
+
+# === HIT DETECTION ===
+
 func _hit_test(pos: Vector2) -> bool:
+	"""Test of een punt binnen de sticker valt"""
 	if texture == null:
 		return global_position.distance_to(pos) < 50
 

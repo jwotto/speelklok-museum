@@ -6,13 +6,15 @@
 [node name="Main" type="Node2D" unique_id=1308764642]
 
 [node name="Background" type="ColorRect" parent="." unique_id=179618562]
+z_index = -10
 offset_right = 4012.0
 offset_bottom = 1920.0
 color = Color(0.2, 0.2, 0.25, 1)
 
 [node name="Sticker" type="Sprite2D" parent="." unique_id=1545494032]
-position = Vector2(1560, 953)
+position = Vector2(1045, 604)
 texture = ExtResource("2_icon")
 script = ExtResource("1_sticker")
 min_scale = 1.0
 max_scale = 10.0
+inertia_friction = 0.95
