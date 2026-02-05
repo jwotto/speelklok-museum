@@ -335,11 +335,31 @@ func _draw_shadow() -> void:
 
 # === HIT DETECTION ===
 
+var _hit_image: Image = null
+
 func _hit_test(pos: Vector2) -> bool:
-	"""Test of een punt binnen de sticker valt"""
+	"""Test of een punt op een niet-transparante pixel valt"""
 	if texture == null:
 		return global_position.distance_to(pos) < 50
 
 	var local = to_local(pos)
 	var size = texture.get_size()
-	return abs(local.x) < size.x / 2 and abs(local.y) < size.y / 2
+
+	# Eerst bounding box check
+	if abs(local.x) >= size.x / 2 or abs(local.y) >= size.y / 2:
+		return false
+
+	# Converteer naar texture coördinaten (0,0 = linksboven)
+	var tex_x = int(local.x + size.x / 2)
+	var tex_y = int(local.y + size.y / 2)
+
+	# Laad image lazy (alleen eerste keer)
+	if _hit_image == null:
+		_hit_image = texture.get_image()
+
+	# Check alpha waarde
+	if tex_x >= 0 and tex_x < size.x and tex_y >= 0 and tex_y < size.y:
+		var pixel = _hit_image.get_pixel(tex_x, tex_y)
+		return pixel.a > 0.1  # Threshold voor semi-transparante pixels
+
+	return false
