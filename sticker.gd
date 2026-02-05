@@ -312,7 +312,9 @@ func _draw_shadow() -> void:
 	var shadow_col = shadow_color
 	shadow_col.a *= _shadow_opacity
 
-	_shadow_node.draw_texture(texture, shadow_offset - texture.get_size() / 2, shadow_col)
+	# Compenseer offset voor scale zodat visuele afstand constant blijft
+	var compensated_offset = shadow_offset / scale.x
+	_shadow_node.draw_texture(texture, compensated_offset - texture.get_size() / 2, shadow_col)
 
 
 # === HIT DETECTION ===
