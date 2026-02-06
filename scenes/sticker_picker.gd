@@ -135,14 +135,27 @@ func open() -> void:
 	_is_open = true
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_background.mouse_filter = Control.MOUSE_FILTER_STOP
+	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	# Connect click handlers (alleen als nog niet connected)
+	if not _background.gui_input.is_connected(_on_overlay_click):
+		_background.gui_input.connect(_on_overlay_click)
+	if not _panel.gui_input.is_connected(_on_overlay_click):
+		_panel.gui_input.connect(_on_overlay_click)
 	_populate_grid()
 	show()
+
+
+func _on_overlay_click(event: InputEvent) -> void:
+	# Sluit picker bij klik op achtergrond of paneel (niet op sticker button)
+	if event is InputEventMouseButton and event.pressed:
+		close()
 
 
 func close() -> void:
 	_is_open = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hide()
 
 

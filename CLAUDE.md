@@ -6,6 +6,13 @@ Interactieve installatie voor het Speelklok Museum.
 
 Object-georiënteerd: elk onderdeel is een zelfstandige class.
 
+## Editor Workflow
+
+- Gebruik `@tool` scripts zodat nodes zichtbaar zijn in de Godot editor
+- Maak scene nodes aan in .tscn bestanden (niet programmatisch) zodat ze aanpasbaar zijn
+- Gebruik `@export` variabelen voor alle instelbare waardes
+- Zorg dat alles modulair en visueel bewerkbaar is in de editor
+
 ## Huidige Onderdelen
 
 - `Sticker` - Verplaatsbaar, schaalbaar, roteerbaar object met touch
