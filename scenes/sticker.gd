@@ -341,9 +341,10 @@ func _create_shadow_node() -> void:
 
 
 func _process_shadow(delta: float) -> void:
-	"""Update schaduw opacity - fade in bij draggen, fade out bij loslaten"""
-	var target_opacity = 1.0 if dragging else 0.0
-	_shadow_opacity = lerpf(_shadow_opacity, target_opacity, shadow_fade_speed * delta)
+	"""Update schaduw - zichtbaar bij draggen of inertia, met kleine fade"""
+	var show_shadow = dragging or _inertia_active
+	var target = 1.0 if show_shadow else 0.0
+	_shadow_opacity = lerpf(_shadow_opacity, target, 15.0 * delta)
 	if _shadow_node:
 		_shadow_node.queue_redraw()
 
