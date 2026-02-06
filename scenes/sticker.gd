@@ -96,10 +96,6 @@ func _process(delta: float) -> void:
 # === INPUT HANDLING ===
 
 func _input(event: InputEvent) -> void:
-	# ESC = afsluiten
-	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
-		get_tree().quit()
-
 	# Alleen touch events
 	if event is InputEventScreenTouch:
 		_on_touch(event)
