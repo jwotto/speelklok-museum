@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://dh83yh07377sh"]
+[gd_scene load_steps=13 format=3 uid="uid://dh83yh07377sh"]
 
 [ext_resource type="Script" path="res://scenes/main.gd" id="1_main_script"]
 [ext_resource type="PackedScene" uid="uid://dj7x8qr5kp2ym" path="res://scenes/sticker.tscn" id="2_sticker_scene"]
@@ -11,11 +11,11 @@
 [ext_resource type="Texture2D" uid="uid://bsrrgyyyolrt2" path="res://afbeeldingen instrumenten/snaredrum.png" id="9_snaredrum"]
 [ext_resource type="Texture2D" uid="uid://dx1sy8guxab85" path="res://afbeeldingen instrumenten/hihat.png" id="10_hihat"]
 [ext_resource type="Texture2D" uid="uid://d4af8yqu38h7f" path="res://afbeeldingen instrumenten/toeter.png" id="11_toeter"]
+[ext_resource type="PackedScene" uid="uid://picker_scene" path="res://scenes/sticker_picker.tscn" id="12_picker"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main_script")
 sticker_scene = ExtResource("2_sticker_scene")
-sticker_textures = Array[Texture2D]([ExtResource("4_contrabas"), ExtResource("5_xylofoon"), ExtResource("6_trompet"), ExtResource("7_banjo"), ExtResource("8_fietsbel"), ExtResource("9_snaredrum"), ExtResource("10_hihat"), ExtResource("11_toeter")])
 
 [node name="Background" type="TextureRect" parent="."]
 z_index = -10
@@ -23,3 +23,28 @@ offset_right = 1920.0
 offset_bottom = 1920.0
 texture = ExtResource("3_background")
 expand_mode = 4
+
+[node name="Stickers" type="Node2D" parent="."]
+
+[node name="UILayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="TrashButton" type="TextureButton" parent="UILayer"]
+z_index = 50
+offset_right = 80.0
+offset_bottom = 80.0
+position = Vector2(20, 20)
+
+[node name="AddButton" type="TextureButton" parent="UILayer"]
+z_index = 50
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -100.0
+offset_top = 20.0
+offset_right = -20.0
+offset_bottom = 100.0
+grow_horizontal = 0
+
+[node name="StickerPicker" parent="UILayer" instance=ExtResource("12_picker")]
+sticker_textures = Array[Texture2D]([ExtResource("4_contrabas"), ExtResource("5_xylofoon"), ExtResource("6_trompet"), ExtResource("7_banjo"), ExtResource("8_fietsbel"), ExtResource("9_snaredrum"), ExtResource("10_hihat"), ExtResource("11_toeter")])

@@ -1,15 +1,16 @@
+@tool
 extends Node2D
 
 ## Main scene controller - beheert stickers en picker
 
 @export var sticker_scene: PackedScene
-@export var sticker_textures: Array[Texture2D] = []
 
-var _picker: StickerPicker
-var _add_button: TextureButton
-var _trash_button: TextureButton
-var _sticker_container: Node2D
-var _ui_layer: CanvasLayer
+# Scene node references
+@onready var _sticker_container: Node2D = $Stickers
+@onready var _trash_button: TextureButton = $UILayer/TrashButton
+@onready var _add_button: TextureButton = $UILayer/AddButton
+@onready var _picker: StickerPicker = $UILayer/StickerPicker
+
 var _was_dragging: Dictionary = {}  # Sticker -> was dragging last frame
 
 const TRASH_SIZE = 80
@@ -17,32 +18,32 @@ const TRASH_ZONE_RADIUS = 100.0
 
 
 func _ready() -> void:
-	_create_ui_layer()
-	_create_sticker_container()
-	_create_trash_button()
-	_create_add_button()
-	_create_picker()
+	if Engine.is_editor_hint():
+		_setup_editor_preview()
+		return
+
+	# Runtime setup
+	_setup_button_textures()
+	_add_button.pressed.connect(_on_add_pressed)
+	_picker.sticker_selected.connect(_on_sticker_selected)
 
 
-func _create_ui_layer() -> void:
-	_ui_layer = CanvasLayer.new()
-	_ui_layer.name = "UILayer"
-	_ui_layer.layer = 10  # Boven alles
-	add_child(_ui_layer)
+func _setup_editor_preview() -> void:
+	# Maak button textures zichtbaar in editor
+	_setup_button_textures()
 
 
-func _create_sticker_container() -> void:
-	_sticker_container = Node2D.new()
-	_sticker_container.name = "Stickers"
-	add_child(_sticker_container)
+func _setup_button_textures() -> void:
+	# Trash button texture
+	if _trash_button:
+		_trash_button.texture_normal = _create_trash_texture()
+
+	# Add button texture
+	if _add_button:
+		_add_button.texture_normal = _create_add_texture()
 
 
-func _create_trash_button() -> void:
-	_trash_button = TextureButton.new()
-	_trash_button.name = "TrashButton"
-	_trash_button.z_index = 50
-
-	# Maak prullenbak texture
+func _create_trash_texture() -> ImageTexture:
 	var img = Image.create(TRASH_SIZE, TRASH_SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0.4, 0.2, 0.2, 0.8))
 
@@ -62,18 +63,10 @@ func _create_trash_button() -> void:
 			if x < 20 or x > TRASH_SIZE - 20 or y > TRASH_SIZE - 15:
 				img.set_pixel(x, y, Color.WHITE)
 
-	var tex = ImageTexture.create_from_image(img)
-	_trash_button.texture_normal = tex
-	_trash_button.position = Vector2(20, 20)
-	_ui_layer.add_child(_trash_button)
+	return ImageTexture.create_from_image(img)
 
 
-func _create_add_button() -> void:
-	_add_button = TextureButton.new()
-	_add_button.name = "AddButton"
-	_add_button.z_index = 50
-
-	# Maak een simpele + texture
+func _create_add_texture() -> ImageTexture:
 	var img = Image.create(80, 80, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0.3, 0.3, 0.3, 0.8))
 
@@ -88,22 +81,7 @@ func _create_add_button() -> void:
 		for x in range(center - thickness/2, center + thickness/2 + 1):
 			img.set_pixel(x, y, Color.WHITE)
 
-	var tex = ImageTexture.create_from_image(img)
-	_add_button.texture_normal = tex
-
-	# Positie rechtsboven
-	_add_button.position = Vector2(get_viewport_rect().size.x - 100, 20)
-	_add_button.pressed.connect(_on_add_pressed)
-	_ui_layer.add_child(_add_button)
-
-
-func _create_picker() -> void:
-	_picker = StickerPicker.new()
-	_picker.name = "Picker"
-	_picker.sticker_textures = sticker_textures
-	_picker.sticker_selected.connect(_on_sticker_selected)
-	_picker.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_ui_layer.add_child(_picker)
+	return ImageTexture.create_from_image(img)
 
 
 func _on_add_pressed() -> void:
@@ -123,10 +101,14 @@ func _on_sticker_selected(tex: Texture2D) -> void:
 
 
 func _process(_delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
 	_check_trash_zone()
 
 
 func _input(event: InputEvent) -> void:
+	if Engine.is_editor_hint():
+		return
 	# ESC = afsluiten
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		get_tree().quit()
