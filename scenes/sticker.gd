@@ -122,6 +122,10 @@ func _handle_touch_pressed(event: InputEventScreenTouch) -> void:
 		if _active_sticker != null and _active_sticker != self:
 			return  # Andere sticker is actief, negeer deze touch
 
+		# Check of er een sticker met hogere z_index is die ook geraakt wordt
+		if _is_sticker_above_at_position(event.position):
+			return  # Er is een sticker bovenop, negeer deze touch
+
 		touches[event.index] = event.position
 		first_touch_index = event.index
 		dragging = true
@@ -186,6 +190,15 @@ func _bring_to_front() -> void:
 	"""Breng deze sticker naar de voorgrond"""
 	_top_z_index += 1
 	z_index = _top_z_index
+
+
+func _is_sticker_above_at_position(pos: Vector2) -> bool:
+	"""Check of er een andere sticker met hogere z_index op deze positie zit"""
+	for node in get_parent().get_children():
+		if node is Sticker and node != self:
+			if node.z_index > z_index and node._hit_test(pos):
+				return true
+	return false
 
 
 func _update_single_finger_drag(finger_position: Vector2) -> void:

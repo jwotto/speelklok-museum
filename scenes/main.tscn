@@ -26,12 +26,12 @@ scale = Vector2(0.25, 0.25)
 texture = ExtResource("3_contrabas")
 
 [node name="Xylofoon" parent="." unique_id=1594770641 instance=ExtResource("1_sticker_scene")]
-position = Vector2(976, 1357)
+position = Vector2(756, 967)
 scale = Vector2(0.25, 0.25)
 texture = ExtResource("4_xylofoon")
 
 [node name="Trompet" parent="." unique_id=173937394 instance=ExtResource("1_sticker_scene")]
-position = Vector2(300, 1221)
+position = Vector2(1854, 175)
 scale = Vector2(0.25, 0.25)
 texture = ExtResource("5_trompet")
 
@@ -46,12 +46,12 @@ scale = Vector2(0.25, 0.25)
 texture = ExtResource("7_fietsbel")
 
 [node name="Snaredrum" parent="." unique_id=1614607270 instance=ExtResource("1_sticker_scene")]
-position = Vector2(1618, 1436)
+position = Vector2(1286, 1000)
 scale = Vector2(0.25, 0.25)
 texture = ExtResource("8_snaredrum")
 
 [node name="Hihat" parent="." unique_id=567877873 instance=ExtResource("1_sticker_scene")]
-position = Vector2(985, 771)
+position = Vector2(968, 514)
 scale = Vector2(0.25, 0.25)
 texture = ExtResource("9_hihat")
 
