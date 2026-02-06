@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://dj7x8qr5kp2ym"]
+
+[ext_resource type="Script" path="res://scenes/sticker.gd" id="1_sticker"]
+
+[node name="Sticker" type="Sprite2D"]
+script = ExtResource("1_sticker")

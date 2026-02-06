@@ -1,0 +1,17 @@
+[gd_scene load_steps=3 format=3 uid="uid://dh83yh07377sh"]
+
+[ext_resource type="PackedScene" uid="uid://dj7x8qr5kp2ym" path="res://scenes/sticker.tscn" id="1_sticker_scene"]
+[ext_resource type="Texture2D" uid="uid://be3xk6uk6sisn" path="res://afbeeldingen instrumenten/contrabas.png" id="2_texture"]
+
+[node name="Main" type="Node2D"]
+
+[node name="Background" type="ColorRect" parent="."]
+z_index = -10
+offset_right = 4012.0
+offset_bottom = 1920.0
+color = Color(0.2, 0.2, 0.25, 1)
+
+[node name="Contrabas" parent="." instance=ExtResource("1_sticker_scene")]
+position = Vector2(841.5, 840.5)
+scale = Vector2(0.2578704, 0.2578704)
+texture = ExtResource("2_texture")
