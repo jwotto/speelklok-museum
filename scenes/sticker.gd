@@ -29,6 +29,10 @@ class_name Sticker
 ## Hoe snel de schaal interpoleert naar target (0-1, hoger = sneller)
 @export var scale_smoothing: float = 0.3
 
+@export_group("Hit Detection")
+## Extra marge rondom de zichtbare pixels voor klikken (in pixels)
+@export var hit_margin: float = 20.0
+
 @export_group("Shadow")
 ## Schaduw tonen bij draggen
 @export var shadow_enabled: bool = true
@@ -41,6 +45,11 @@ class_name Sticker
 ## Hoe snel de schaduw in/uit fade (hoger = sneller, 50+ = bijna instant)
 @export var shadow_fade_speed: float = 50.0
 
+
+# === STATISCHE VARIABELEN (gedeeld tussen alle stickers) ===
+
+static var _active_sticker: Sticker = null  # Welke sticker wordt nu gedragged
+static var _top_z_index: int = 0  # Hoogste z_index voor bovenop brengen
 
 # === INTERNE VARIABELEN ===
 
@@ -109,10 +118,16 @@ func _handle_touch_pressed(event: InputEventScreenTouch) -> void:
 	"""Verwerkt een nieuwe touch (vinger naar beneden)"""
 	# Eerste vinger moet op sticker, tweede mag overal
 	if touches.size() == 0 and _hit_test(event.position):
+		# Check of er al een andere sticker wordt gedragged
+		if _active_sticker != null and _active_sticker != self:
+			return  # Andere sticker is actief, negeer deze touch
+
 		touches[event.index] = event.position
 		first_touch_index = event.index
 		dragging = true
 		drag_offset = global_position - event.position
+		_active_sticker = self
+		_bring_to_front()
 		_start_drag()
 	elif touches.size() == 1 and dragging:
 		# Tweede vinger mag overal zijn
@@ -163,7 +178,14 @@ func _end_drag() -> void:
 	"""Beeindig drag - start inertia en reset visuele feedback"""
 	dragging = false
 	first_touch_index = -1
+	_active_sticker = null
 	_start_inertia()
+
+
+func _bring_to_front() -> void:
+	"""Breng deze sticker naar de voorgrond"""
+	_top_z_index += 1
+	z_index = _top_z_index
 
 
 func _update_single_finger_drag(finger_position: Vector2) -> void:
@@ -338,28 +360,43 @@ func _draw_shadow() -> void:
 var _hit_image: Image = null
 
 func _hit_test(pos: Vector2) -> bool:
-	"""Test of een punt op een niet-transparante pixel valt"""
+	"""Test of een punt op of nabij een niet-transparante pixel valt"""
 	if texture == null:
 		return global_position.distance_to(pos) < 50
 
 	var local = to_local(pos)
 	var size = texture.get_size()
 
-	# Eerst bounding box check
-	if abs(local.x) >= size.x / 2 or abs(local.y) >= size.y / 2:
+	# Bounding box check met marge (in lokale schaal)
+	var margin_local = hit_margin / scale.x
+	if abs(local.x) >= size.x / 2 + margin_local or abs(local.y) >= size.y / 2 + margin_local:
 		return false
-
-	# Converteer naar texture coördinaten (0,0 = linksboven)
-	var tex_x = int(local.x + size.x / 2)
-	var tex_y = int(local.y + size.y / 2)
 
 	# Laad image lazy (alleen eerste keer)
 	if _hit_image == null:
 		_hit_image = texture.get_image()
 
-	# Check alpha waarde
-	if tex_x >= 0 and tex_x < size.x and tex_y >= 0 and tex_y < size.y:
-		var pixel = _hit_image.get_pixel(tex_x, tex_y)
-		return pixel.a > 0.1  # Threshold voor semi-transparante pixels
+	# Converteer naar texture coördinaten (0,0 = linksboven)
+	var tex_x = int(local.x + size.x / 2)
+	var tex_y = int(local.y + size.y / 2)
 
+	# Check direct punt eerst
+	if _check_pixel_alpha(tex_x, tex_y, size):
+		return true
+
+	# Check pixels binnen de marge
+	var margin_pixels = int(margin_local)
+	for dx in range(-margin_pixels, margin_pixels + 1, 4):  # Stap van 4 voor performance
+		for dy in range(-margin_pixels, margin_pixels + 1, 4):
+			if _check_pixel_alpha(tex_x + dx, tex_y + dy, size):
+				return true
+
+	return false
+
+
+func _check_pixel_alpha(x: int, y: int, size: Vector2) -> bool:
+	"""Helper: check of pixel op (x,y) alpha > threshold heeft"""
+	if x >= 0 and x < size.x and y >= 0 and y < size.y:
+		var pixel = _hit_image.get_pixel(x, y)
+		return pixel.a > 0.1
 	return false

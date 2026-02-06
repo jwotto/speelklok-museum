@@ -1,17 +1,61 @@
-[gd_scene load_steps=3 format=3 uid="uid://dh83yh07377sh"]
+[gd_scene format=3 uid="uid://dh83yh07377sh"]
 
 [ext_resource type="PackedScene" uid="uid://dj7x8qr5kp2ym" path="res://scenes/sticker.tscn" id="1_sticker_scene"]
-[ext_resource type="Texture2D" uid="uid://be3xk6uk6sisn" path="res://afbeeldingen instrumenten/contrabas.png" id="2_texture"]
+[ext_resource type="Texture2D" uid="uid://bb8rfs7a1t7km" path="res://afbeeldingen etc/werk tafel.jpg" id="2_background"]
+[ext_resource type="Texture2D" uid="uid://be3xk6uk6sisn" path="res://afbeeldingen instrumenten/contrabas.png" id="3_contrabas"]
+[ext_resource type="Texture2D" uid="uid://bqvku4abvnv61" path="res://afbeeldingen instrumenten/xylofoon.png" id="4_xylofoon"]
+[ext_resource type="Texture2D" uid="uid://oos2qsln0ban" path="res://afbeeldingen instrumenten/trompet.png" id="5_trompet"]
+[ext_resource type="Texture2D" uid="uid://bagx5ta1qw7ms" path="res://afbeeldingen instrumenten/banjo.png" id="6_banjo"]
+[ext_resource type="Texture2D" uid="uid://di2j044p7a23r" path="res://afbeeldingen instrumenten/fietsbel.png" id="7_fietsbel"]
+[ext_resource type="Texture2D" uid="uid://bsrrgyyyolrt2" path="res://afbeeldingen instrumenten/snaredrum.png" id="8_snaredrum"]
+[ext_resource type="Texture2D" uid="uid://dx1sy8guxab85" path="res://afbeeldingen instrumenten/hihat.png" id="9_hihat"]
+[ext_resource type="Texture2D" uid="uid://d4af8yqu38h7f" path="res://afbeeldingen instrumenten/toeter.png" id="10_toeter"]
 
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" unique_id=754404040]
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="TextureRect" parent="." unique_id=1798190002]
 z_index = -10
-offset_right = 4012.0
+offset_right = 1920.0
 offset_bottom = 1920.0
-color = Color(0.2, 0.2, 0.25, 1)
+texture = ExtResource("2_background")
+expand_mode = 4
 
-[node name="Contrabas" parent="." instance=ExtResource("1_sticker_scene")]
-position = Vector2(841.5, 840.5)
-scale = Vector2(0.2578704, 0.2578704)
-texture = ExtResource("2_texture")
+[node name="Contrabas" parent="." unique_id=1470981607 instance=ExtResource("1_sticker_scene")]
+position = Vector2(251, 558)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("3_contrabas")
+
+[node name="Xylofoon" parent="." unique_id=1594770641 instance=ExtResource("1_sticker_scene")]
+position = Vector2(976, 1357)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("4_xylofoon")
+
+[node name="Trompet" parent="." unique_id=173937394 instance=ExtResource("1_sticker_scene")]
+position = Vector2(300, 1221)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("5_trompet")
+
+[node name="Banjo" parent="." unique_id=1419480413 instance=ExtResource("1_sticker_scene")]
+position = Vector2(621, 289)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("6_banjo")
+
+[node name="Fietsbel" parent="." unique_id=918628009 instance=ExtResource("1_sticker_scene")]
+position = Vector2(1395, 286)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("7_fietsbel")
+
+[node name="Snaredrum" parent="." unique_id=1614607270 instance=ExtResource("1_sticker_scene")]
+position = Vector2(1618, 1436)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("8_snaredrum")
+
+[node name="Hihat" parent="." unique_id=567877873 instance=ExtResource("1_sticker_scene")]
+position = Vector2(985, 771)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("9_hihat")
+
+[node name="Toeter" parent="." unique_id=1912363286 instance=ExtResource("1_sticker_scene")]
+position = Vector2(1710, 836)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("10_toeter")

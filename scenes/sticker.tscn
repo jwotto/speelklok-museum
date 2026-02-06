@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://dj7x8qr5kp2ym"]
 
-[ext_resource type="Script" path="res://scenes/sticker.gd" id="1_sticker"]
+[ext_resource type="Script" uid="uid://c5cextqdc8tqx" path="res://scenes/sticker.gd" id="1_sticker"]
 
-[node name="Sticker" type="Sprite2D"]
+[node name="Sticker" type="Sprite2D" unique_id=884699115]
 script = ExtResource("1_sticker")
+hit_margin = 10.0
