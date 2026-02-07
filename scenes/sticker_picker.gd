@@ -29,6 +29,13 @@ signal sticker_selected(texture: Texture2D)
 var _is_open: bool = false
 
 
+func _get_configuration_warnings() -> PackedStringArray:
+	var warnings: PackedStringArray = []
+	if sticker_textures.is_empty():
+		warnings.append("Geen sticker textures ingesteld. Sleep textures naar de array in de inspector.")
+	return warnings
+
+
 func _ready() -> void:
 	if Engine.is_editor_hint():
 		# In editor: toon preview

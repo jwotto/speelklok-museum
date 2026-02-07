@@ -111,7 +111,7 @@ func _on_touch(event: InputEventScreenTouch) -> void:
 
 
 func _handle_touch_pressed(event: InputEventScreenTouch) -> void:
-	"""Verwerkt een nieuwe touch (vinger naar beneden)"""
+	## Verwerkt een nieuwe touch (vinger naar beneden)
 	# Eerste vinger moet op sticker, tweede mag overal
 	if touches.size() == 0 and _hit_test(event.position):
 		# Check of er al een andere sticker wordt gedragged
@@ -136,7 +136,7 @@ func _handle_touch_pressed(event: InputEventScreenTouch) -> void:
 
 
 func _handle_touch_released(event: InputEventScreenTouch) -> void:
-	"""Verwerkt een touch release (vinger omhoog)"""
+	## Verwerkt een touch release (vinger omhoog)
 	if not touches.has(event.index):
 		return  # Deze touch was niet van ons
 
@@ -153,7 +153,7 @@ func _handle_touch_released(event: InputEventScreenTouch) -> void:
 
 
 func _on_drag(event: InputEventScreenDrag) -> void:
-	"""Verwerkt touch drag beweging"""
+	## Verwerkt touch drag beweging
 	if not touches.has(event.index):
 		return
 
@@ -168,14 +168,14 @@ func _on_drag(event: InputEventScreenDrag) -> void:
 # === DRAG SYSTEEM ===
 
 func _start_drag() -> void:
-	"""Start een drag operatie - stopt inertia en reset velocity tracking"""
+	## Start een drag operatie - stopt inertia en reset velocity tracking
 	_inertia_active = false
 	_velocity = Vector2.ZERO
 	_velocity_samples.clear()
 
 
 func _end_drag() -> void:
-	"""Beeindig drag - start inertia en reset visuele feedback"""
+	## Beeindig drag - start inertia en reset visuele feedback
 	dragging = false
 	first_touch_index = -1
 	_active_sticker = null
@@ -183,22 +183,33 @@ func _end_drag() -> void:
 
 
 func _bring_to_front() -> void:
-	"""Breng deze sticker naar de voorgrond"""
+	## Breng deze sticker naar de voorgrond
 	_top_z_index += 1
 	z_index = _top_z_index
 
 
 func _is_sticker_above_at_position(pos: Vector2) -> bool:
-	"""Check of er een andere sticker met hogere z_index op deze positie zit"""
-	for node in get_parent().get_children():
-		if node is Sticker and node != self:
-			if node.z_index > z_index and node._hit_test(pos):
-				return true
+	## Check of er een andere sticker met hogere z_index op deze positie zit
+	for sticker in _get_sibling_stickers():
+		if sticker.z_index > z_index and sticker._hit_test(pos):
+			return true
 	return false
 
 
+func _get_sibling_stickers() -> Array:
+	## Haal alle andere stickers op uit dezelfde container
+	var siblings: Array = []
+	var parent = get_parent()
+	if parent == null:
+		return siblings
+	for node in parent.get_children():
+		if node is Sticker and node != self:
+			siblings.append(node)
+	return siblings
+
+
 func _update_single_finger_drag(finger_position: Vector2) -> void:
-	"""Update positie bij single finger drag en track velocity voor inertia"""
+	## Update positie bij single finger drag en track velocity voor inertia
 	var new_position = finger_position + drag_offset
 	var frame_velocity = new_position - global_position
 
@@ -213,14 +224,14 @@ func _update_single_finger_drag(finger_position: Vector2) -> void:
 # === TRANSFORM SYSTEEM (PINCH/ZOOM/ROTATE) ===
 
 func _begin_transform() -> void:
-	"""Start een twee-vinger transform - sla lokale touch punten op"""
+	## Start een twee-vinger transform - sla lokale touch punten op
 	touch_local_points.clear()
 	for idx in touches:
 		touch_local_points[idx] = to_local(touches[idx])
 
 
 func _update_transform() -> void:
-	"""Update schaal, rotatie en positie gebaseerd op twee-vinger gesture"""
+	## Update schaal, rotatie en positie gebaseerd op twee-vinger gesture
 	var indices = touches.keys()
 	var idx0 = indices[0]
 	var idx1 = indices[1]
@@ -243,7 +254,7 @@ func _update_transform() -> void:
 
 
 func _calculate_scale_from_pinch(p0: Vector2, p1: Vector2, local0: Vector2, local1: Vector2) -> void:
-	"""Bereken en pas schaal aan gebaseerd op pinch afstand"""
+	## Bereken en pas schaal aan gebaseerd op pinch afstand
 	var current_dist = p0.distance_to(p1)
 	var local_dist = local0.distance_to(local1)
 
@@ -257,7 +268,7 @@ func _calculate_scale_from_pinch(p0: Vector2, p1: Vector2, local0: Vector2, loca
 
 
 func _calculate_rotation_from_pinch(p0: Vector2, p1: Vector2, local0: Vector2, local1: Vector2) -> void:
-	"""Bereken en pas rotatie aan gebaseerd op twee-vinger hoek"""
+	## Bereken en pas rotatie aan gebaseerd op twee-vinger hoek
 	var original_angle = (local1 - local0).angle()
 	var current_angle = (p1 - p0).angle()
 	rotation = current_angle - original_angle
@@ -266,7 +277,7 @@ func _calculate_rotation_from_pinch(p0: Vector2, p1: Vector2, local0: Vector2, l
 # === INERTIA SYSTEEM ===
 
 func _start_inertia() -> void:
-	"""Start inertia beweging gebaseerd op gemiddelde swipe snelheid"""
+	## Start inertia beweging gebaseerd op gemiddelde swipe snelheid
 	# Bereken gemiddelde velocity van de laatste frames
 	if _velocity_samples.size() > 0:
 		var total = Vector2.ZERO
@@ -284,7 +295,7 @@ func _start_inertia() -> void:
 
 
 func _process_inertia(_delta: float) -> void:
-	"""Verwerk inertia - laat sticker doorglijden na loslaten"""
+	## Verwerk inertia - laat sticker doorglijden na loslaten
 	if not _inertia_active or dragging:
 		return
 
@@ -303,7 +314,7 @@ func _process_inertia(_delta: float) -> void:
 # === SMOOTH SCALING SYSTEEM ===
 
 func _set_target_scale(new_scale: Vector2) -> void:
-	"""Zet een target scale voor smooth interpolatie"""
+	## Zet een target scale voor smooth interpolatie
 	_target_scale = new_scale
 	_scale_smoothing_active = true
 	# Direct toepassen tijdens drag voor responsive gevoel
@@ -312,7 +323,7 @@ func _set_target_scale(new_scale: Vector2) -> void:
 
 
 func _process_smooth_scale(_delta: float) -> void:
-	"""Interpoleer schaal naar target voor vloeiende overgangen"""
+	## Interpoleer schaal naar target voor vloeiende overgangen
 	if not _scale_smoothing_active or dragging:
 		return
 
@@ -327,7 +338,7 @@ func _process_smooth_scale(_delta: float) -> void:
 # === SCHADUW SYSTEEM ===
 
 func _create_shadow_node() -> void:
-	"""Maak een child node voor de schaduw die onder de sticker getekend wordt"""
+	## Maak een child node voor de schaduw die onder de sticker getekend wordt
 	_shadow_node = Node2D.new()
 	_shadow_node.z_index = -1  # Onder de sticker
 	_shadow_node.z_as_relative = true
@@ -337,7 +348,7 @@ func _create_shadow_node() -> void:
 
 
 func _process_shadow(delta: float) -> void:
-	"""Update schaduw - zichtbaar bij draggen of inertia, met kleine fade"""
+	## Update schaduw - zichtbaar bij draggen of inertia, met kleine fade
 	var show_shadow = dragging or _inertia_active
 	var target = 1.0 if show_shadow else 0.0
 	_shadow_opacity = lerpf(_shadow_opacity, target, 15.0 * delta)
@@ -346,7 +357,7 @@ func _process_shadow(delta: float) -> void:
 
 
 func _draw_shadow() -> void:
-	"""Teken de schaduw (aangeroepen door shadow node)"""
+	## Teken de schaduw (aangeroepen door shadow node)
 	if not shadow_enabled or _shadow_opacity <= 0.01 or texture == null:
 		return
 
@@ -370,7 +381,7 @@ func _draw_shadow() -> void:
 var _hit_image: Image = null
 
 func _hit_test(pos: Vector2) -> bool:
-	"""Test of een punt op of nabij een niet-transparante pixel valt"""
+	## Test of een punt op of nabij een niet-transparante pixel valt
 	if texture == null:
 		return global_position.distance_to(pos) < 50
 
@@ -405,7 +416,7 @@ func _hit_test(pos: Vector2) -> bool:
 
 
 func _check_pixel_alpha(x: int, y: int, size: Vector2) -> bool:
-	"""Helper: check of pixel op (x,y) alpha > threshold heeft"""
+	## Helper: check of pixel op (x,y) alpha > threshold heeft
 	if x >= 0 and x < size.x and y >= 0 and y < size.y:
 		var pixel = _hit_image.get_pixel(x, y)
 		return pixel.a > 0.1

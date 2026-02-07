@@ -6,6 +6,42 @@ Interactieve installatie voor het Speelklok Museum.
 
 Object-georiënteerd: elk onderdeel is een zelfstandige class.
 
+## Godot Code Richtlijnen
+
+### Scene Opbouw
+- Elke scene is **self-contained** - geen externe dependencies
+- Siblings mogen **nooit** naar elkaar verwijzen - parent medieert
+- Nooit `get_parent()` in child scenes - gebruik signals of dependency injection
+- Scene tree:
+  ```
+  Main (Node2D)
+    World/Stickers (Node2D)  -- game content
+    UILayer (CanvasLayer)     -- UI boven alles
+  ```
+
+### Scripts
+- `@tool` bovenaan elke script zodat nodes zichtbaar zijn in de editor
+- `Engine.is_editor_hint()` guard voor runtime-only code
+- `@export` met `@export_group()` voor alle instelbare waardes
+- `@export` setters voor live editor preview updates
+- `_get_configuration_warnings()` voor ontbrekende dependencies
+- `##` voor doc comments (NIET `"""..."""` - dat is Python)
+
+### Communicatie
+- Signals voor losse koppeling: child emit, parent connect
+- Signal namen in verleden tijd: `sticker_selected`, `health_changed`
+- Dependency injection via `@export` voor node references
+
+### Scene Files (.tscn)
+- Maak nodes in .tscn bestanden, niet programmatisch
+- Gebruik `ExtResource("id")` (NIET `preload()`)
+- Typed arrays: `Array[Type]([...])`
+
+### Input
+- `_gui_input()` + `accept_event()` voor Control-based input
+- `_input()` voor scene-brede events (ESC, touch tracking)
+- `mouse_filter`: STOP vangt input, IGNORE laat door
+
 ## Editor Workflow
 
 - Gebruik `@tool` scripts zodat nodes zichtbaar zijn in de Godot editor
@@ -16,6 +52,8 @@ Object-georiënteerd: elk onderdeel is een zelfstandige class.
 ## Huidige Onderdelen
 
 - `Sticker` - Verplaatsbaar, schaalbaar, roteerbaar object met touch
+- `StickerPicker` - Grid overlay om stickers te kiezen
+- `Main` - Scene controller met trash/add buttons
 
 ## Bouwfasen (nog te maken)
 

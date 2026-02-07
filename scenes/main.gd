@@ -3,7 +3,12 @@ extends Node2D
 
 ## Main scene controller - beheert stickers en picker
 
+@export_group("Scenes")
 @export var sticker_scene: PackedScene
+
+@export_group("Trash")
+@export var trash_size: int = 120
+@export var trash_zone_radius: float = 140.0
 
 # Scene node references
 @onready var _sticker_container: Node2D = $Stickers
@@ -14,8 +19,13 @@ extends Node2D
 var _was_dragging: Dictionary = {}  # Sticker -> was dragging last frame
 var _last_touch_pos: Vector2 = Vector2.ZERO  # Laatste vinger/muis positie
 
-const TRASH_SIZE = 120
-const TRASH_ZONE_RADIUS = 140.0
+
+
+func _get_configuration_warnings() -> PackedStringArray:
+	var warnings: PackedStringArray = []
+	if sticker_scene == null:
+		warnings.append("Sticker scene is niet ingesteld. Sleep een PackedScene naar 'Sticker Scene'.")
+	return warnings
 
 
 func _ready() -> void:
@@ -45,14 +55,14 @@ func _setup_button_textures() -> void:
 
 
 func _create_trash_texture() -> ImageTexture:
-	var img = Image.create(TRASH_SIZE, TRASH_SIZE, false, Image.FORMAT_RGBA8)
+	var img = Image.create(trash_size, trash_size, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0.4, 0.2, 0.2, 0.8))
 
 	# Teken simpele prullenbak vorm
 	@warning_ignore("integer_division")
-	var cx: int = TRASH_SIZE / 2
+	var cx: int = trash_size / 2
 	# Deksel
-	for x in range(10, TRASH_SIZE - 10):
+	for x in range(10, trash_size - 10):
 		for y in range(15, 25):
 			img.set_pixel(x, y, Color.WHITE)
 	# Handvat
@@ -60,20 +70,20 @@ func _create_trash_texture() -> ImageTexture:
 		for y in range(5, 15):
 			img.set_pixel(x, y, Color.WHITE)
 	# Bak
-	for x in range(15, TRASH_SIZE - 15):
-		for y in range(25, TRASH_SIZE - 10):
-			if x < 20 or x > TRASH_SIZE - 20 or y > TRASH_SIZE - 15:
+	for x in range(15, trash_size - 15):
+		for y in range(25, trash_size - 10):
+			if x < 20 or x > trash_size - 20 or y > trash_size - 15:
 				img.set_pixel(x, y, Color.WHITE)
 
 	return ImageTexture.create_from_image(img)
 
 
 func _create_add_texture() -> ImageTexture:
-	var img = Image.create(TRASH_SIZE, TRASH_SIZE, false, Image.FORMAT_RGBA8)
+	var img = Image.create(trash_size, trash_size, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0.3, 0.3, 0.3, 0.8))
 
 	# Teken + teken
-	var center = int(TRASH_SIZE / 2.0)
+	var center = int(trash_size / 2.0)
 	var half_thick = 6  # thickness / 2
 	var length = 45
 	for x in range(center - length, center + length + 1):
@@ -126,9 +136,9 @@ func _input(event: InputEvent) -> void:
 
 func _check_trash_zone() -> void:
 	# Check of vinger in prullenbak zone is (niet sticker positie!)
-	var trash_center = _trash_button.position + Vector2(TRASH_SIZE / 2.0, TRASH_SIZE / 2.0)
+	var trash_center = _trash_button.position + Vector2(trash_size / 2.0, trash_size / 2.0)
 	var finger_dist = _last_touch_pos.distance_to(trash_center)
-	var finger_in_zone = finger_dist < TRASH_ZONE_RADIUS
+	var finger_in_zone = finger_dist < trash_zone_radius
 	var any_dragging_in_zone = false
 
 	for sticker in _sticker_container.get_children():

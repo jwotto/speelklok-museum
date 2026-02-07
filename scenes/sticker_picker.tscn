@@ -1,6 +1,6 @@
 [gd_scene load_steps=2 format=3 uid="uid://picker_scene"]
 
-[ext_resource type="Script" path="res://scenes/sticker_picker.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://c3picker_script" path="res://scenes/sticker_picker.gd" id="1_script"]
 
 [node name="StickerPicker" type="Control"]
 anchors_preset = 15
