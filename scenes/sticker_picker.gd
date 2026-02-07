@@ -3,13 +3,13 @@ extends Control
 class_name StickerPicker
 
 ## Sticker picker - toont beschikbare stickers om te plaatsen
-## Sleep sticker textures naar de array in de inspector
+## Sleep sticker scenes naar de array in de inspector
 
-signal sticker_selected(texture: Texture2D)
+signal sticker_selected(scene: PackedScene)
 
-@export var sticker_textures: Array[Texture2D] = []:
+@export var sticker_scenes: Array[PackedScene] = []:
 	set(value):
-		sticker_textures = value
+		sticker_scenes = value
 		if Engine.is_editor_hint() and is_inside_tree():
 			_populate_grid()
 
@@ -31,8 +31,8 @@ var _is_open: bool = false
 
 func _get_configuration_warnings() -> PackedStringArray:
 	var warnings: PackedStringArray = []
-	if sticker_textures.is_empty():
-		warnings.append("Geen sticker textures ingesteld. Sleep textures naar de array in de inspector.")
+	if sticker_scenes.is_empty():
+		warnings.append("Geen sticker scenes ingesteld. Sleep scenes naar de array in de inspector.")
 	return warnings
 
 
@@ -68,8 +68,12 @@ func _populate_grid() -> void:
 	_grid.add_theme_constant_override("h_separation", int(grid_padding))
 	_grid.add_theme_constant_override("v_separation", int(grid_padding))
 
-	# Maak knop voor elke sticker
-	for tex in sticker_textures:
+	# Maak knop voor elke sticker scene
+	for scene in sticker_scenes:
+		var tex = _get_texture_from_scene(scene)
+		if tex == null:
+			continue
+
 		var btn = TextureButton.new()
 		btn.texture_normal = tex
 		btn.ignore_texture_size = true
@@ -81,15 +85,26 @@ func _populate_grid() -> void:
 			var click_mask = _create_click_mask(tex)
 			if click_mask:
 				btn.texture_click_mask = click_mask
-			btn.pressed.connect(_on_sticker_pressed.bind(tex))
+			btn.pressed.connect(_on_sticker_pressed.bind(scene))
 
 		_grid.add_child(btn)
+
+
+func _get_texture_from_scene(scene: PackedScene) -> Texture2D:
+	## Haal texture op uit een sticker scene voor de preview
+	if scene == null:
+		return null
+	var state = scene.get_state()
+	for i in state.get_node_property_count(0):
+		if state.get_node_property_name(0, i) == "texture":
+			return state.get_node_property_value(0, i)
+	return null
 
 
 func _calculate_icon_size() -> Vector2:
 	var panel_size = _panel.size if _panel else Vector2(800, 600)
 	var available_size = panel_size - Vector2(grid_padding * 2, grid_padding * 2)
-	var item_count = sticker_textures.size()
+	var item_count = sticker_scenes.size()
 
 	if item_count == 0:
 		return Vector2(max_icon_size, max_icon_size)
@@ -133,8 +148,8 @@ func _create_click_mask(tex: Texture2D) -> BitMap:
 	return bitmap
 
 
-func _on_sticker_pressed(tex: Texture2D) -> void:
-	sticker_selected.emit(tex)
+func _on_sticker_pressed(scene: PackedScene) -> void:
+	sticker_selected.emit(scene)
 	close()
 
 

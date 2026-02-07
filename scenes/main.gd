@@ -3,9 +3,6 @@ extends Node2D
 
 ## Main scene controller - beheert stickers en picker
 
-@export_group("Scenes")
-@export var sticker_scene: PackedScene
-
 @export_group("Trash")
 @export var trash_size: int = 120
 @export var trash_zone_radius: float = 140.0
@@ -23,8 +20,6 @@ var _last_touch_pos: Vector2 = Vector2.ZERO  # Laatste vinger/muis positie
 
 func _get_configuration_warnings() -> PackedStringArray:
 	var warnings: PackedStringArray = []
-	if sticker_scene == null:
-		warnings.append("Sticker scene is niet ingesteld. Sleep een PackedScene naar 'Sticker Scene'.")
 	return warnings
 
 
@@ -100,15 +95,9 @@ func _on_add_pressed() -> void:
 	_picker.toggle()
 
 
-func _on_sticker_selected(tex: Texture2D) -> void:
-	if sticker_scene == null:
-		push_error("Sticker scene niet ingesteld!")
-		return
-
-	var sticker = sticker_scene.instantiate()
-	sticker.texture = tex
+func _on_sticker_selected(scene: PackedScene) -> void:
+	var sticker = scene.instantiate()
 	sticker.position = get_viewport_rect().size / 2  # Spawn in midden
-	sticker.scale = Vector2(0.25, 0.25)
 	_sticker_container.add_child(sticker)
 	# Zet nieuwe sticker bovenop
 	Sticker._top_z_index += 1

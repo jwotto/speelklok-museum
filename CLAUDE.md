@@ -15,8 +15,8 @@ Object-georiënteerd: elk onderdeel is een zelfstandige class.
 - Scene tree:
   ```
   Main (Node2D)
-    World/Stickers (Node2D)  -- game content
-    UILayer (CanvasLayer)     -- UI boven alles
+	World/Stickers (Node2D)  -- game content
+	UILayer (CanvasLayer)     -- UI boven alles
   ```
 
 ### Scripts

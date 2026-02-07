@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" uid="uid://dj7x8qr5kp2ym" path="res://scenes/sticker.tscn" id="1_base"]
+[ext_resource type="Texture2D" uid="uid://bagx5ta1qw7ms" path="res://afbeeldingen instrumenten/banjo.png" id="2_tex"]
+
+[node name="Sticker" instance=ExtResource("1_base")]
+texture = ExtResource("2_tex")
+scale = Vector2(0.25, 0.25)
