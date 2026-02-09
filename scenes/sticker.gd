@@ -407,9 +407,9 @@ func _setup_outline() -> void:
 	material = mat
 
 
-func _set_outline(visible: bool) -> void:
+func _set_outline(enabled: bool) -> void:
 	if material is ShaderMaterial:
-		material.set_shader_parameter("show_outline", visible)
+		material.set_shader_parameter("show_outline", enabled)
 
 
 # === HIT DETECTION ===
