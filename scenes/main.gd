@@ -45,11 +45,19 @@ func _on_add_pressed() -> void:
 func _on_picker_opened() -> void:
 	_trash_button.visible = false
 	_add_button.visible = false
+	_set_stickers_input(false)
 
 
 func _on_picker_closed() -> void:
 	_trash_button.visible = true
 	_add_button.visible = true
+	_set_stickers_input(true)
+
+
+func _set_stickers_input(enabled: bool) -> void:
+	for sticker in _sticker_container.get_children():
+		if sticker is Sticker:
+			sticker.set_process_input(enabled)
 
 
 func _on_sticker_selected(scene: PackedScene) -> void:
