@@ -78,6 +78,9 @@ var _base_scale: float = 1.0  # Start-grootte wordt basis voor min/max
 var _shadow_opacity: float = 0.0
 var _shadow_node: Node2D = null
 
+# Outline shader
+var _outline_shader = preload("res://scenes/sticker_outline.gdshader")
+
 
 # === LIFECYCLE ===
 
@@ -85,6 +88,7 @@ func _ready() -> void:
 	_base_scale = scale.x  # Sla start-grootte op als basis
 	_target_scale = scale
 	_create_shadow_node()
+	_setup_outline()
 
 
 func _process(delta: float) -> void:
@@ -172,6 +176,7 @@ func _start_drag() -> void:
 	_inertia_active = false
 	_velocity = Vector2.ZERO
 	_velocity_samples.clear()
+	_set_outline(true)
 
 
 func _end_drag() -> void:
@@ -180,6 +185,7 @@ func _end_drag() -> void:
 	first_touch_index = -1
 	_active_sticker = null
 	_start_inertia()
+	_set_outline(false)
 
 
 func _bring_to_front() -> void:
@@ -376,6 +382,22 @@ func _draw_shadow() -> void:
 	# Compenseer voor scale zodat visuele afstand constant blijft
 	var compensated_offset = local_offset / scale.x
 	_shadow_node.draw_texture(texture, compensated_offset - texture.get_size() / 2, shadow_col)
+
+
+# === OUTLINE ===
+
+func _setup_outline() -> void:
+	var mat = ShaderMaterial.new()
+	mat.shader = _outline_shader
+	mat.set_shader_parameter("show_outline", false)
+	mat.set_shader_parameter("outline_width", 30.0)
+	mat.set_shader_parameter("outline_color", Color.WHITE)
+	material = mat
+
+
+func _set_outline(visible: bool) -> void:
+	if material is ShaderMaterial:
+		material.set_shader_parameter("show_outline", visible)
 
 
 # === HIT DETECTION ===

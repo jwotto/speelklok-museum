@@ -5,7 +5,7 @@ class_name StickerPicker
 ## Sticker picker - toont beschikbare stickers om te plaatsen
 ## Sleep sticker scenes naar de array in de inspector
 
-signal sticker_selected(scene: PackedScene)
+signal sticker_selected(scene: PackedScene, from_position: Vector2)
 signal opened
 signal closed
 
@@ -191,7 +191,7 @@ func _populate_grid() -> void:
 				if not btn.is_hovered():
 					_on_btn_deactivate(btn)
 			)
-			btn.pressed.connect(_on_sticker_pressed.bind(scene))
+			btn.pressed.connect(_on_sticker_pressed.bind(scene, btn))
 
 		_grid.add_child(btn)
 
@@ -272,8 +272,9 @@ func _on_btn_deactivate(btn: TextureButton) -> void:
 	btn.set_meta("tween", tween)
 
 
-func _on_sticker_pressed(scene: PackedScene) -> void:
-	sticker_selected.emit(scene)
+func _on_sticker_pressed(scene: PackedScene, btn: TextureButton) -> void:
+	var btn_center = btn.global_position + btn.size / 2
+	sticker_selected.emit(scene, btn_center)
 	close()
 
 

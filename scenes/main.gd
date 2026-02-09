@@ -60,13 +60,23 @@ func _set_stickers_input(enabled: bool) -> void:
 			sticker.set_process_input(enabled)
 
 
-func _on_sticker_selected(scene: PackedScene) -> void:
+func _on_sticker_selected(scene: PackedScene, from_position: Vector2) -> void:
+	var target = get_viewport_rect().size / 2
 	var sticker = scene.instantiate()
-	sticker.position = get_viewport_rect().size / 2  # Spawn in midden
+	sticker.position = from_position
 	_sticker_container.add_child(sticker)
 	# Zet nieuwe sticker bovenop
 	Sticker._top_z_index += 1
 	sticker.z_index = Sticker._top_z_index
+	# Fly-from-picker animatie
+	var start_scale = sticker.scale * 0.3
+	sticker.scale = start_scale
+	sticker.modulate.a = 0.0
+	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tween.set_parallel()
+	tween.tween_property(sticker, "position", target, 0.4)
+	tween.tween_property(sticker, "scale", start_scale / 0.3, 0.4)
+	tween.tween_property(sticker, "modulate:a", 1.0, 0.15).set_trans(Tween.TRANS_LINEAR)
 
 
 func _process(_delta: float) -> void:
