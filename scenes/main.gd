@@ -4,91 +4,35 @@ extends Node2D
 ## Main scene controller - beheert stickers en picker
 
 @export_group("Trash")
-@export var trash_size: int = 120
 @export var trash_zone_radius: float = 140.0
 
 # Scene node references
+@onready var _background: TextureRect = $Background
 @onready var _sticker_container: Node2D = $Stickers
-@onready var _trash_button: TextureButton = $UILayer/TrashButton
-@onready var _add_button: TextureButton = $UILayer/AddButton
+@onready var _trash_button: IconButton = $UILayer/TrashButton
+@onready var _add_button: IconButton = $UILayer/AddButton
 @onready var _picker: StickerPicker = $UILayer/StickerPicker
 
 var _was_dragging: Dictionary = {}  # Sticker -> was dragging last frame
 var _last_touch_pos: Vector2 = Vector2.ZERO  # Laatste vinger/muis positie
 
 
-
-func _get_configuration_warnings() -> PackedStringArray:
-	var warnings: PackedStringArray = []
-	return warnings
-
-
 func _ready() -> void:
 	if Engine.is_editor_hint():
-		_setup_editor_preview()
 		return
 
 	# Runtime setup
-	_setup_button_textures()
+	_resize_background()
+	get_tree().root.size_changed.connect(_resize_background)
 	_add_button.pressed.connect(_on_add_pressed)
 	_picker.sticker_selected.connect(_on_sticker_selected)
 
 
-func _setup_editor_preview() -> void:
-	# Maak button textures zichtbaar in editor
-	_setup_button_textures()
-
-
-func _setup_button_textures() -> void:
-	# Trash button texture
-	if _trash_button:
-		_trash_button.texture_normal = _create_trash_texture()
-
-	# Add button texture
-	if _add_button:
-		_add_button.texture_normal = _create_add_texture()
-
-
-func _create_trash_texture() -> ImageTexture:
-	var img = Image.create(trash_size, trash_size, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0.4, 0.2, 0.2, 0.8))
-
-	# Teken simpele prullenbak vorm
-	@warning_ignore("integer_division")
-	var cx: int = trash_size / 2
-	# Deksel
-	for x in range(10, trash_size - 10):
-		for y in range(15, 25):
-			img.set_pixel(x, y, Color.WHITE)
-	# Handvat
-	for x in range(cx - 10, cx + 10):
-		for y in range(5, 15):
-			img.set_pixel(x, y, Color.WHITE)
-	# Bak
-	for x in range(15, trash_size - 15):
-		for y in range(25, trash_size - 10):
-			if x < 20 or x > trash_size - 20 or y > trash_size - 15:
-				img.set_pixel(x, y, Color.WHITE)
-
-	return ImageTexture.create_from_image(img)
-
-
-func _create_add_texture() -> ImageTexture:
-	var img = Image.create(trash_size, trash_size, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0.3, 0.3, 0.3, 0.8))
-
-	# Teken + teken
-	var center = int(trash_size / 2.0)
-	var half_thick = 6  # thickness / 2
-	var length = 45
-	for x in range(center - length, center + length + 1):
-		for y in range(center - half_thick, center + half_thick + 1):
-			img.set_pixel(x, y, Color.WHITE)
-	for y in range(center - length, center + length + 1):
-		for x in range(center - half_thick, center + half_thick + 1):
-			img.set_pixel(x, y, Color.WHITE)
-
-	return ImageTexture.create_from_image(img)
+func _resize_background() -> void:
+	## Pas achtergrond aan op viewport grootte
+	if _background:
+		var size = get_viewport_rect().size
+		_background.size = size
 
 
 func _on_add_pressed() -> void:
@@ -125,7 +69,7 @@ func _input(event: InputEvent) -> void:
 
 func _check_trash_zone() -> void:
 	# Check of vinger in prullenbak zone is (niet sticker positie!)
-	var trash_center = _trash_button.position + Vector2(trash_size / 2.0, trash_size / 2.0)
+	var trash_center = _trash_button.position + _trash_button.size / 2.0
 	var finger_dist = _last_touch_pos.distance_to(trash_center)
 	var finger_in_zone = finger_dist < trash_zone_radius
 	var any_dragging_in_zone = false

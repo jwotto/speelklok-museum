@@ -13,6 +13,20 @@ signal sticker_selected(scene: PackedScene)
 		if Engine.is_editor_hint() and is_inside_tree():
 			_populate_grid()
 
+@export_group("Panel")
+@export var panel_color: Color = Color(0.15, 0.15, 0.15, 0.9):
+	set(value):
+		panel_color = value
+		_update_panel_style()
+@export var panel_corner_radius: int = 20:
+	set(value):
+		panel_corner_radius = value
+		_update_panel_style()
+@export var overlay_color: Color = Color(0, 0, 0, 0.5):
+	set(value):
+		overlay_color = value
+		_update_panel_style()
+
 @export_group("Layout")
 @export var min_columns: int = 2
 @export var max_columns: int = 5
@@ -36,7 +50,23 @@ func _get_configuration_warnings() -> PackedStringArray:
 	return warnings
 
 
+func _update_panel_style() -> void:
+	if not is_inside_tree():
+		return
+	if _panel:
+		var style = StyleBoxFlat.new()
+		style.bg_color = panel_color
+		style.corner_radius_top_left = panel_corner_radius
+		style.corner_radius_top_right = panel_corner_radius
+		style.corner_radius_bottom_left = panel_corner_radius
+		style.corner_radius_bottom_right = panel_corner_radius
+		_panel.add_theme_stylebox_override("panel", style)
+	if _background:
+		_background.color = overlay_color
+
+
 func _ready() -> void:
+	_update_panel_style()
 	if Engine.is_editor_hint():
 		# In editor: toon preview
 		_populate_grid()

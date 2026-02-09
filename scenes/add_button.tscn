@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/icon_button.gd" id="1_script"]
+
+[node name="AddButton" type="TextureButton"]
+script = ExtResource("1_script")
+icon_type = 1
+button_size = 120
+color = Color(0.3, 0.3, 0.3, 0.8)
+corner_radius = 20

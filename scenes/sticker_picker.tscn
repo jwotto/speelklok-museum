@@ -1,8 +1,9 @@
-[gd_scene load_steps=2 format=3 uid="uid://picker_scene"]
+[gd_scene format=3 uid="uid://b51a205s8imei"]
 
-[ext_resource type="Script" uid="uid://c3picker_script" path="res://scenes/sticker_picker.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://dbf0a3mp4f7eg" path="res://scenes/sticker_picker.gd" id="1_script"]
 
-[node name="StickerPicker" type="Control"]
+[node name="StickerPicker" type="Control" unique_id=1469395070]
+layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
@@ -11,17 +12,16 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("1_script")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="ColorRect" parent="." unique_id=172021804]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 0
-color = Color(0, 0, 0, 0.7)
+color = Color(0.97248906, 0.724694, 1, 0)
 
-[node name="Panel" type="Panel" parent="."]
+[node name="Panel" type="Panel" parent="." unique_id=1346899768]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -30,8 +30,10 @@ offset_left = 50.0
 offset_top = 50.0
 offset_right = -50.0
 offset_bottom = -50.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="CenterContainer" type="CenterContainer" parent="Panel"]
+[node name="CenterContainer" type="CenterContainer" parent="Panel" unique_id=1031966443]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -39,7 +41,7 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="GridContainer" type="GridContainer" parent="Panel/CenterContainer"]
+[node name="GridContainer" type="GridContainer" parent="Panel/CenterContainer" unique_id=299417269]
 layout_mode = 2
 theme_override_constants/h_separation = 30
 theme_override_constants/v_separation = 30
