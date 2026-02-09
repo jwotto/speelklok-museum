@@ -17,6 +17,8 @@ extends Node2D
 var _was_dragging: Dictionary = {}  # instance_id -> was dragging last frame
 var _last_touch_pos: Vector2 = Vector2.ZERO  # Laatste vinger/muis positie
 var _trash_highlighted: bool = false
+var _any_dragging: bool = false
+var _picker_open: bool = false
 
 
 func _ready() -> void:
@@ -25,6 +27,7 @@ func _ready() -> void:
 		return
 
 	# Runtime setup
+	_trash_button.visible = false
 	get_tree().root.size_changed.connect(_resize_background)
 	_add_button.pressed.connect(_on_add_pressed)
 	_picker.sticker_selected.connect(_on_sticker_selected)
@@ -51,21 +54,40 @@ func _on_add_pressed() -> void:
 
 
 func _on_picker_opened() -> void:
-	_trash_button.visible = false
-	_add_button.visible = false
+	_picker_open = true
+	_update_button_visibility()
 	_set_stickers_input(false)
 
 
 func _on_picker_closed() -> void:
-	_trash_button.visible = true
-	_add_button.visible = true
+	_picker_open = false
+	_update_button_visibility()
 	_set_stickers_input(true)
+
+
+func _update_button_visibility() -> void:
+	if _picker_open:
+		_trash_button.visible = false
+		_add_button.visible = false
+	elif _any_dragging:
+		_trash_button.visible = true
+		_add_button.visible = false
+	else:
+		_trash_button.visible = false
+		_add_button.visible = true
+
+
+func _is_touch_over_ui(pos: Vector2) -> bool:
+	for btn: Control in [_add_button, _trash_button]:
+		if btn.visible and btn.get_global_rect().has_point(pos):
+			return true
+	return false
 
 
 func _set_stickers_input(enabled: bool) -> void:
 	for sticker in _sticker_container.get_children():
 		if sticker is Sticker:
-			sticker.set_process_input(enabled)
+			sticker.set_process_unhandled_input(enabled)
 
 
 func _on_sticker_selected(scene: PackedScene, from_position: Vector2) -> void:
@@ -104,14 +126,21 @@ func _input(event: InputEvent) -> void:
 		_last_touch_pos = event.position
 	elif event is InputEventMouseMotion or event is InputEventMouseButton:
 		_last_touch_pos = event.position
+	# Consumeer touch events die op een zichtbare UI knop vallen
+	# zodat stickers (via _unhandled_input) ze niet oppakken
+	if event is InputEventScreenTouch and event.pressed:
+		if _is_touch_over_ui(event.position):
+			get_viewport().set_input_as_handled()
 
 
 func _check_trash_zone() -> void:
 	# Check of vinger in prullenbak zone is (niet sticker positie!)
-	var trash_center = _trash_button.position + _trash_button.size / 2.0
+	var trash_screen = _trash_button.get_screen_transform().origin
+	var trash_center = trash_screen + _trash_button.size / 2.0
 	var finger_dist = _last_touch_pos.distance_to(trash_center)
 	var finger_in_zone = finger_dist < trash_zone_radius
 	var any_dragging_in_zone = false
+	var any_dragging_now = false
 
 	for sticker in _sticker_container.get_children():
 		if sticker is Sticker:
@@ -122,6 +151,9 @@ func _check_trash_zone() -> void:
 			# Track voor volgende frame
 			_was_dragging[id] = is_dragging
 
+			if is_dragging:
+				any_dragging_now = true
+
 			# Highlight trash als vinger erboven is tijdens slepen
 			if is_dragging and finger_in_zone:
 				any_dragging_in_zone = true
@@ -129,9 +161,26 @@ func _check_trash_zone() -> void:
 			# Verwijder zodra vinger losgelaten wordt in zone
 			if was_dragging and not is_dragging and finger_in_zone:
 				_was_dragging.erase(id)
-				sticker.queue_free()
+				_delete_sticker(sticker, trash_center)
+
+	# Toon/verberg knoppen bij drag state wijziging
+	if _any_dragging != any_dragging_now:
+		_any_dragging = any_dragging_now
+		_update_button_visibility()
 
 	# Update modulate alleen bij wijziging
 	if _trash_highlighted != any_dragging_in_zone:
 		_trash_highlighted = any_dragging_in_zone
 		_trash_button.modulate = Color(1.5, 0.5, 0.5) if any_dragging_in_zone else Color.WHITE
+
+
+func _delete_sticker(sticker: Sticker, trash_center: Vector2) -> void:
+	## Animeer sticker naar prullenbak en verwijder
+	sticker.set_process_unhandled_input(false)
+	sticker.set_process(false)
+	var tween = create_tween().set_parallel()
+	tween.tween_property(sticker, "position", trash_center, 0.25).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tween.tween_property(sticker, "scale", Vector2.ZERO, 0.25).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tween.tween_property(sticker, "rotation", sticker.rotation + TAU, 0.25).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tween.tween_property(sticker, "modulate:a", 0.0, 0.2).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tween.chain().tween_callback(sticker.queue_free)

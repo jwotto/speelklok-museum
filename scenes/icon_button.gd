@@ -30,8 +30,18 @@ enum IconType { NONE, ADD, TRASH }
 		_regenerate()
 
 
+var _pulse_tween: Tween = null
+var _press_tween: Tween = null
+
+
 func _ready() -> void:
 	_regenerate()
+	if Engine.is_editor_hint():
+		return
+	pivot_offset = Vector2(button_size, button_size) / 2
+	button_down.connect(_on_press)
+	button_up.connect(_on_release)
+	_start_pulse()
 
 
 func _regenerate() -> void:
@@ -103,3 +113,38 @@ func _draw_trash_icon(img: Image) -> void:
 		for y in range(25, s - 10):
 			if x < 20 or x > s - 20 or y > s - 15:
 				img.set_pixel(x, y, icon_color)
+
+
+# === ANIMATIES ===
+
+func _start_pulse() -> void:
+	_pulse_tween = create_tween().set_loops()
+	var angle = deg_to_rad(3.0)
+	_pulse_tween.tween_property(self, "scale", Vector2(1.04, 1.04), 1.2).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	_pulse_tween.parallel().tween_property(self, "rotation", angle, 1.2).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	_pulse_tween.tween_property(self, "scale", Vector2(0.96, 0.96), 1.2).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	_pulse_tween.parallel().tween_property(self, "rotation", -angle, 1.2).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+
+
+func _stop_pulse() -> void:
+	if _pulse_tween and _pulse_tween.is_valid():
+		_pulse_tween.kill()
+		_pulse_tween = null
+
+
+func _on_press() -> void:
+	_stop_pulse()
+	if _press_tween and _press_tween.is_valid():
+		_press_tween.kill()
+	_press_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	_press_tween.tween_property(self, "scale", Vector2(1.15, 0.85), 0.12)
+
+
+func _on_release() -> void:
+	if _press_tween and _press_tween.is_valid():
+		_press_tween.kill()
+	_press_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
+	_press_tween.set_parallel()
+	_press_tween.tween_property(self, "scale", Vector2.ONE, 0.4)
+	_press_tween.tween_property(self, "rotation", 0.0, 0.4)
+	_press_tween.chain().tween_callback(_start_pulse)

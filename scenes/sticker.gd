@@ -99,8 +99,8 @@ func _process(delta: float) -> void:
 
 # === INPUT HANDLING ===
 
-func _input(event: InputEvent) -> void:
-	# Alleen touch events
+func _unhandled_input(event: InputEvent) -> void:
+	# Alleen touch events - _unhandled_input zodat UI knoppen voorrang krijgen
 	if event is InputEventScreenTouch:
 		_on_touch(event)
 	elif event is InputEventScreenDrag:
