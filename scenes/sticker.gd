@@ -9,6 +9,8 @@ class_name Sticker
 ## - Smooth scaling: vloeiende schaal overgangen
 ## - Schaduw: verschijnt bij oppakken
 
+signal selection_changed(is_selected: bool)
+
 # === EXPORT VARIABELEN ===
 
 @export_group("Scale Limits")
@@ -45,11 +47,16 @@ class_name Sticker
 ## Hoe snel de schaduw in/uit fade (hoger = sneller, 50+ = bijna instant)
 @export var shadow_fade_speed: float = 50.0
 
+@export_group("Outline")
+## Dikte van de witte rand in scherm-pixels (blijft constant bij schalen)
+@export var outline_screen_width: float = 6.0
+
 
 # === STATISCHE VARIABELEN (gedeeld tussen alle stickers) ===
 
 static var _active_sticker: Sticker = null  # Welke sticker wordt nu gedragged
 static var _top_z_index: int = 0  # Hoogste z_index voor bovenop brengen
+static var _selected_sticker: Sticker = null  # Welke sticker is geselecteerd
 
 # === INTERNE VARIABELEN ===
 
@@ -77,9 +84,13 @@ var _base_scale: float = 1.0  # Start-grootte wordt basis voor min/max
 # Schaduw systeem
 var _shadow_opacity: float = 0.0
 var _shadow_node: Node2D = null
+var _shadow_last_scale: float = 0.0
 
 # Outline shader
 var _outline_shader = preload("res://scenes/sticker_outline.gdshader")
+
+# Selectie systeem
+var selected: bool = false
 
 
 # === LIFECYCLE ===
@@ -93,6 +104,7 @@ func _process(delta: float) -> void:
 	_process_inertia(delta)
 	_process_smooth_scale(delta)
 	_process_shadow(delta)
+	_process_outline()
 
 
 # === INPUT HANDLING ===
@@ -114,25 +126,28 @@ func _on_touch(event: InputEventScreenTouch) -> void:
 
 func _handle_touch_pressed(event: InputEventScreenTouch) -> void:
 	## Verwerkt een nieuwe touch (vinger naar beneden)
-	# Eerste vinger moet op sticker, tweede mag overal
-	if touches.size() == 0 and _hit_test(event.position):
-		# Check of er al een andere sticker wordt gedragged
-		if _active_sticker != null and _active_sticker != self:
-			return  # Andere sticker is actief, negeer deze touch
+	if touches.size() == 0:
+		if _hit_test(event.position):
+			# Check of er al een andere sticker wordt gedragged
+			if _active_sticker != null and _active_sticker != self:
+				return  # Andere sticker is actief, negeer deze touch
 
-		# Check of er een sticker met hogere z_index is die ook geraakt wordt
-		if _is_sticker_above_at_position(event.position):
-			return  # Er is een sticker bovenop, negeer deze touch
+			# Check of er een sticker met hogere z_index is die ook geraakt wordt
+			if _is_sticker_above_at_position(event.position):
+				return  # Er is een sticker bovenop, negeer deze touch
 
-		touches[event.index] = event.position
-		first_touch_index = event.index
-		dragging = true
-		drag_offset = global_position - event.position
-		_active_sticker = self
-		_bring_to_front()
-		_start_drag()
+			touches[event.index] = event.position
+			first_touch_index = event.index
+			dragging = true
+			drag_offset = global_position - event.position
+			_active_sticker = self
+			_bring_to_front()
+			_start_drag()
+		elif selected:
+			# Tik buiten sticker -> deselecteer
+			_deselect()
 	elif touches.size() == 1 and dragging:
-		# Tweede vinger mag overal zijn
+		# Tweede vinger mag overal zijn (alleen bij body drag)
 		touches[event.index] = event.position
 		_begin_transform()
 
@@ -174,23 +189,18 @@ func _start_drag() -> void:
 	_inertia_active = false
 	_velocity = Vector2.ZERO
 	_velocity_samples.clear()
-	# Lazy aanmaken van outline en shadow
-	if material == null:
-		_setup_outline()
-	_set_outline(true)
+	_select()
+	# Shadow apart van selectie (alleen bij body drag)
 	if _shadow_node == null:
 		_create_shadow_node()
 
 
 func _end_drag() -> void:
-	## Beeindig drag - start inertia en reset visuele feedback
+	## Beeindig drag - start inertia, blijf geselecteerd
 	dragging = false
 	first_touch_index = -1
 	_active_sticker = null
 	_start_inertia()
-	# Outline direct verwijderen (shadow blijft voor fade-out)
-	_set_outline(false)
-	material = null
 
 
 func _bring_to_front() -> void:
@@ -230,6 +240,64 @@ func _update_single_finger_drag(finger_position: Vector2) -> void:
 		_velocity_samples.remove_at(0)
 
 	global_position = new_position
+
+
+# === SELECTIE SYSTEEM ===
+
+static func deselect_current() -> void:
+	## Deselecteer de huidige geselecteerde sticker (aanroepbaar van buitenaf)
+	if _selected_sticker != null:
+		_selected_sticker._deselect()
+
+
+func _select() -> void:
+	## Selecteer deze sticker - toon outline
+	if _selected_sticker == self:
+		return
+	if _selected_sticker != null:
+		_selected_sticker._deselect()
+	_selected_sticker = self
+	selected = true
+	if material == null:
+		_setup_outline()
+	_set_outline(true)
+	selection_changed.emit(true)
+
+
+func _deselect() -> void:
+	## Deselecteer deze sticker - verberg outline
+	if not selected:
+		return
+	selected = false
+	if _selected_sticker == self:
+		_selected_sticker = null
+	_set_outline(false)
+	material = null
+	selection_changed.emit(false)
+
+
+# === OUTLINE ===
+
+func _process_outline() -> void:
+	## Compenseer outline dikte voor schaal (alleen als geselecteerd)
+	if not selected:
+		return
+	if material is ShaderMaterial:
+		material.set_shader_parameter("outline_width", outline_screen_width / scale.x)
+
+
+func _setup_outline() -> void:
+	var mat = ShaderMaterial.new()
+	mat.shader = _outline_shader
+	mat.set_shader_parameter("show_outline", false)
+	mat.set_shader_parameter("outline_width", outline_screen_width / scale.x)
+	mat.set_shader_parameter("outline_color", Color.WHITE)
+	material = mat
+
+
+func _set_outline(enabled: bool) -> void:
+	if material is ShaderMaterial:
+		material.set_shader_parameter("show_outline", enabled)
 
 
 # === TRANSFORM SYSTEEM (PINCH/ZOOM/ROTATE) ===
@@ -366,8 +434,10 @@ func _process_shadow(delta: float) -> void:
 	var target = 1.0 if show_shadow else 0.0
 	var prev = _shadow_opacity
 	_shadow_opacity = lerpf(_shadow_opacity, target, 15.0 * delta)
-	# Alleen hertekenen als opacity merkbaar verandert
-	if absf(_shadow_opacity - prev) > 0.005:
+	# Hertekenen als opacity of schaal merkbaar verandert
+	var scale_changed = absf(scale.x - _shadow_last_scale) > 0.005
+	if absf(_shadow_opacity - prev) > 0.005 or scale_changed:
+		_shadow_last_scale = scale.x
 		_shadow_node.queue_redraw()
 	# Verwijder shadow node als fade-out klaar is
 	elif not show_shadow and _shadow_opacity < 0.01:
@@ -394,22 +464,6 @@ func _draw_shadow() -> void:
 	# Compenseer voor scale zodat visuele afstand constant blijft
 	var compensated_offset = local_offset / scale.x
 	_shadow_node.draw_texture(texture, compensated_offset - texture.get_size() / 2, shadow_col)
-
-
-# === OUTLINE ===
-
-func _setup_outline() -> void:
-	var mat = ShaderMaterial.new()
-	mat.shader = _outline_shader
-	mat.set_shader_parameter("show_outline", false)
-	mat.set_shader_parameter("outline_width", 30.0)
-	mat.set_shader_parameter("outline_color", Color.WHITE)
-	material = mat
-
-
-func _set_outline(enabled: bool) -> void:
-	if material is ShaderMaterial:
-		material.set_shader_parameter("show_outline", enabled)
 
 
 # === HIT DETECTION ===

@@ -13,12 +13,17 @@ extends Node2D
 @onready var _trash_button: IconButton = $UILayer/TrashButton
 @onready var _add_button: IconButton = $UILayer/AddButton
 @onready var _picker: StickerPicker = $UILayer/StickerPicker
+@onready var _slider_container: VBoxContainer = $UILayer/StickerSliders
+@onready var _rotate_slider: Control = $UILayer/StickerSliders/RotateSlider
+@onready var _scale_slider: Control = $UILayer/StickerSliders/ScaleSlider
 
 var _was_dragging: Dictionary = {}  # instance_id -> was dragging last frame
 var _last_touch_pos: Vector2 = Vector2.ZERO  # Laatste vinger/muis positie
 var _trash_highlighted: bool = false
 var _any_dragging: bool = false
 var _picker_open: bool = false
+var _tracked_sticker: Sticker = null
+var _updating_sliders: bool = false
 
 
 func _ready() -> void:
@@ -33,6 +38,8 @@ func _ready() -> void:
 	_picker.sticker_selected.connect(_on_sticker_selected)
 	_picker.opened.connect(_on_picker_opened)
 	_picker.closed.connect(_on_picker_closed)
+	_rotate_slider.value_changed.connect(_on_rotate_slider_changed)
+	_scale_slider.value_changed.connect(_on_scale_slider_changed)
 
 
 func _resize_background() -> void:
@@ -75,12 +82,16 @@ func _update_button_visibility() -> void:
 	else:
 		_trash_button.visible = false
 		_add_button.visible = true
+	# Sliders: toon als sticker geselecteerd en niet aan het draggen/picker open
+	_slider_container.visible = _tracked_sticker != null and not _picker_open and not _any_dragging
 
 
 func _is_touch_over_ui(pos: Vector2) -> bool:
 	for btn: Control in [_add_button, _trash_button]:
 		if btn.visible and btn.get_global_rect().has_point(pos):
 			return true
+	if _slider_container.visible and _slider_container.get_global_rect().has_point(pos):
+		return true
 	return false
 
 
@@ -95,6 +106,7 @@ func _on_sticker_selected(scene: PackedScene, from_position: Vector2) -> void:
 	var sticker = scene.instantiate()
 	sticker.position = from_position
 	_sticker_container.add_child(sticker)
+	sticker.selection_changed.connect(_on_sticker_selection_changed.bind(sticker))
 	# Zet nieuwe sticker bovenop
 	Sticker._top_z_index += 1
 	sticker.z_index = Sticker._top_z_index
@@ -113,6 +125,7 @@ func _process(_delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 	_check_trash_zone()
+	_update_sliders()
 
 
 func _input(event: InputEvent) -> void:
@@ -176,6 +189,7 @@ func _check_trash_zone() -> void:
 
 func _delete_sticker(sticker: Sticker, trash_center: Vector2) -> void:
 	## Animeer sticker naar prullenbak en verwijder
+	sticker._deselect()
 	sticker.set_process_unhandled_input(false)
 	sticker.set_process(false)
 	var tween = create_tween().set_parallel()
@@ -184,3 +198,50 @@ func _delete_sticker(sticker: Sticker, trash_center: Vector2) -> void:
 	tween.tween_property(sticker, "rotation", sticker.rotation + TAU, 0.25).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tween.tween_property(sticker, "modulate:a", 0.0, 0.2).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tween.chain().tween_callback(sticker.queue_free)
+
+
+# === SLIDERS ===
+
+func _on_sticker_selection_changed(is_selected: bool, sticker: Sticker) -> void:
+	if is_selected:
+		_tracked_sticker = sticker
+		_update_slider_values(sticker)
+	elif _tracked_sticker == sticker:
+		_tracked_sticker = null
+	_update_button_visibility()
+
+
+func _update_slider_values(sticker: Sticker) -> void:
+	## Stel slider waardes in op basis van sticker state
+	_updating_sliders = true
+	var rot_deg = rad_to_deg(fmod(sticker.rotation, TAU))
+	if rot_deg < 0.0:
+		rot_deg += 360.0
+	_rotate_slider.value = rot_deg
+	_scale_slider.min_value = sticker._base_scale * sticker.min_scale
+	_scale_slider.max_value = sticker._base_scale * sticker.max_scale
+	_scale_slider.value = sticker.scale.x
+	_updating_sliders = false
+
+
+func _update_sliders() -> void:
+	## Synchroniseer slider waardes met sticker (voor pinch updates)
+	## Rotatie wordt NIET gesynchroniseerd (360°=0° veroorzaakt sprongen)
+	if _tracked_sticker == null or not _slider_container.visible:
+		return
+	_updating_sliders = true
+	_scale_slider.value = _tracked_sticker.scale.x
+	_updating_sliders = false
+
+
+func _on_rotate_slider_changed(new_value: float) -> void:
+	if _updating_sliders or _tracked_sticker == null:
+		return
+	_tracked_sticker.rotation = deg_to_rad(new_value)
+
+
+func _on_scale_slider_changed(new_value: float) -> void:
+	if _updating_sliders or _tracked_sticker == null:
+		return
+	_tracked_sticker.scale = Vector2(new_value, new_value)
+	_tracked_sticker._target_scale = Vector2(new_value, new_value)
