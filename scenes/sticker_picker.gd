@@ -41,6 +41,8 @@ signal sticker_selected(scene: PackedScene)
 @onready var _grid: GridContainer = $Panel/CenterContainer/GridContainer
 
 var _is_open: bool = false
+var _outline_shader = preload("res://scenes/sticker_outline.gdshader")
+var _picker_btn_script = preload("res://scenes/sticker_picker_button.gd")
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -142,17 +144,50 @@ func _populate_grid() -> void:
 		if tex == null:
 			continue
 
-		var btn = TextureButton.new()
-		btn.texture_normal = tex
+		var btn: TextureButton
+		if Engine.is_editor_hint():
+			btn = TextureButton.new()
+			btn.texture_normal = tex
+		else:
+			btn = _picker_btn_script.new()
+			btn.hit_margin = 30.0
+			btn.texture_normal = tex
+			btn.self_modulate = Color(1, 1, 1, 0)  # Verberg button tekening
 		btn.ignore_texture_size = true
 		btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		btn.custom_minimum_size = icon_size
 
 		if not Engine.is_editor_hint():
-			# Click mask voor pixel-perfect klikken (alleen runtime)
-			var click_mask = _create_click_mask(tex)
-			if click_mask:
-				btn.texture_click_mask = click_mask
+			# Visuele child (wordt gedraaid/geschaald, button zelf blijft stil)
+			var visual = TextureRect.new()
+			visual.texture = tex
+			visual.set_anchors_preset(Control.PRESET_FULL_RECT)
+			visual.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			visual.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			visual.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			visual.pivot_offset = icon_size / 2
+
+			# Outline shader op de visual
+			var mat = ShaderMaterial.new()
+			mat.shader = _outline_shader
+			mat.set_shader_parameter("show_outline", false)
+			mat.set_shader_parameter("outline_width", 30.0)
+			mat.set_shader_parameter("outline_color", Color.WHITE)
+			visual.material = mat
+			btn.add_child(visual)
+			btn.set_meta("visual", visual)
+
+			# Vaste random hoek per knop
+			btn.set_meta("hover_angle", deg_to_rad(randf_range(-6.0, 6.0)))
+
+			# Hover en press effecten
+			btn.mouse_entered.connect(_on_btn_activate.bind(btn))
+			btn.mouse_exited.connect(_on_btn_deactivate.bind(btn))
+			btn.button_down.connect(_on_btn_activate.bind(btn))
+			btn.button_up.connect(func():
+				if not btn.is_hovered():
+					_on_btn_deactivate(btn)
+			)
 			btn.pressed.connect(_on_sticker_pressed.bind(scene))
 
 		_grid.add_child(btn)
@@ -205,15 +240,23 @@ func _update_layout() -> void:
 	_populate_grid()
 
 
-func _create_click_mask(tex: Texture2D) -> BitMap:
-	if tex == null:
-		return null
-	var img = tex.get_image()
-	if img == null:
-		return null
-	var bitmap = BitMap.new()
-	bitmap.create_from_image_alpha(img, 0.1)
-	return bitmap
+
+func _on_btn_activate(btn: TextureButton) -> void:
+	var visual = btn.get_meta("visual") as Control
+	visual.material.set_shader_parameter("show_outline", true)
+	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tween.set_parallel()
+	tween.tween_property(visual, "rotation", btn.get_meta("hover_angle", 0.0), 0.2)
+	tween.tween_property(visual, "scale", Vector2(1.08, 1.08), 0.2)
+
+
+func _on_btn_deactivate(btn: TextureButton) -> void:
+	var visual = btn.get_meta("visual") as Control
+	visual.material.set_shader_parameter("show_outline", false)
+	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
+	tween.set_parallel()
+	tween.tween_property(visual, "rotation", 0.0, 0.4)
+	tween.tween_property(visual, "scale", Vector2.ONE, 0.4)
 
 
 func _on_sticker_pressed(scene: PackedScene) -> void:

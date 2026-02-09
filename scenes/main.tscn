@@ -39,7 +39,7 @@ data = {
 image = SubResource("Image_jkv2x")
 
 [sub_resource type="Gradient" id="Gradient_trceg"]
-colors = PackedColorArray(0.41830188, 0.35571417, 0.8303935, 1, 0.99607843, 0.94509804, 0.05490196, 1)
+colors = PackedColorArray(0.38534746, 0.38356277, 0.7964018, 1, 0.99607843, 0.94509804, 0.05490196, 1)
 
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_a8y0u"]
 gradient = SubResource("Gradient_trceg")
@@ -88,4 +88,3 @@ color = Color(1.2995303e-06, 0.33110645, 0.4529472, 0.8)
 [node name="StickerPicker" parent="UILayer" unique_id=1560307040 instance=ExtResource("12_picker")]
 sticker_scenes = Array[PackedScene]([ExtResource("4_contrabas"), ExtResource("5_xylofoon"), ExtResource("6_trompet"), ExtResource("7_banjo"), ExtResource("8_fietsbel"), ExtResource("9_snaredrum"), ExtResource("10_hihat"), ExtResource("11_toeter")])
 panel_gradient = SubResource("GradientTexture2D_a8y0u")
-overlay_color = Color(0, 0, 0, 0.5019608)
