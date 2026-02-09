@@ -87,8 +87,6 @@ var _outline_shader = preload("res://scenes/sticker_outline.gdshader")
 func _ready() -> void:
 	_base_scale = scale.x  # Sla start-grootte op als basis
 	_target_scale = scale
-	_create_shadow_node()
-	_setup_outline()
 
 
 func _process(delta: float) -> void:
@@ -176,7 +174,12 @@ func _start_drag() -> void:
 	_inertia_active = false
 	_velocity = Vector2.ZERO
 	_velocity_samples.clear()
+	# Lazy aanmaken van outline en shadow
+	if material == null:
+		_setup_outline()
 	_set_outline(true)
+	if _shadow_node == null:
+		_create_shadow_node()
 
 
 func _end_drag() -> void:
@@ -185,7 +188,9 @@ func _end_drag() -> void:
 	first_touch_index = -1
 	_active_sticker = null
 	_start_inertia()
+	# Outline direct verwijderen (shadow blijft voor fade-out)
 	_set_outline(false)
+	material = null
 
 
 func _bring_to_front() -> void:
@@ -355,13 +360,20 @@ func _create_shadow_node() -> void:
 
 func _process_shadow(delta: float) -> void:
 	## Update schaduw - zichtbaar bij draggen of inertia, met kleine fade
+	if _shadow_node == null:
+		return
 	var show_shadow = dragging or _inertia_active
 	var target = 1.0 if show_shadow else 0.0
 	var prev = _shadow_opacity
 	_shadow_opacity = lerpf(_shadow_opacity, target, 15.0 * delta)
 	# Alleen hertekenen als opacity merkbaar verandert
-	if _shadow_node and absf(_shadow_opacity - prev) > 0.005:
+	if absf(_shadow_opacity - prev) > 0.005:
 		_shadow_node.queue_redraw()
+	# Verwijder shadow node als fade-out klaar is
+	elif not show_shadow and _shadow_opacity < 0.01:
+		_shadow_node.queue_free()
+		_shadow_node = null
+		_shadow_opacity = 0.0
 
 
 func _draw_shadow() -> void:
