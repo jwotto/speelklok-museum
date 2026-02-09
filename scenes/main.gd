@@ -27,6 +27,8 @@ func _ready() -> void:
 	get_tree().root.size_changed.connect(_resize_background)
 	_add_button.pressed.connect(_on_add_pressed)
 	_picker.sticker_selected.connect(_on_sticker_selected)
+	_picker.opened.connect(_on_picker_opened)
+	_picker.closed.connect(_on_picker_closed)
 
 
 func _resize_background() -> void:
@@ -38,6 +40,16 @@ func _resize_background() -> void:
 
 func _on_add_pressed() -> void:
 	_picker.toggle()
+
+
+func _on_picker_opened() -> void:
+	_trash_button.visible = false
+	_add_button.visible = false
+
+
+func _on_picker_closed() -> void:
+	_trash_button.visible = true
+	_add_button.visible = true
 
 
 func _on_sticker_selected(scene: PackedScene) -> void:

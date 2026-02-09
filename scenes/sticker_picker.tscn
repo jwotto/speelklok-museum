@@ -2,6 +2,13 @@
 
 [ext_resource type="Script" uid="uid://dbf0a3mp4f7eg" path="res://scenes/sticker_picker.gd" id="1_script"]
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2u7bs"]
+bg_color = Color(0.15, 0.15, 0.15, 0.9)
+corner_radius_top_left = 20
+corner_radius_top_right = 20
+corner_radius_bottom_right = 20
+corner_radius_bottom_left = 20
+
 [node name="StickerPicker" type="Control" unique_id=1469395070]
 layout_mode = 3
 anchors_preset = 15
@@ -19,7 +26,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.97248906, 0.724694, 1, 0)
+color = Color(0, 0, 0, 0.5)
 
 [node name="Panel" type="Panel" parent="." unique_id=1346899768]
 layout_mode = 1
@@ -32,6 +39,7 @@ offset_right = -50.0
 offset_bottom = -50.0
 grow_horizontal = 2
 grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_2u7bs")
 
 [node name="CenterContainer" type="CenterContainer" parent="Panel" unique_id=1031966443]
 layout_mode = 1
@@ -46,3 +54,17 @@ layout_mode = 2
 theme_override_constants/h_separation = 30
 theme_override_constants/v_separation = 30
 columns = 4
+
+[node name="CloseButton" type="Button" parent="Panel" unique_id=977040491]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -117.0
+offset_top = -17.0
+offset_right = 13.0
+offset_bottom = 113.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 64
+text = "✕"
+flat = true

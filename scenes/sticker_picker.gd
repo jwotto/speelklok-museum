@@ -6,6 +6,8 @@ class_name StickerPicker
 ## Sleep sticker scenes naar de array in de inspector
 
 signal sticker_selected(scene: PackedScene)
+signal opened
+signal closed
 
 @export var sticker_scenes: Array[PackedScene] = []:
 	set(value):
@@ -37,8 +39,8 @@ signal sticker_selected(scene: PackedScene)
 # Scene node references
 @onready var _background: ColorRect = $Background
 @onready var _panel: Panel = $Panel
-@onready var _center: CenterContainer = $Panel/CenterContainer
 @onready var _grid: GridContainer = $Panel/CenterContainer/GridContainer
+@onready var _close_button: Button = $Panel/CloseButton
 
 var _is_open: bool = false
 var _outline_shader = preload("res://scenes/sticker_outline.gdshader")
@@ -117,6 +119,7 @@ func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hide()
 	get_tree().root.size_changed.connect(_update_layout)
+	_close_button.pressed.connect(close)
 
 
 func _populate_grid() -> void:
@@ -279,19 +282,9 @@ func open() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_background.mouse_filter = Control.MOUSE_FILTER_STOP
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	# Connect click handlers (alleen als nog niet connected)
-	if not _background.gui_input.is_connected(_on_overlay_click):
-		_background.gui_input.connect(_on_overlay_click)
-	if not _panel.gui_input.is_connected(_on_overlay_click):
-		_panel.gui_input.connect(_on_overlay_click)
 	_populate_grid()
 	show()
-
-
-func _on_overlay_click(event: InputEvent) -> void:
-	# Sluit picker bij klik op achtergrond of paneel (niet op sticker button)
-	if event is InputEventMouseButton and event.pressed:
-		close()
+	opened.emit()
 
 
 func close() -> void:
@@ -300,6 +293,7 @@ func close() -> void:
 	_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hide()
+	closed.emit()
 
 
 func toggle() -> void:
@@ -309,10 +303,3 @@ func toggle() -> void:
 		open()
 
 
-func _input(event: InputEvent) -> void:
-	if Engine.is_editor_hint():
-		return
-	if _is_open and event is InputEventScreenTouch and event.pressed:
-		var local = _panel.get_global_transform().affine_inverse() * event.position
-		if not Rect2(Vector2.ZERO, _panel.size).has_point(local):
-			close()
