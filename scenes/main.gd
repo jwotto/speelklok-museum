@@ -4,6 +4,7 @@ extends Node2D
 ## Main scene controller - beheert stickers en picker
 
 @export_group("Trash")
+## Hoe dicht (in pixels) de vinger bij de prullenbak moet zijn om een sticker te verwijderen bij loslaten
 @export var trash_zone_radius: float = 140.0
 
 # Scene node references
@@ -19,11 +20,11 @@ var _trash_highlighted: bool = false
 
 
 func _ready() -> void:
+	_resize_background()
 	if Engine.is_editor_hint():
 		return
 
 	# Runtime setup
-	_resize_background()
 	get_tree().root.size_changed.connect(_resize_background)
 	_add_button.pressed.connect(_on_add_pressed)
 	_picker.sticker_selected.connect(_on_sticker_selected)
@@ -34,7 +35,14 @@ func _ready() -> void:
 func _resize_background() -> void:
 	## Pas achtergrond aan op viewport grootte
 	if _background:
-		var size = get_viewport_rect().size
+		var size: Vector2
+		if Engine.is_editor_hint():
+			size = Vector2(
+				ProjectSettings.get_setting("display/window/size/viewport_width"),
+				ProjectSettings.get_setting("display/window/size/viewport_height")
+			)
+		else:
+			size = get_viewport_rect().size
 		_background.size = size
 
 
