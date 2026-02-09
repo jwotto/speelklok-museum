@@ -351,8 +351,10 @@ func _process_shadow(delta: float) -> void:
 	## Update schaduw - zichtbaar bij draggen of inertia, met kleine fade
 	var show_shadow = dragging or _inertia_active
 	var target = 1.0 if show_shadow else 0.0
+	var prev = _shadow_opacity
 	_shadow_opacity = lerpf(_shadow_opacity, target, 15.0 * delta)
-	if _shadow_node:
+	# Alleen hertekenen als opacity merkbaar verandert
+	if _shadow_node and absf(_shadow_opacity - prev) > 0.005:
 		_shadow_node.queue_redraw()
 
 

@@ -13,8 +13,9 @@ extends Node2D
 @onready var _add_button: IconButton = $UILayer/AddButton
 @onready var _picker: StickerPicker = $UILayer/StickerPicker
 
-var _was_dragging: Dictionary = {}  # Sticker -> was dragging last frame
+var _was_dragging: Dictionary = {}  # instance_id -> was dragging last frame
 var _last_touch_pos: Vector2 = Vector2.ZERO  # Laatste vinger/muis positie
+var _trash_highlighted: bool = false
 
 
 func _ready() -> void:
@@ -76,11 +77,12 @@ func _check_trash_zone() -> void:
 
 	for sticker in _sticker_container.get_children():
 		if sticker is Sticker:
+			var id = sticker.get_instance_id()
 			var is_dragging = sticker.dragging
-			var was_dragging = _was_dragging.get(sticker, false)
+			var was_dragging = _was_dragging.get(id, false)
 
 			# Track voor volgende frame
-			_was_dragging[sticker] = is_dragging
+			_was_dragging[id] = is_dragging
 
 			# Highlight trash als vinger erboven is tijdens slepen
 			if is_dragging and finger_in_zone:
@@ -88,7 +90,10 @@ func _check_trash_zone() -> void:
 
 			# Verwijder zodra vinger losgelaten wordt in zone
 			if was_dragging and not is_dragging and finger_in_zone:
-				_was_dragging.erase(sticker)
+				_was_dragging.erase(id)
 				sticker.queue_free()
 
-	_trash_button.modulate = Color(1.5, 0.5, 0.5) if any_dragging_in_zone else Color.WHITE
+	# Update modulate alleen bij wijziging
+	if _trash_highlighted != any_dragging_in_zone:
+		_trash_highlighted = any_dragging_in_zone
+		_trash_button.modulate = Color(1.5, 0.5, 0.5) if any_dragging_in_zone else Color.WHITE

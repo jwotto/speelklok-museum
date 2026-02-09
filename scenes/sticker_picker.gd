@@ -241,22 +241,32 @@ func _update_layout() -> void:
 
 
 
+func _kill_btn_tween(btn: TextureButton) -> void:
+	var old_tween = btn.get_meta("tween", null) as Tween
+	if old_tween and old_tween.is_valid():
+		old_tween.kill()
+
+
 func _on_btn_activate(btn: TextureButton) -> void:
+	_kill_btn_tween(btn)
 	var visual = btn.get_meta("visual") as Control
 	visual.material.set_shader_parameter("show_outline", true)
 	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tween.set_parallel()
 	tween.tween_property(visual, "rotation", btn.get_meta("hover_angle", 0.0), 0.2)
 	tween.tween_property(visual, "scale", Vector2(1.08, 1.08), 0.2)
+	btn.set_meta("tween", tween)
 
 
 func _on_btn_deactivate(btn: TextureButton) -> void:
+	_kill_btn_tween(btn)
 	var visual = btn.get_meta("visual") as Control
 	visual.material.set_shader_parameter("show_outline", false)
 	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
 	tween.set_parallel()
 	tween.tween_property(visual, "rotation", 0.0, 0.4)
 	tween.tween_property(visual, "scale", Vector2.ONE, 0.4)
+	btn.set_meta("tween", tween)
 
 
 func _on_sticker_pressed(scene: PackedScene) -> void:
