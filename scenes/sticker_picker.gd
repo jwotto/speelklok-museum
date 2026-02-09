@@ -14,9 +14,9 @@ signal sticker_selected(scene: PackedScene)
 			_populate_grid()
 
 @export_group("Panel")
-@export var panel_color: Color = Color(0.15, 0.15, 0.15, 0.9):
+@export var panel_gradient: GradientTexture2D:
 	set(value):
-		panel_color = value
+		panel_gradient = value
 		_update_panel_style()
 @export var panel_corner_radius: int = 20:
 	set(value):
@@ -54,15 +54,53 @@ func _update_panel_style() -> void:
 	if not is_inside_tree():
 		return
 	if _panel:
+		# Altijd StyleBoxFlat voor afgeronde hoeken
 		var style = StyleBoxFlat.new()
-		style.bg_color = panel_color
 		style.corner_radius_top_left = panel_corner_radius
 		style.corner_radius_top_right = panel_corner_radius
 		style.corner_radius_bottom_left = panel_corner_radius
 		style.corner_radius_bottom_right = panel_corner_radius
-		_panel.add_theme_stylebox_override("panel", style)
+
+		if panel_gradient:
+			# Gradient met afgeronde hoeken: StyleBoxFlat als clip mask,
+			# TextureRect als gradient wordt geclipt op de afgeronde vorm.
+			style.bg_color = Color.WHITE
+			_panel.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
+			_panel.add_theme_stylebox_override("panel", style)
+			_ensure_gradient_rect()
+		else:
+			# Simpele kleur met afgeronde hoeken
+			style.bg_color = Color(0.15, 0.15, 0.15, 0.9)
+			_panel.clip_children = CanvasItem.CLIP_CHILDREN_DISABLED
+			_panel.add_theme_stylebox_override("panel", style)
+			_remove_gradient_rect()
 	if _background:
 		_background.color = overlay_color
+
+
+func _ensure_gradient_rect() -> void:
+	## Maak of update TextureRect voor gradient achtergrond
+	var gradient_rect = _panel.get_node_or_null("GradientBG")
+	if gradient_rect == null:
+		gradient_rect = TextureRect.new()
+		gradient_rect.name = "GradientBG"
+		gradient_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		gradient_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		gradient_rect.stretch_mode = TextureRect.STRETCH_SCALE
+		_panel.add_child(gradient_rect)
+		_panel.move_child(gradient_rect, 0)
+	gradient_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	gradient_rect.offset_left = 0
+	gradient_rect.offset_top = 0
+	gradient_rect.offset_right = 0
+	gradient_rect.offset_bottom = 0
+	gradient_rect.texture = panel_gradient
+
+
+func _remove_gradient_rect() -> void:
+	var gradient_rect = _panel.get_node_or_null("GradientBG")
+	if gradient_rect:
+		gradient_rect.queue_free()
 
 
 func _ready() -> void:
