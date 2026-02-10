@@ -49,6 +49,13 @@ class_name BodyShape
 		max_flare_offset = v
 		_update_shape()
 
+@export_group("Smoothing")
+## Hoekafronding in pixels. 0 = scherp, 50+ = mooi rond
+@export_range(0.0, 200.0) var corner_radius: float = 60.0:
+	set(v):
+		corner_radius = v
+		_update_shape()
+
 @export_group("Appearance")
 ## Verzadiging van de vulkleur
 @export_range(0.0, 1.0) var color_saturation: float = 0.55
@@ -79,6 +86,9 @@ func _update_shape() -> void:
 	if not _shape_fill or not _shape_outline:
 		return
 	var pts = _generate_points()
+	pts = _deduplicate(pts)
+	if corner_radius > 0.0:
+		pts = _round_corners(pts, corner_radius)
 	_shape_fill.polygon = pts
 	# Outline: sluit de loop door eerste punt toe te voegen
 	var outline_pts = pts.duplicate()
@@ -103,6 +113,51 @@ func get_polygon() -> PackedVector2Array:
 	if _shape_fill:
 		return _shape_fill.polygon
 	return PackedVector2Array()
+
+
+func _deduplicate(pts: PackedVector2Array) -> PackedVector2Array:
+	## Verwijdert opeenvolgende dubbele punten (zone-overgangen delen eindpunten)
+	var n = pts.size()
+	var result = PackedVector2Array()
+	for i in n:
+		if pts[i].distance_to(pts[(i + 1) % n]) > 0.01:
+			result.append(pts[i])
+	return result
+
+
+func _round_corners(pts: PackedVector2Array, radius: float) -> PackedVector2Array:
+	## Vervangt scherpe hoeken door quadratische Bezier curves
+	var n = pts.size()
+	if n < 3 or radius <= 0.0:
+		return pts
+	var result = PackedVector2Array()
+	var segments = 6
+	for i in n:
+		var prev = pts[(i - 1 + n) % n]
+		var curr = pts[i]
+		var next_pt = pts[(i + 1) % n]
+		var to_prev = prev - curr
+		var to_next = next_pt - curr
+		var dist_prev = to_prev.length()
+		var dist_next = to_next.length()
+		if dist_prev < 0.001 or dist_next < 0.001:
+			result.append(curr)
+			continue
+		# Hoek bijna recht? Gewoon punt toevoegen
+		var dot = to_prev.normalized().dot(to_next.normalized())
+		if dot < -0.999:
+			result.append(curr)
+			continue
+		var r = minf(radius, minf(dist_prev, dist_next) * 0.5)
+		var start = curr + to_prev.normalized() * r
+		var end = curr + to_next.normalized() * r
+		# Quadratische Bezier: start -> curr (control point) -> end
+		for j in range(segments + 1):
+			var t = float(j) / float(segments)
+			var a = start.lerp(curr, t)
+			var b = curr.lerp(end, t)
+			result.append(a.lerp(b, t))
+	return result
 
 
 func _generate_points() -> PackedVector2Array:
@@ -174,7 +229,7 @@ func _dak_y(x_norm: float) -> float:
 	## Berekent de relatieve hoogte van het dak op positie x_norm (0=center, 1=rand)
 	## Retourneert 0..1 die vermenigvuldigd wordt met dak_height
 	var abs_x = absf(x_norm)
-	var flat_y = 0.0
+	var flat_y = 1.0
 	var spits_y = 1.0 - abs_x
 	var round_y = sqrt(maxf(0.0, 1.0 - abs_x * abs_x))
 
