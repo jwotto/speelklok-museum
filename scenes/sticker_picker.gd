@@ -191,7 +191,7 @@ func _populate_grid() -> void:
 				if not btn.is_hovered():
 					_on_btn_deactivate(btn)
 			)
-			btn.pressed.connect(_on_sticker_pressed.bind(scene, btn))
+			# Geen btn.pressed - _input release handler regelt sticker selectie
 			btn.set_meta("scene", scene)
 
 		_grid.add_child(btn)

@@ -259,12 +259,11 @@ func _update_sliders() -> void:
 		return
 	_updating_sliders = true
 	_scale_slider.value = _tracked_sticker.scale.x
-	var rot_deg = rad_to_deg(fmod(_tracked_sticker.rotation, TAU))
-	if rot_deg > 180.0:
-		rot_deg -= 360.0
-	elif rot_deg < -180.0:
-		rot_deg += 360.0
-	_rotate_slider.value = rot_deg
+	# Kortste hoekafstand tot huidige slider positie, dan clampen (voorkomt springen)
+	var prev = _rotate_slider.value
+	var rot_deg = rad_to_deg(_tracked_sticker.rotation)
+	var diff = fposmod(rot_deg - prev + 180.0, 360.0) - 180.0
+	_rotate_slider.value = clampf(prev + diff, -180.0, 180.0)
 	_updating_sliders = false
 
 
