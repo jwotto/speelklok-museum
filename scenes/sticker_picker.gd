@@ -302,7 +302,9 @@ func _update_layout() -> void:
 
 
 func _kill_btn_tween(btn: TextureButton) -> void:
-	var old_tween = btn.get_meta("tween", null) as Tween
+	if not btn.has_meta("tween"):
+		return
+	var old_tween = btn.get_meta("tween") as Tween
 	if old_tween and old_tween.is_valid():
 		old_tween.kill()
 

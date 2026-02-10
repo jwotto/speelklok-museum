@@ -58,6 +58,12 @@ static var _active_sticker: Sticker = null  # Welke sticker wordt nu gedragged
 static var _top_z_index: int = 0  # Hoogste z_index voor bovenop brengen
 static var _selected_sticker: Sticker = null  # Welke sticker is geselecteerd
 
+
+static func reset_statics() -> void:
+	_active_sticker = null
+	_top_z_index = 0
+	_selected_sticker = null
+
 # === INTERNE VARIABELEN ===
 
 var dragging: bool = false
