@@ -93,7 +93,7 @@ var _shadow_node: Node2D = null
 var _shadow_last_scale: float = 0.0
 
 # Outline shader
-var _outline_shader = preload("res://scenes/sticker_outline.gdshader")
+var _outline_shader = preload("res://scenes/fase_sticker_placer/onderdelen/sticker_outline.gdshader")
 
 # Selectie systeem
 var selected: bool = false

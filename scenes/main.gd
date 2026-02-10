@@ -12,7 +12,6 @@ signal phase_completed(phase_index: int)
 ## Welke fase start bij opstarten (0-indexed)
 @export var start_phase_index: int = 1
 
-@onready var _background: TextureRect = $Background
 @onready var _phase_container: Node2D = $PhaseContainer
 
 var _current_phase_index: int = -1
@@ -20,14 +19,12 @@ var _current_phase: Node = null
 
 
 func _ready() -> void:
-	_resize_background()
 	if Engine.is_editor_hint():
 		return
 
 	# Globale touch-naar-muis emulatie (Godot editor verwijdert deze setting steeds)
 	Input.emulate_mouse_from_touch = true
 
-	get_tree().root.size_changed.connect(_resize_background)
 	start_phase(start_phase_index)
 
 
@@ -43,20 +40,6 @@ func _input(event: InputEvent) -> void:
 			var index = event.keycode - KEY_1
 			if index < phase_scenes.size():
 				start_phase(index)
-
-
-func _resize_background() -> void:
-	## Pas achtergrond aan op viewport grootte
-	if _background:
-		var size: Vector2
-		if Engine.is_editor_hint():
-			size = Vector2(
-				ProjectSettings.get_setting("display/window/size/viewport_width"),
-				ProjectSettings.get_setting("display/window/size/viewport_height")
-			)
-		else:
-			size = get_viewport_rect().size
-		_background.size = size
 
 
 func start_phase(index: int) -> void:

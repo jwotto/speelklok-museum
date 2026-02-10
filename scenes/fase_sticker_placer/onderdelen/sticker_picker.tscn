@@ -1,6 +1,6 @@
 [gd_scene format=3 uid="uid://b51a205s8imei"]
 
-[ext_resource type="Script" uid="uid://dbf0a3mp4f7eg" path="res://scenes/sticker_picker.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://dbf0a3mp4f7eg" path="res://scenes/fase_sticker_placer/onderdelen/sticker_picker.gd" id="1_script"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2u7bs"]
 bg_color = Color(0.15, 0.15, 0.15, 0.9)

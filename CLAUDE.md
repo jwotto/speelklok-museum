@@ -6,17 +6,38 @@ Interactieve installatie voor het Speelklok Museum.
 
 Object-georiënteerd: elk onderdeel is een zelfstandige class.
 
+### Mappenstructuur
+```
+scenes/
+  main.gd + main.tscn                      ← flow controller (alleen fase-switching)
+  fase_<naam>/
+    fase_<naam>.gd + .tscn                  ← fase-scene (self-contained, eigen achtergrond)
+    onderdelen/                             ← sub-scenes en scripts van deze fase
+      ...
+```
+
+### Fase-architectuur
+- **Main** is alleen een flow controller: schakelt tussen fases, ESC, touch emulatie
+- **Elke fase** is een zelfstandige scene met:
+  - Eigen `Background` (TextureRect) als eerste child
+  - Eigen `_resize_background()` voor viewport-vulling (editor + runtime)
+  - `signal phase_completed` om Main te signaleren
+  - `@tool` zodat de scene volledig bewerkbaar is in de editor
+- Fase-bestanden hebben `fase_` prefix, sub-scenes zitten in `onderdelen/`
+- Toets 1-9 wisselt tussen fases (development only)
+
 ## Godot Code Richtlijnen
 
 ### Scene Opbouw
 - Elke scene is **self-contained** - geen externe dependencies
 - Siblings mogen **nooit** naar elkaar verwijzen - parent medieert
 - Nooit `get_parent()` in child scenes - gebruik signals of dependency injection
-- Scene tree:
+- Fase scene tree:
   ```
-  Main (Node2D)
-	World/Stickers (Node2D)  -- game content
-	UILayer (CanvasLayer)     -- UI boven alles
+  FaseNaam (Node2D)
+    Background (TextureRect)    -- eigen achtergrond
+    Content (Node2D)            -- fase content
+    UILayer (CanvasLayer)       -- UI boven alles
   ```
 
 ### Scripts
@@ -49,20 +70,14 @@ Object-georiënteerd: elk onderdeel is een zelfstandige class.
 - Gebruik `@export` variabelen voor alle instelbare waardes
 - Zorg dat alles modulair en visueel bewerkbaar is in de editor
 
-## Huidige Onderdelen
+## Bouwfasen
 
-- `Sticker` - Verplaatsbaar, schaalbaar, roteerbaar object met touch
-- `StickerPicker` - Grid overlay om stickers te kiezen
-- `Main` - Scene controller met trash/add buttons
-
-## Bouwfasen (nog te maken)
-
-1. Vorm (5 vragen bepalen contour)
-2. Muziekinstrumenten (10 items plaatsen)
-3. Muziekdrager (1 uit 5)
-4. Techniek (automatisch)
-5. Aandrijving (1 uit 5)
-6. Slot (8 sec muziek + transport)
+1. **fase_body_builder** - Lichaamsvorm (5 vragen bepalen contour) *placeholder*
+2. **fase_sticker_placer** - Muziekinstrumenten (10 items plaatsen) *werkend*
+3. Muziekdrager (1 uit 5) *nog te maken*
+4. Techniek (automatisch) *nog te maken*
+5. Aandrijving (1 uit 5) *nog te maken*
+6. Slot (8 sec muziek + transport) *nog te maken*
 
 ## Hardware
 

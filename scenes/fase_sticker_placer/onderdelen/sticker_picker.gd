@@ -43,8 +43,8 @@ signal closed
 @onready var _close_button: Button = $Panel/CloseButton
 
 var _is_open: bool = false
-var _outline_shader = preload("res://scenes/sticker_outline.gdshader")
-var _picker_btn_script = preload("res://scenes/sticker_picker_button.gd")
+var _outline_shader = preload("res://scenes/fase_sticker_placer/onderdelen/sticker_outline.gdshader")
+var _picker_btn_script = preload("res://scenes/fase_sticker_placer/onderdelen/sticker_picker_button.gd")
 
 
 func _get_configuration_warnings() -> PackedStringArray:
