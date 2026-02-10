@@ -1,6 +1,8 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene format=3 uid="uid://dir5dl7yr8vkl"]
 
-[ext_resource type="Script" path="res://scenes/fase_body_builder/fase_body_builder.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://c7w1v54l7s1ri" path="res://scenes/fase_body_builder/fase_body_builder.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://cd8dy8mu5x7hk" path="res://scenes/fase_body_builder/onderdelen/body_shape.gd" id="2_body_shape"]
+[ext_resource type="Script" uid="uid://dm2m25td82fi2" path="res://scenes/fase_body_builder/onderdelen/body_slider.gd" id="3_body_slider"]
 
 [sub_resource type="Gradient" id="Gradient_bg"]
 offsets = PackedFloat32Array(0, 0.5, 1)
@@ -12,29 +14,112 @@ use_hdr = true
 fill_from = Vector2(0.008417509, 0)
 fill_to = Vector2(0.93434346, 0.9478114)
 
-[node name="BodyBuilder" type="Node2D"]
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_done"]
+content_margin_left = 45.0
+content_margin_top = 22.0
+content_margin_right = 45.0
+content_margin_bottom = 22.0
+bg_color = Color(0.2, 0.65, 0.3, 0.9)
+corner_radius_top_left = 30
+corner_radius_top_right = 30
+corner_radius_bottom_right = 30
+corner_radius_bottom_left = 30
+
+[node name="BodyBuilder" type="Node2D" unique_id=55670948]
 script = ExtResource("1_script")
 
-[node name="Background" type="TextureRect" parent="."]
-offset_right = 1920.0
-offset_bottom = 1080.0
+[node name="Background" type="TextureRect" parent="." unique_id=113724502]
+offset_right = 2880.0
+offset_bottom = 1800.0
 texture = SubResource("GradientTexture2D_bg")
 
-[node name="UILayer" type="CanvasLayer" parent="."]
+[node name="BodyShape" type="Node2D" parent="." unique_id=1690407764]
+position = Vector2(1458, 115)
+script = ExtResource("2_body_shape")
+shape_width = 2000.0
+shape_height = 1500.0
+
+[node name="ShapeFill" type="Polygon2D" parent="BodyShape" unique_id=485230438]
+color = Color(0.3825, 0.85, 0.85, 1)
+polygon = PackedVector2Array(0, 0, 125, 2.941222, 250, 11.907811, 375, 27.365696, 500, 50.240475, 625, 82.26572, 750, 126.960815, 875, 193.4539, 1000, 375, 1000, 375, 1000, 500, 1000, 625, 1000, 750, 1000, 875, 1000, 1000, 1000, 1125, 1000, 1125, 1000, 1218.75, 1000, 1312.5, 1000, 1406.25, 1000, 1500, 1000, 1500, -1000, 1500, -1000, 1500, -1000, 1406.25, -1000, 1312.5, -1000, 1218.75, -1000, 1125, -1000, 1125, -1000, 1000, -1000, 875, -1000, 750, -1000, 625, -1000, 500, -1000, 375, -1000, 375, -875, 193.4539, -750, 126.960815, -625, 82.26572, -500, 50.240475, -375, 27.365696, -250, 11.907811, -125, 2.941222, 0, 0)
+
+[node name="ShapeOutline" type="Line2D" parent="BodyShape" unique_id=601177593]
+points = PackedVector2Array(0, 0, 125, 2.941222, 250, 11.907811, 375, 27.365696, 500, 50.240475, 625, 82.26572, 750, 126.960815, 875, 193.4539, 1000, 375, 1000, 375, 1000, 500, 1000, 625, 1000, 750, 1000, 875, 1000, 1000, 1000, 1125, 1000, 1125, 1000, 1218.75, 1000, 1312.5, 1000, 1406.25, 1000, 1500, 1000, 1500, -1000, 1500, -1000, 1500, -1000, 1406.25, -1000, 1312.5, -1000, 1218.75, -1000, 1125, -1000, 1125, -1000, 1000, -1000, 875, -1000, 750, -1000, 625, -1000, 500, -1000, 375, -1000, 375, -875, 193.4539, -750, 126.960815, -625, 82.26572, -500, 50.240475, -375, 27.365696, -250, 11.907811, -125, 2.941222, 0, 0, 0, 0)
+width = 6.0
+default_color = Color(0.15, 0.1, 0.05, 0.8)
+joint_mode = 2
+
+[node name="UILayer" type="CanvasLayer" parent="." unique_id=658816922]
 layer = 10
 
-[node name="PlaceholderLabel" type="Label" parent="UILayer"]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -200.0
-offset_top = -30.0
-offset_right = 200.0
-offset_bottom = 30.0
-grow_horizontal = 2
+[node name="SliderContainer" type="VBoxContainer" parent="UILayer" unique_id=1078645955]
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 83.0
+offset_top = 7.0
+offset_right = 173.0
+offset_bottom = 2.0
 grow_vertical = 2
-text = "Fase 1: Lichaamsvorm"
-horizontal_alignment = 1
-vertical_alignment = 1
+alignment = 1
+
+[node name="DakSlider" type="Control" parent="UILayer/SliderContainer" unique_id=1042612474]
+custom_minimum_size = Vector2(90, 440)
+layout_mode = 2
+script = ExtResource("3_body_slider")
+track_length = 350.0
+track_color = Color(1, 1, 1, 1)
+track_width = 6.0
+thumb_radius = 45.0
+icon_line_width = 4.0
+
+[node name="BuikSlider" type="Control" parent="UILayer/SliderContainer" unique_id=1335672560]
+custom_minimum_size = Vector2(90, 440)
+layout_mode = 2
+script = ExtResource("3_body_slider")
+icon_type = 1
+track_length = 350.0
+track_color = Color(1, 1, 1, 1)
+track_width = 6.0
+thumb_radius = 45.0
+icon_line_width = 4.0
+
+[node name="RokSlider" type="Control" parent="UILayer/SliderContainer" unique_id=158570115]
+custom_minimum_size = Vector2(90, 440)
+layout_mode = 2
+script = ExtResource("3_body_slider")
+icon_type = 2
+track_length = 350.0
+track_color = Color(1, 1, 1, 1)
+track_width = 6.0
+thumb_radius = 45.0
+icon_line_width = 4.0
+
+[node name="KleurSlider" type="Control" parent="UILayer/SliderContainer" unique_id=1704117184]
+custom_minimum_size = Vector2(90, 440)
+layout_mode = 2
+script = ExtResource("3_body_slider")
+icon_type = 3
+track_length = 350.0
+track_color = Color(1, 1, 1, 1)
+track_width = 6.0
+thumb_radius = 45.0
+icon_line_width = 4.0
+
+[node name="DoneButton" type="Button" parent="UILayer" unique_id=1151658330]
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -300.0
+offset_top = -120.0
+offset_right = -60.0
+offset_bottom = -45.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 42
+theme_override_styles/normal = SubResource("StyleBoxFlat_done")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_done")
+theme_override_styles/hover = SubResource("StyleBoxFlat_done")
+text = "Klaar!"

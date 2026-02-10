@@ -12,7 +12,7 @@ enum IconType { NONE, ADD, TRASH }
 		_regenerate()
 
 @export_group("Appearance")
-@export var button_size: int = 120:
+@export var button_size: int = 180:
 	set(value):
 		button_size = value
 		_regenerate()
@@ -20,7 +20,7 @@ enum IconType { NONE, ADD, TRASH }
 	set(value):
 		color = value
 		_regenerate()
-@export var corner_radius: int = 20:
+@export var corner_radius: int = 30:
 	set(value):
 		corner_radius = value
 		_regenerate()
@@ -83,9 +83,10 @@ func _is_in_rounded_rect(x: int, y: int, w: int, h: int, r: int) -> bool:
 
 func _draw_add_icon(img: Image) -> void:
 	var s = button_size
+	var sc: float = s / 120.0
 	var center = int(s / 2.0)
-	var half_thick = 6
-	var length = 45
+	var half_thick = int(6 * sc)
+	var length = int(45 * sc)
 	for x in range(center - length, center + length + 1):
 		for y in range(center - half_thick, center + half_thick + 1):
 			img.set_pixel(x, y, icon_color)
@@ -96,22 +97,30 @@ func _draw_add_icon(img: Image) -> void:
 
 func _draw_trash_icon(img: Image) -> void:
 	var s = button_size
+	var sc: float = s / 120.0
 	@warning_ignore("integer_division")
 	var cx: int = s / 2
+	var margin = int(25 * sc)
+	var lid_y1 = int(30 * sc)
+	var lid_y2 = int(40 * sc)
+	var handle_half = int(8 * sc)
+	var handle_y = int(20 * sc)
+	var bin_margin = int(30 * sc)
+	var bin_border = int(5 * sc)
 	# Deksel
-	for x in range(10, s - 10):
-		for y in range(15, 25):
+	for x in range(margin, s - margin):
+		for y in range(lid_y1, lid_y2):
 			if _is_in_rounded_rect(x, y, s, s, corner_radius):
 				img.set_pixel(x, y, icon_color)
 	# Handvat
-	for x in range(cx - 10, cx + 10):
-		for y in range(5, 15):
+	for x in range(cx - handle_half, cx + handle_half):
+		for y in range(handle_y, lid_y1):
 			if _is_in_rounded_rect(x, y, s, s, corner_radius):
 				img.set_pixel(x, y, icon_color)
 	# Bak
-	for x in range(15, s - 15):
-		for y in range(25, s - 10):
-			if x < 20 or x > s - 20 or y > s - 15:
+	for x in range(bin_margin, s - bin_margin):
+		for y in range(lid_y2, s - margin):
+			if x < bin_margin + bin_border or x > s - bin_margin - bin_border or y > s - margin - bin_border:
 				img.set_pixel(x, y, icon_color)
 
 

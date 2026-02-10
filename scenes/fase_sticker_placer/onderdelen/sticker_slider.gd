@@ -28,7 +28,7 @@ enum IconType { ROTATE, SCALE }
 
 @export_group("Track")
 ## Lengte van de sleeplijn in pixels (totale control hoogte = track_length + 2x thumb_radius)
-@export var track_length: float = 200.0:
+@export var track_length: float = 300.0:
 	set(v):
 		track_length = v
 		_update_minimum_size()
@@ -39,14 +39,14 @@ enum IconType { ROTATE, SCALE }
 		track_color = v
 		queue_redraw()
 ## Dikte van de track lijn in pixels
-@export var track_width: float = 4.0:
+@export var track_width: float = 6.0:
 	set(v):
 		track_width = v
 		queue_redraw()
 
 @export_group("Thumb")
 ## Straal van de ronde thumb in pixels (bepaalt ook de marge boven/onder de track)
-@export var thumb_radius: float = 30.0:
+@export var thumb_radius: float = 45.0:
 	set(v):
 		thumb_radius = v
 		_update_minimum_size()
@@ -64,7 +64,7 @@ enum IconType { ROTATE, SCALE }
 		icon_color = v
 		queue_redraw()
 ## Lijndikte van het icoon in pixels
-@export var icon_line_width: float = 2.5:
+@export var icon_line_width: float = 4.0:
 	set(v):
 		icon_line_width = v
 		queue_redraw()
@@ -74,7 +74,7 @@ enum IconType { ROTATE, SCALE }
 		icon_scale = v
 		queue_redraw()
 ## Grootte van de pijlpunten in pixels
-@export var icon_arrow_size: float = 8.0:
+@export var icon_arrow_size: float = 12.0:
 	set(v):
 		icon_arrow_size = v
 		queue_redraw()

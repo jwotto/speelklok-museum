@@ -11,9 +11,9 @@ Object-georiënteerd: elk onderdeel is een zelfstandige class.
 scenes/
   main.gd + main.tscn                      ← flow controller (alleen fase-switching)
   fase_<naam>/
-    fase_<naam>.gd + .tscn                  ← fase-scene (self-contained, eigen achtergrond)
-    onderdelen/                             ← sub-scenes en scripts van deze fase
-      ...
+	fase_<naam>.gd + .tscn                  ← fase-scene (self-contained, eigen achtergrond)
+	onderdelen/                             ← sub-scenes en scripts van deze fase
+	  ...
 ```
 
 ### Fase-architectuur
@@ -35,9 +35,9 @@ scenes/
 - Fase scene tree:
   ```
   FaseNaam (Node2D)
-    Background (TextureRect)    -- eigen achtergrond
-    Content (Node2D)            -- fase content
-    UILayer (CanvasLayer)       -- UI boven alles
+	Background (TextureRect)    -- eigen achtergrond
+	Content (Node2D)            -- fase content
+	UILayer (CanvasLayer)       -- UI boven alles
   ```
 
 ### Scripts

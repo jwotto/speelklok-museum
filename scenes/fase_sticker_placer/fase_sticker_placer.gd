@@ -8,7 +8,7 @@ signal phase_completed
 
 @export_group("Trash")
 ## Hoe dicht (in pixels) de vinger bij de prullenbak moet zijn om een sticker te verwijderen bij loslaten
-@export var trash_zone_radius: float = 140.0
+@export var trash_zone_radius: float = 210.0
 
 # Scene node references
 @onready var _background: TextureRect = $Background

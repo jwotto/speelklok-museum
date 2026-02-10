@@ -5,6 +5,6 @@
 [node name="AddButton" type="TextureButton"]
 script = ExtResource("1_script")
 icon_type = 1
-button_size = 120
+button_size = 180
 color = Color(0.3, 0.3, 0.3, 0.8)
-corner_radius = 20
+corner_radius = 30

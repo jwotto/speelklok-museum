@@ -15,9 +15,9 @@ data = {
 image = SubResource("Image_2ik18")
 
 [node name="TrashButton" type="TextureButton" unique_id=1861899410]
-custom_minimum_size = Vector2(120, 120)
-offset_right = 120.0
-offset_bottom = 120.0
+custom_minimum_size = Vector2(180, 180)
+offset_right = 180.0
+offset_bottom = 180.0
 texture_normal = SubResource("ImageTexture_ccmxf")
 script = ExtResource("1_script")
 icon_type = 2

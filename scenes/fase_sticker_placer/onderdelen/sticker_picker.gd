@@ -32,9 +32,9 @@ signal closed
 @export_group("Layout")
 @export var min_columns: int = 2
 @export var max_columns: int = 5
-@export var min_icon_size: float = 100.0
-@export var max_icon_size: float = 500.0
-@export var grid_padding: float = 30.0
+@export var min_icon_size: float = 150.0
+@export var max_icon_size: float = 750.0
+@export var grid_padding: float = 45.0
 
 # Scene node references
 @onready var _background: ColorRect = $Background
