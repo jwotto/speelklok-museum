@@ -120,7 +120,6 @@ func _ready() -> void:
 	hide()
 	get_tree().root.size_changed.connect(_update_layout)
 	_close_button.pressed.connect(close)
-	_background.gui_input.connect(_on_background_gui_input)
 
 
 func _populate_grid() -> void:
@@ -275,17 +274,35 @@ func _on_btn_deactivate(btn: TextureButton) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	## Consumeer ScreenTouch zodat stickers niet reageren als de picker open is
+	## Release = actie (touch-friendly: release op knop telt als klik)
 	if Engine.is_editor_hint() or not _is_open:
 		return
-	if event is InputEventScreenTouch:
-		get_viewport().set_input_as_handled()
+	if event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		# Check sticker knoppen
+		var btn = _find_btn_at(event.position)
+		if btn:
+			var scene = btn.get_meta("scene", null) as PackedScene
+			if scene:
+				_on_sticker_pressed(scene, btn)
+				get_viewport().set_input_as_handled()
+				return
+		# Close button
+		if _close_button.get_global_rect().has_point(event.position):
+			close()
+			get_viewport().set_input_as_handled()
+			return
+		# Buiten panel = sluiten
+		if not _panel.get_global_rect().has_point(event.position):
+			close()
+			get_viewport().set_input_as_handled()
 
 
-func _on_background_gui_input(event: InputEvent) -> void:
-	## Klik op achtergrond (buiten panel) sluit de picker
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		close()
+func _find_btn_at(pos: Vector2) -> TextureButton:
+	## Vind de sticker-knop op de gegeven screen positie
+	for btn in _grid.get_children():
+		if btn is TextureButton and btn.get_global_rect().has_point(pos):
+			return btn
+	return null
 
 
 func _on_sticker_pressed(scene: PackedScene, btn: TextureButton) -> void:
