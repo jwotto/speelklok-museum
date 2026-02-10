@@ -16,8 +16,8 @@ signal selection_changed(is_selected: bool)
 @export_group("Scale Limits")
 ## Minimale schaal als multiplier van de start-grootte (0.3 = 30% van origineel)
 @export var min_scale: float = 0.3
-## Maximale schaal als multiplier van de start-grootte (5.0 = 5x zo groot)
-@export var max_scale: float = 5.0
+## Maximale schaal als multiplier van de start-grootte (2.0 = 2x zo groot)
+@export var max_scale: float = 2.0
 
 @export_group("Inertia")
 ## Hoeveel slide/momentum na loslaten (0 = geen, 1 = normaal, 2 = veel)

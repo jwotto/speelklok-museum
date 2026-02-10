@@ -120,6 +120,7 @@ func _ready() -> void:
 	hide()
 	get_tree().root.size_changed.connect(_update_layout)
 	_close_button.pressed.connect(close)
+	_background.gui_input.connect(_on_background_gui_input)
 
 
 func _populate_grid() -> void:
@@ -192,6 +193,7 @@ func _populate_grid() -> void:
 					_on_btn_deactivate(btn)
 			)
 			btn.pressed.connect(_on_sticker_pressed.bind(scene, btn))
+			btn.set_meta("scene", scene)
 
 		_grid.add_child(btn)
 
@@ -270,6 +272,20 @@ func _on_btn_deactivate(btn: TextureButton) -> void:
 	tween.tween_property(visual, "rotation", 0.0, 0.4)
 	tween.tween_property(visual, "scale", Vector2.ONE, 0.4)
 	btn.set_meta("tween", tween)
+
+
+func _input(event: InputEvent) -> void:
+	## Consumeer ScreenTouch zodat stickers niet reageren als de picker open is
+	if Engine.is_editor_hint() or not _is_open:
+		return
+	if event is InputEventScreenTouch:
+		get_viewport().set_input_as_handled()
+
+
+func _on_background_gui_input(event: InputEvent) -> void:
+	## Klik op achtergrond (buiten panel) sluit de picker
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		close()
 
 
 func _on_sticker_pressed(scene: PackedScene, btn: TextureButton) -> void:

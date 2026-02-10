@@ -31,6 +31,10 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 
+	# Zorg dat touch events ook muis-events genereren voor GUI Controls
+	# (deze setting wordt steeds verwijderd door de Godot editor)
+	Input.emulate_mouse_from_touch = true
+
 	# Runtime setup
 	_trash_button.visible = false
 	get_tree().root.size_changed.connect(_resize_background)
@@ -82,17 +86,30 @@ func _update_button_visibility() -> void:
 	else:
 		_trash_button.visible = false
 		_add_button.visible = true
-	# Sliders: toon als sticker geselecteerd en niet aan het draggen/picker open
-	_slider_container.visible = _tracked_sticker != null and not _picker_open and not _any_dragging
+	# Sliders: toon als sticker geselecteerd en picker niet open
+	_slider_container.visible = _tracked_sticker != null and not _picker_open
 
 
 func _is_touch_over_ui(pos: Vector2) -> bool:
+	## Check of de positie boven een UI element valt
 	for btn: Control in [_add_button, _trash_button]:
 		if btn.visible and btn.get_global_rect().has_point(pos):
 			return true
 	if _slider_container.visible and _slider_container.get_global_rect().has_point(pos):
 		return true
 	return false
+
+
+func _select_sticker_at(pos: Vector2) -> void:
+	## Selecteer de bovenste sticker op de gegeven positie
+	var best_sticker: Sticker = null
+	var best_z: int = -1
+	for sticker in _sticker_container.get_children():
+		if sticker is Sticker and sticker._hit_test(pos) and sticker.z_index > best_z:
+			best_sticker = sticker
+			best_z = sticker.z_index
+	if best_sticker != null:
+		best_sticker._select()
 
 
 func _set_stickers_input(enabled: bool) -> void:
@@ -107,6 +124,8 @@ func _on_sticker_selected(scene: PackedScene, from_position: Vector2) -> void:
 	sticker.position = from_position
 	_sticker_container.add_child(sticker)
 	sticker.selection_changed.connect(_on_sticker_selection_changed.bind(sticker))
+	# Selecteer de nieuwe sticker automatisch
+	sticker._select()
 	# Zet nieuwe sticker bovenop
 	Sticker._top_z_index += 1
 	sticker.z_index = Sticker._top_z_index
@@ -139,11 +158,19 @@ func _input(event: InputEvent) -> void:
 		_last_touch_pos = event.position
 	elif event is InputEventMouseMotion or event is InputEventMouseButton:
 		_last_touch_pos = event.position
-	# Consumeer touch events die op een zichtbare UI knop vallen
-	# zodat stickers (via _unhandled_input) ze niet oppakken
+	# Voorkom dat touch events door UI heen naar stickers gaan
 	if event is InputEventScreenTouch and event.pressed:
 		if _is_touch_over_ui(event.position):
 			get_viewport().set_input_as_handled()
+	# Bij loslaten: selecteer sticker onder de vinger (als er niet gedragged werd)
+	if not _any_dragging and not _picker_open:
+		var released = false
+		if event is InputEventScreenTouch and not event.pressed:
+			released = true
+		elif event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+			released = true
+		if released and not _is_touch_over_ui(event.position):
+			_select_sticker_at(event.position)
 
 
 func _check_trash_zone() -> void:
@@ -215,7 +242,9 @@ func _update_slider_values(sticker: Sticker) -> void:
 	## Stel slider waardes in op basis van sticker state
 	_updating_sliders = true
 	var rot_deg = rad_to_deg(fmod(sticker.rotation, TAU))
-	if rot_deg < 0.0:
+	if rot_deg > 180.0:
+		rot_deg -= 360.0
+	elif rot_deg < -180.0:
 		rot_deg += 360.0
 	_rotate_slider.value = rot_deg
 	_scale_slider.min_value = sticker._base_scale * sticker.min_scale
@@ -225,12 +254,17 @@ func _update_slider_values(sticker: Sticker) -> void:
 
 
 func _update_sliders() -> void:
-	## Synchroniseer slider waardes met sticker (voor pinch updates)
-	## Rotatie wordt NIET gesynchroniseerd (360°=0° veroorzaakt sprongen)
+	## Synchroniseer slider waardes met sticker (voor pinch/rotate updates)
 	if _tracked_sticker == null or not _slider_container.visible:
 		return
 	_updating_sliders = true
 	_scale_slider.value = _tracked_sticker.scale.x
+	var rot_deg = rad_to_deg(fmod(_tracked_sticker.rotation, TAU))
+	if rot_deg > 180.0:
+		rot_deg -= 360.0
+	elif rot_deg < -180.0:
+		rot_deg += 360.0
+	_rotate_slider.value = rot_deg
 	_updating_sliders = false
 
 
