@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://bbmr5lj67axwk"]
+
+[ext_resource type="PackedScene" uid="uid://dj7x8qr5kp2ym" path="res://scenes/sticker.tscn" id="1_base"]
+[ext_resource type="Texture2D" uid="uid://bsrrgyyyolrt2" path="res://afbeeldingen instrumenten/snaredrum.png" id="2_snare"]
+[ext_resource type="Texture2D" uid="uid://dx1sy8guxab85" path="res://afbeeldingen instrumenten/hihat.png" id="3_hihat"]
+
+[node name="Sticker" unique_id=1268836878 instance=ExtResource("1_base")]
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_snare")
+
+[node name="Hihat" type="Sprite2D" parent="." index="0" unique_id=1513969190]
+position = Vector2(1040, -36)
+texture = ExtResource("3_hihat")

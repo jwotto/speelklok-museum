@@ -143,40 +143,40 @@ func _populate_grid() -> void:
 
 	# Maak knop voor elke sticker scene
 	for scene in sticker_scenes:
-		var tex = _get_texture_from_scene(scene)
-		if tex == null:
+		var sprites = _get_sprites_from_scene(scene)
+		if sprites.is_empty():
 			continue
 
 		var btn: TextureButton
 		if Engine.is_editor_hint():
 			btn = TextureButton.new()
-			btn.texture_normal = tex
+			btn.texture_normal = sprites[0].texture
 		else:
 			btn = _picker_btn_script.new()
 			btn.hit_margin = 30.0
-			btn.texture_normal = tex
+			btn.texture_normal = sprites[0].texture
 			btn.self_modulate = Color(1, 1, 1, 0)  # Verberg button tekening
 		btn.ignore_texture_size = true
 		btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
 		btn.custom_minimum_size = icon_size
 
 		if not Engine.is_editor_hint():
-			# Visuele child (wordt gedraaid/geschaald, button zelf blijft stil)
-			var visual = TextureRect.new()
-			visual.texture = tex
-			visual.set_anchors_preset(Control.PRESET_FULL_RECT)
-			visual.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			visual.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			visual.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			visual.pivot_offset = icon_size / 2
+			var visual: Control
+			if sprites.size() == 1:
+				# Enkele sprite: TextureRect
+				var tex_rect = TextureRect.new()
+				tex_rect.texture = sprites[0].texture
+				tex_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+				tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+				tex_rect.pivot_offset = icon_size / 2
+				tex_rect.material = _make_outline_material()
+				visual = tex_rect
+			else:
+				# Meerdere sprites: container met bounding box berekening
+				visual = _create_multi_sprite_visual(sprites, icon_size)
 
-			# Outline shader op de visual
-			var mat = ShaderMaterial.new()
-			mat.shader = _outline_shader
-			mat.set_shader_parameter("show_outline", false)
-			mat.set_shader_parameter("outline_width", 30.0)
-			mat.set_shader_parameter("outline_color", Color.WHITE)
-			visual.material = mat
 			btn.add_child(visual)
 			btn.set_meta("visual", visual)
 
@@ -197,15 +197,71 @@ func _populate_grid() -> void:
 		_grid.add_child(btn)
 
 
-func _get_texture_from_scene(scene: PackedScene) -> Texture2D:
-	## Haal texture op uit een sticker scene voor de preview
+func _make_outline_material() -> ShaderMaterial:
+	var mat = ShaderMaterial.new()
+	mat.shader = _outline_shader
+	mat.set_shader_parameter("show_outline", false)
+	mat.set_shader_parameter("outline_width", 30.0)
+	mat.set_shader_parameter("outline_color", Color.WHITE)
+	return mat
+
+
+func _create_multi_sprite_visual(sprites: Array[Dictionary], icon_size: Vector2) -> Control:
+	## Maak een container met meerdere sprites, geschaald naar icon_size
+	var container = Control.new()
+	container.set_anchors_preset(Control.PRESET_FULL_RECT)
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.pivot_offset = icon_size / 2
+
+	# Bereken gecombineerde bounding box (Sprite2D centreert textures)
+	var bbox := Rect2()
+	for i in sprites.size():
+		var tex_size = sprites[i].texture.get_size()
+		var pos: Vector2 = sprites[i].position
+		var sprite_rect = Rect2(pos - tex_size / 2, tex_size)
+		if i == 0:
+			bbox = sprite_rect
+		else:
+			bbox = bbox.merge(sprite_rect)
+
+	# Schaal om in icon_size te passen
+	var fit_scale = minf(icon_size.x / bbox.size.x, icon_size.y / bbox.size.y)
+	var centering = (icon_size - bbox.size * fit_scale) / 2
+
+	for s in sprites:
+		var tex_rect = TextureRect.new()
+		tex_rect.texture = s.texture
+		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex_rect.stretch_mode = TextureRect.STRETCH_SCALE
+		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tex_rect.material = _make_outline_material()
+		var tex_size = s.texture.get_size()
+		var top_left: Vector2 = s.position - tex_size / 2
+		tex_rect.position = (top_left - bbox.position) * fit_scale + centering
+		tex_rect.size = tex_size * fit_scale
+		container.add_child(tex_rect)
+
+	return container
+
+
+func _get_sprites_from_scene(scene: PackedScene) -> Array[Dictionary]:
+	## Haal alle sprite textures + posities op uit een sticker scene
 	if scene == null:
-		return null
+		return []
 	var state = scene.get_state()
-	for i in state.get_node_property_count(0):
-		if state.get_node_property_name(0, i) == "texture":
-			return state.get_node_property_value(0, i)
-	return null
+	var sprites: Array[Dictionary] = []
+	for node_idx in state.get_node_count():
+		var tex: Texture2D = null
+		var pos := Vector2.ZERO
+		for prop_idx in state.get_node_property_count(node_idx):
+			var prop_name = state.get_node_property_name(node_idx, prop_idx)
+			if prop_name == "texture":
+				tex = state.get_node_property_value(node_idx, prop_idx)
+			elif prop_name == "position":
+				pos = state.get_node_property_value(node_idx, prop_idx)
+		if tex:
+			sprites.append({"texture": tex, "position": pos})
+	return sprites
 
 
 func _calculate_icon_size() -> Vector2:
@@ -251,10 +307,18 @@ func _kill_btn_tween(btn: TextureButton) -> void:
 		old_tween.kill()
 
 
+func _set_outline(visual: Control, enabled: bool) -> void:
+	if visual.material:
+		visual.material.set_shader_parameter("show_outline", enabled)
+	for child in visual.get_children():
+		if child is TextureRect and child.material:
+			child.material.set_shader_parameter("show_outline", enabled)
+
+
 func _on_btn_activate(btn: TextureButton) -> void:
 	_kill_btn_tween(btn)
 	var visual = btn.get_meta("visual") as Control
-	visual.material.set_shader_parameter("show_outline", true)
+	_set_outline(visual, true)
 	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tween.set_parallel()
 	tween.tween_property(visual, "rotation", btn.get_meta("hover_angle", 0.0), 0.2)
@@ -265,7 +329,7 @@ func _on_btn_activate(btn: TextureButton) -> void:
 func _on_btn_deactivate(btn: TextureButton) -> void:
 	_kill_btn_tween(btn)
 	var visual = btn.get_meta("visual") as Control
-	visual.material.set_shader_parameter("show_outline", false)
+	_set_outline(visual, false)
 	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
 	tween.set_parallel()
 	tween.tween_property(visual, "rotation", 0.0, 0.4)

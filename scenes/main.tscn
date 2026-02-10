@@ -1,14 +1,16 @@
 [gd_scene format=3 uid="uid://dh83yh07377sh"]
 
 [ext_resource type="Script" uid="uid://cm7qngadc1xxq" path="res://scenes/main.gd" id="1_main_script"]
-[ext_resource type="PackedScene" path="res://scenes/stickers/contrabas.tscn" id="4_contrabas"]
-[ext_resource type="PackedScene" path="res://scenes/stickers/xylofoon.tscn" id="5_xylofoon"]
-[ext_resource type="PackedScene" path="res://scenes/stickers/trompet.tscn" id="6_trompet"]
-[ext_resource type="PackedScene" path="res://scenes/stickers/banjo.tscn" id="7_banjo"]
-[ext_resource type="PackedScene" path="res://scenes/stickers/fietsbel.tscn" id="8_fietsbel"]
-[ext_resource type="PackedScene" path="res://scenes/stickers/snaredrum.tscn" id="9_snaredrum"]
-[ext_resource type="PackedScene" path="res://scenes/stickers/hihat.tscn" id="10_hihat"]
-[ext_resource type="PackedScene" path="res://scenes/stickers/toeter.tscn" id="11_toeter"]
+[ext_resource type="PackedScene" path="res://scenes/stickers/drums.tscn" id="4_drums"]
+[ext_resource type="PackedScene" path="res://scenes/stickers/bongo.tscn" id="5_bongo"]
+[ext_resource type="PackedScene" path="res://scenes/stickers/contrabas.tscn" id="6_contrabas"]
+[ext_resource type="PackedScene" path="res://scenes/stickers/gitaar.tscn" id="7_gitaar"]
+[ext_resource type="PackedScene" path="res://scenes/stickers/orgelpijp.tscn" id="8_orgelpijp"]
+[ext_resource type="PackedScene" path="res://scenes/stickers/viool.tscn" id="9_viool"]
+[ext_resource type="PackedScene" path="res://scenes/stickers/xylofoon.tscn" id="10_xylofoon"]
+[ext_resource type="PackedScene" path="res://scenes/stickers/bellen.tscn" id="11_bellen"]
+[ext_resource type="PackedScene" path="res://scenes/stickers/trompet.tscn" id="16_trompet"]
+[ext_resource type="PackedScene" path="res://scenes/stickers/speelkam.tscn" id="17_speelkam"]
 [ext_resource type="PackedScene" uid="uid://b51a205s8imei" path="res://scenes/sticker_picker.tscn" id="12_picker"]
 [ext_resource type="PackedScene" uid="uid://b52x1ffwte8og" path="res://scenes/trash_button.tscn" id="13_trash"]
 [ext_resource type="PackedScene" path="res://scenes/add_button.tscn" id="14_add"]
@@ -101,7 +103,7 @@ color = Color(1, 1, 1, 1)
 icon_color = Color(1, 1, 1, 0)
 
 [node name="StickerPicker" parent="UILayer" unique_id=1560307040 instance=ExtResource("12_picker")]
-sticker_scenes = Array[PackedScene]([ExtResource("4_contrabas"), ExtResource("5_xylofoon"), ExtResource("6_trompet"), ExtResource("7_banjo"), ExtResource("8_fietsbel"), ExtResource("9_snaredrum"), ExtResource("10_hihat"), ExtResource("11_toeter")])
+sticker_scenes = Array[PackedScene]([ExtResource("4_drums"), ExtResource("5_bongo"), ExtResource("6_contrabas"), ExtResource("7_gitaar"), ExtResource("8_orgelpijp"), ExtResource("9_viool"), ExtResource("10_xylofoon"), ExtResource("11_bellen"), ExtResource("16_trompet"), ExtResource("17_speelkam")])
 panel_gradient = SubResource("GradientTexture2D_a8y0u")
 
 [node name="StickerSliders" type="VBoxContainer" parent="UILayer" unique_id=1247810018]

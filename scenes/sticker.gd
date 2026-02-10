@@ -273,6 +273,9 @@ func _deselect() -> void:
 		_selected_sticker = null
 	_set_outline(false)
 	material = null
+	for child in get_children():
+		if child is Sprite2D:
+			child.material = null
 	selection_changed.emit(false)
 
 
@@ -282,22 +285,37 @@ func _process_outline() -> void:
 	## Compenseer outline dikte voor schaal (alleen als geselecteerd)
 	if not selected:
 		return
+	var width = outline_screen_width / scale.x
 	if material is ShaderMaterial:
-		material.set_shader_parameter("outline_width", outline_screen_width / scale.x)
+		material.set_shader_parameter("outline_width", width)
+	for child in get_children():
+		if child is Sprite2D and child.material is ShaderMaterial:
+			child.material.set_shader_parameter("outline_width", width)
 
 
 func _setup_outline() -> void:
+	var mat = _create_outline_material()
+	material = mat
+	for child in get_children():
+		if child is Sprite2D:
+			child.material = _create_outline_material()
+
+
+func _create_outline_material() -> ShaderMaterial:
 	var mat = ShaderMaterial.new()
 	mat.shader = _outline_shader
 	mat.set_shader_parameter("show_outline", false)
 	mat.set_shader_parameter("outline_width", outline_screen_width / scale.x)
 	mat.set_shader_parameter("outline_color", Color.WHITE)
-	material = mat
+	return mat
 
 
 func _set_outline(enabled: bool) -> void:
 	if material is ShaderMaterial:
 		material.set_shader_parameter("show_outline", enabled)
+	for child in get_children():
+		if child is Sprite2D and child.material is ShaderMaterial:
+			child.material.set_shader_parameter("show_outline", enabled)
 
 
 # === TRANSFORM SYSTEEM (PINCH/ZOOM/ROTATE) ===
@@ -463,7 +481,15 @@ func _draw_shadow() -> void:
 
 	# Compenseer voor scale zodat visuele afstand constant blijft
 	var compensated_offset = local_offset / scale.x
+
+	# Teken schaduw van root sprite
 	_shadow_node.draw_texture(texture, compensated_offset - texture.get_size() / 2, shadow_col)
+
+	# Teken schaduw van child sprites
+	for child in get_children():
+		if child is Sprite2D and child.texture and child != _shadow_node:
+			var child_offset = child.position + compensated_offset
+			_shadow_node.draw_texture(child.texture, child_offset - child.texture.get_size() / 2, shadow_col)
 
 
 # === HIT DETECTION ===
