@@ -8,6 +8,7 @@ extends Node2D
 var _polygon: PackedVector2Array = PackedVector2Array()
 var _base_color: Color = Color.WHITE
 var _shape_height: float = 850.0
+var _shading_overlay: Polygon2D
 
 const MARGIN: float = 40.0
 const MOLDING_INSET: float = 15.0
@@ -112,11 +113,6 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		kop_color_blend = v
 		queue_redraw()
-@export_range(0.0, 1.0) var kop_shading: float = 0.5:
-	set(v):
-		kop_shading = v
-		queue_redraw()
-
 @export_group("Texture: Lichaam")
 @export var lichaam_texture: Texture2D:
 	set(v):
@@ -134,11 +130,6 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		lichaam_color_blend = v
 		queue_redraw()
-@export_range(0.0, 1.0) var lichaam_shading: float = 0.5:
-	set(v):
-		lichaam_shading = v
-		queue_redraw()
-
 @export_group("Texture: Rok")
 @export var rok_texture: Texture2D:
 	set(v):
@@ -156,11 +147,6 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		rok_color_blend = v
 		queue_redraw()
-@export_range(0.0, 1.0) var rok_shading: float = 0.5:
-	set(v):
-		rok_shading = v
-		queue_redraw()
-
 @export_group("Texture: Pijpenpaneel")
 @export var pipe_panel_texture: Texture2D:
 	set(v):
@@ -178,11 +164,6 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		pipe_panel_color_blend = v
 		queue_redraw()
-@export_range(0.0, 1.0) var pipe_panel_shading: float = 0.5:
-	set(v):
-		pipe_panel_shading = v
-		queue_redraw()
-
 @export_group("Texture: Buik-panelen")
 @export var panel_texture: Texture2D:
 	set(v):
@@ -200,11 +181,6 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		panel_color_blend = v
 		queue_redraw()
-@export_range(0.0, 1.0) var panel_shading: float = 0.5:
-	set(v):
-		panel_shading = v
-		queue_redraw()
-
 @export_group("Texture: Pijpen")
 @export var copper_texture: Texture2D:
 	set(v):
@@ -222,13 +198,14 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		copper_color_blend = v
 		queue_redraw()
-@export_range(0.0, 1.0) var copper_shading: float = 0.5:
-	set(v):
-		copper_shading = v
-		queue_redraw()
-
 @export_group("3D Shading")
-## Sterkte van de rechts-licht/links-donker gradient (cilindrisch volume)
+## GradientTexture2D overlay voor licht/schaduw effect (bewerkbaar in Inspector)
+@export var shading_gradient: GradientTexture2D:
+	set(v):
+		shading_gradient = v
+		_update_shading_overlay()
+		queue_redraw()
+## Sterkte van de rechts-licht/links-donker op sierlijsten en trim
 @export_range(0.0, 1.0) var shading_strength: float = 0.6:
 	set(v):
 		shading_strength = v
@@ -237,16 +214,6 @@ const MOLDING_INSET: float = 15.0
 @export_range(0.0, 1.0) var highlight_strength: float = 0.4:
 	set(v):
 		highlight_strength = v
-		queue_redraw()
-## Sterkte van de glansspot (specular highlight)
-@export_range(0.0, 1.0) var specular_strength: float = 0.35:
-	set(v):
-		specular_strength = v
-		queue_redraw()
-## Grootte van de glansspot in pixels
-@export_range(30.0, 500.0) var specular_size: float = 180.0:
-	set(v):
-		specular_size = v
 		queue_redraw()
 ## Breedte van het beveled edge (3D randeffect)
 @export_range(0.0, 40.0) var bevel_width: float = 14.0:
@@ -257,13 +224,48 @@ const MOLDING_INSET: float = 15.0
 
 func _ready() -> void:
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	_setup_shading_overlay()
+
+
+func _setup_shading_overlay() -> void:
+	## Maakt een Polygon2D child voor de GradientTexture2D shading overlay
+	for child in get_children(true):
+		if child.name == &"ShadingOverlay":
+			child.queue_free()
+	_shading_overlay = Polygon2D.new()
+	_shading_overlay.name = &"ShadingOverlay"
+	_shading_overlay.color = Color.WHITE
+	add_child(_shading_overlay, false, Node.INTERNAL_MODE_BACK)
 
 
 func update_decoration(polygon: PackedVector2Array, base_color: Color, shape_height: float) -> void:
 	_polygon = polygon
 	_base_color = base_color
 	_shape_height = shape_height
+	_update_shading_overlay()
 	queue_redraw()
+
+
+func _update_shading_overlay() -> void:
+	## Synct polygon, UVs en gradient texture naar de overlay
+	if not _shading_overlay or _polygon.size() < 3:
+		return
+	_shading_overlay.polygon = _polygon
+	_shading_overlay.texture = shading_gradient
+
+	var min_p := Vector2(INF, INF)
+	var max_p := Vector2(-INF, -INF)
+	for p in _polygon:
+		min_p = Vector2(minf(min_p.x, p.x), minf(min_p.y, p.y))
+		max_p = Vector2(maxf(max_p.x, p.x), maxf(max_p.y, p.y))
+	var sz := max_p - min_p
+	if sz.x < 1.0 or sz.y < 1.0:
+		return
+
+	var uvs := PackedVector2Array()
+	for p in _polygon:
+		uvs.append((p - min_p) / sz)
+	_shading_overlay.uv = uvs
 
 
 func _draw() -> void:
@@ -274,7 +276,6 @@ func _draw() -> void:
 	var base_y: float = _shape_height
 
 	_draw_zone_textures(shoulder_y, hip_y, base_y)
-	_draw_3d_shading()
 	_draw_pipe_panel(shoulder_y)
 	_draw_crown_arches(shoulder_y)
 	_draw_moldings(shoulder_y, hip_y)
@@ -286,99 +287,21 @@ func _draw() -> void:
 # ── Zone textures ────────────────────────────────────────────────────
 
 func _draw_zone_textures(shoulder_y: float, hip_y: float, base_y: float) -> void:
-	## Tekent per zone een aparte texture + zone-specifieke 3D shading
+	## Tekent per zone een aparte texture (3D shading via shader overlay)
 	var kop_poly: PackedVector2Array = _clip_polygon_to_band(0.0, shoulder_y)
 	if kop_poly.size() >= 3:
 		_draw_textured_poly(kop_poly, kop_texture,
 			_make_tint(kop_texture_opacity, kop_color_blend), kop_texture_scale)
-		_draw_zone_3d(kop_poly, kop_shading)
 
 	var lichaam_poly: PackedVector2Array = _clip_polygon_to_band(shoulder_y, hip_y)
 	if lichaam_poly.size() >= 3:
 		_draw_textured_poly(lichaam_poly, lichaam_texture,
 			_make_tint(lichaam_texture_opacity, lichaam_color_blend), lichaam_texture_scale)
-		_draw_zone_3d(lichaam_poly, lichaam_shading)
 
 	var rok_poly: PackedVector2Array = _clip_polygon_to_band(hip_y, base_y)
 	if rok_poly.size() >= 3:
 		_draw_textured_poly(rok_poly, rok_texture,
 			_make_tint(rok_texture_opacity, rok_color_blend), rok_texture_scale)
-		_draw_zone_3d(rok_poly, rok_shading)
-
-
-# ── 3D Volume shading ────────────────────────────────────────────────
-
-func _draw_3d_shading() -> void:
-	## Tekent 3D volume-shading: licht van rechtsboven, schaduw linksonder.
-	## Gebruikt veel smalle verticale strips voor vloeiende overgangen.
-	if _polygon.size() < 3:
-		return
-
-	var min_x: float = INF
-	var max_x: float = -INF
-	var min_y: float = INF
-	for p in _polygon:
-		min_x = minf(min_x, p.x)
-		max_x = maxf(max_x, p.x)
-		min_y = minf(min_y, p.y)
-	var x_span: float = max_x - min_x
-	if x_span < 1.0:
-		return
-
-	# Pass 1: Cilindrische highlight + shadow via smalle verticale strips
-	var strip_count: int = 24
-	var strip_w: float = x_span / float(strip_count)
-
-	for s in strip_count:
-		var x0: float = min_x + float(s) * strip_w
-		var x1: float = x0 + strip_w
-		var tx: float = (float(s) + 0.5) / float(strip_count)
-
-		# Licht van rechts: highlight rechts, schaduw links
-		var hi_alpha: float = 0.0
-		if tx > 0.3 and shading_strength > 0.01:
-			hi_alpha = ((tx - 0.3) / 0.7) * 0.22 * shading_strength
-
-		var sh_alpha: float = 0.0
-		if tx < 0.55 and shading_strength > 0.01:
-			sh_alpha = ((0.55 - tx) / 0.55) * 0.32 * shading_strength
-
-		if hi_alpha < 0.005 and sh_alpha < 0.005:
-			continue
-
-		var strip: PackedVector2Array = _clip_x_range(_polygon, x0, x1)
-		if strip.size() < 3:
-			continue
-		if hi_alpha > 0.005:
-			draw_colored_polygon(strip, Color(1, 1, 0.95, clampf(hi_alpha, 0.0, 0.55)))
-		if sh_alpha > 0.005:
-			draw_colored_polygon(strip, Color(0, 0, 0.02, clampf(sh_alpha, 0.0, 0.45)))
-
-	# Pass 2: Specular spot via concentrische cirkels (artefact-vrij)
-	if specular_strength > 0.01:
-		var spec_x: float = min_x + x_span * 0.72
-		var spec_y: float = min_y + _shape_height * 0.22
-		var rings: int = 12
-		var per_ring: float = specular_strength * 0.45 / float(rings)
-		for r in range(rings, 0, -1):
-			var radius: float = specular_size * float(r) / float(rings)
-			draw_circle(Vector2(spec_x, spec_y), radius, Color(1, 1, 0.95, per_ring))
-
-	# Pass 3: Bottom darkening via horizontale banden
-	if shading_strength > 0.01:
-		var band_count: int = 8
-		var band_start_y: float = min_y + _shape_height * 0.75
-		var band_end_y: float = min_y + _shape_height
-		var band_h: float = (band_end_y - band_start_y) / float(band_count)
-		for b in band_count:
-			var y0: float = band_start_y + float(b) * band_h
-			var y1: float = y0 + band_h
-			var bt: float = (float(b) + 0.5) / float(band_count)
-			var alpha: float = bt * 0.12 * shading_strength
-			if alpha > 0.005:
-				var band: PackedVector2Array = _clip_polygon_to_band(y0, y1)
-				if band.size() >= 3:
-					draw_colored_polygon(band, Color(0, 0, 0.02, alpha))
 
 
 # ── Pijpenpaneel (dak-zone) ───────────────────────────────────────────
@@ -416,9 +339,6 @@ func _draw_pipe_panel(shoulder_y: float) -> void:
 		draw_colored_polygon(panel_pts, Color(0, 0, 0, 0.08))
 		_draw_textured_poly(panel_pts, pipe_panel_texture,
 			_make_tint(pipe_panel_texture_opacity, pipe_panel_color_blend), pipe_panel_texture_scale)
-
-		# 3D shading op pijpenpaneel (per-zone control)
-		_draw_zone_3d(panel_pts, pipe_panel_shading)
 
 	# Teken paneel rand (goud)
 	var gold: Color = Color(0.85, 0.7, 0.3, 0.6)
@@ -474,24 +394,11 @@ func _draw_pipes_in_panel(panel_left: float, panel_right: float, panel_bottom: f
 		draw_rect(Rect2(x, pipe_y, pw, pipe_h), col_body)
 		_draw_textured_rect(Rect2(x, pipe_y, pw, pipe_h), copper_texture,
 			_make_tint(copper_texture_opacity, copper_color_blend), copper_texture_scale)
-		# Vloeiende 3D schaduw gradient (links, per-zone control)
-		var cs: float = copper_shading
-		if cs > 0.01:
-			draw_rect(Rect2(x, pipe_y, pw * 0.08, pipe_h), Color(0, 0, 0, 0.28 * cs))
-			draw_rect(Rect2(x + pw * 0.08, pipe_y, pw * 0.10, pipe_h), Color(0, 0, 0, 0.18 * cs))
-			draw_rect(Rect2(x + pw * 0.18, pipe_y, pw * 0.12, pipe_h), Color(0, 0, 0, 0.07 * cs))
-			# Vloeiende 3D highlight gradient (rechts)
-			draw_rect(Rect2(x + pw * 0.70, pipe_y, pw * 0.14, pipe_h), Color(1, 1, 1, 0.07 * cs))
-			draw_rect(Rect2(x + pw * 0.84, pipe_y, pw * 0.10, pipe_h), Color(1, 1, 1, 0.18 * cs))
-			draw_rect(Rect2(x + pw * 0.94, pipe_y, pw * 0.06, pipe_h), Color(1, 1, 1, 0.30 * cs))
-		# Cap met highlight
+		# Cap
 		var cap_h: float = maxf(4.0, pw * 0.22)
 		var cap_extra: float = pw * 0.12
 		var cap_w: float = pw + cap_extra * 2.0
 		draw_rect(Rect2(x - cap_extra, pipe_y, cap_w, cap_h), col_cap)
-		if cs > 0.01:
-			draw_rect(Rect2(x - cap_extra, pipe_y, cap_w * 0.3, cap_h), Color(0, 0, 0, 0.15 * cs))
-			draw_rect(Rect2(x - cap_extra + cap_w * 0.65, pipe_y, cap_w * 0.35, cap_h), Color(1, 1, 1, 0.20 * cs))
 		var mouth_y: float = pipe_y + pipe_h * 0.72
 		var mouth_h: float = maxf(2.0, pipe_h * 0.03)
 		draw_rect(Rect2(x + pw * 0.1, mouth_y, pw * 0.8, mouth_h), col_mouth)
@@ -617,20 +524,6 @@ func _draw_panels_with_arches(shoulder_y: float, hip_y: float) -> void:
 		_draw_textured_rect(rect, panel_texture,
 			_make_tint(panel_texture_opacity, panel_color_blend), panel_texture_scale)
 
-		# 3D paneel-shading (verhoogd effect, licht van rechts)
-		if panel_shading > 0.01:
-			var ph: float = panel_bottom - panel_top
-			var ew: float = pw * 0.08
-			# Schaduw links
-			draw_rect(Rect2(panel_left, panel_top, ew, ph), Color(0, 0, 0, 0.18 * panel_shading))
-			draw_rect(Rect2(panel_left + ew, panel_top, ew, ph), Color(0, 0, 0, 0.08 * panel_shading))
-			# Highlight rechts + boven
-			draw_rect(Rect2(panel_left + pw - ew * 2, panel_top, ew, ph), Color(1, 1, 1, 0.08 * panel_shading))
-			draw_rect(Rect2(panel_left + pw - ew, panel_top, ew, ph), Color(1, 1, 1, 0.18 * panel_shading))
-			draw_rect(Rect2(panel_left, panel_top, pw, ew * 0.7), Color(1, 1, 1, 0.12 * panel_shading))
-			# Schaduw onder
-			draw_rect(Rect2(panel_left, panel_bottom - ew * 0.7, pw, ew * 0.7), Color(0, 0, 0, 0.12 * panel_shading))
-
 		draw_rect(rect, gold, false, panel_frame_width)
 
 		var inner: Rect2 = rect.grow(-12.0)
@@ -742,52 +635,6 @@ func _draw_3d_edge() -> void:
 			# Rand weg van licht: schaduw
 			var alpha: float = -facing * shading_strength * 0.4
 			draw_line(p1, p2, Color(0, 0, 0, alpha), bevel_width * 0.7, true)
-
-
-# ── Zone 3D shading helper ──────────────────────────────────────────
-
-func _draw_zone_3d(zone_poly: PackedVector2Array, strength: float) -> void:
-	## Tekent vloeiende 3D highlight/shadow op een zone-polygon.
-	## Licht van rechts, veel smalle strips voor zachte overgangen.
-	if zone_poly.size() < 3 or strength < 0.01:
-		return
-
-	var min_x: float = INF
-	var max_x: float = -INF
-	for p in zone_poly:
-		min_x = minf(min_x, p.x)
-		max_x = maxf(max_x, p.x)
-	var span: float = max_x - min_x
-	if span < 1.0:
-		return
-
-	var strip_count: int = 20
-	var strip_w: float = span / float(strip_count)
-
-	for s in strip_count:
-		var x0: float = min_x + float(s) * strip_w
-		var x1: float = x0 + strip_w
-		var tx: float = (float(s) + 0.5) / float(strip_count)
-
-		# Licht van rechts: highlight rechts, schaduw links
-		var hi_alpha: float = 0.0
-		if tx > 0.35:
-			hi_alpha = ((tx - 0.35) / 0.65) * 0.20 * strength
-
-		var sh_alpha: float = 0.0
-		if tx < 0.55:
-			sh_alpha = ((0.55 - tx) / 0.55) * 0.25 * strength
-
-		if hi_alpha < 0.005 and sh_alpha < 0.005:
-			continue
-
-		var strip: PackedVector2Array = _clip_x_range(zone_poly, x0, x1)
-		if strip.size() < 3:
-			continue
-		if hi_alpha > 0.005:
-			draw_colored_polygon(strip, Color(1, 1, 0.95, hi_alpha))
-		if sh_alpha > 0.005:
-			draw_colored_polygon(strip, Color(0, 0, 0, sh_alpha))
 
 
 # ── Texture helpers ──────────────────────────────────────────────────
@@ -904,49 +751,6 @@ func _clip_above(poly: PackedVector2Array, y_min: float) -> PackedVector2Array:
 			var t: float = (y_min - c.y) / (nx.y - c.y)
 			result.append(c.lerp(nx, t))
 	return result
-
-
-func _clip_x_left(poly: PackedVector2Array, x_max: float) -> PackedVector2Array:
-	## Houdt het deel van de polygon waar x <= x_max (links van x_max)
-	var result: PackedVector2Array = PackedVector2Array()
-	var n: int = poly.size()
-	if n < 3:
-		return result
-	for i in n:
-		var c: Vector2 = poly[i]
-		var nx: Vector2 = poly[(i + 1) % n]
-		var c_in: bool = c.x <= x_max
-		var n_in: bool = nx.x <= x_max
-		if c_in:
-			result.append(c)
-		if c_in != n_in and absf(nx.x - c.x) > 0.001:
-			var t: float = (x_max - c.x) / (nx.x - c.x)
-			result.append(c.lerp(nx, t))
-	return result
-
-
-func _clip_x_right(poly: PackedVector2Array, x_min: float) -> PackedVector2Array:
-	## Houdt het deel van de polygon waar x >= x_min (rechts van x_min)
-	var result: PackedVector2Array = PackedVector2Array()
-	var n: int = poly.size()
-	if n < 3:
-		return result
-	for i in n:
-		var c: Vector2 = poly[i]
-		var nx: Vector2 = poly[(i + 1) % n]
-		var c_in: bool = c.x >= x_min
-		var n_in: bool = nx.x >= x_min
-		if c_in:
-			result.append(c)
-		if c_in != n_in and absf(nx.x - c.x) > 0.001:
-			var t: float = (x_min - c.x) / (nx.x - c.x)
-			result.append(c.lerp(nx, t))
-	return result
-
-
-func _clip_x_range(poly: PackedVector2Array, x_min: float, x_max: float) -> PackedVector2Array:
-	## Clipt polygon tot het bereik x_min <= x <= x_max
-	return _clip_x_left(_clip_x_right(poly, x_min), x_max)
 
 
 func _inset_polygon(amount: float) -> PackedVector2Array:
