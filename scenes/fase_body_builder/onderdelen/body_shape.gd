@@ -75,6 +75,7 @@ class_name BodyShape
 
 @onready var _shape_fill: Polygon2D = $ShapeFill
 @onready var _shape_outline: Line2D = $ShapeOutline
+@onready var _decoration: Node2D = $BodyDecoration
 
 
 func _ready() -> void:
@@ -95,12 +96,24 @@ func _update_shape() -> void:
 	outline_pts.append(pts[0])
 	_shape_outline.points = outline_pts
 	_shape_outline.width = outline_width
+	_update_decoration()
 
 
 func _update_color() -> void:
 	if not _shape_fill:
 		return
 	_shape_fill.color = Color.from_hsv(kleur, color_saturation, color_value)
+	_update_decoration()
+
+
+func _update_decoration() -> void:
+	if not _decoration or not _shape_fill:
+		return
+	_decoration.update_decoration(
+		_shape_fill.polygon,
+		Color.from_hsv(kleur, color_saturation, color_value),
+		shape_height
+	)
 
 
 func _update_outline_color() -> void:

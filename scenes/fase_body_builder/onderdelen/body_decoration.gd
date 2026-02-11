@@ -1,0 +1,501 @@
+@tool
+extends Node2D
+
+## Tekent decoratieve elementen binnen de muziekkast-contour:
+## orgelpijpen, boogjes, sierlijsten, paneel-kaders en vergulding.
+## Wordt aangestuurd door parent BodyShape via update_decoration().
+
+var _polygon: PackedVector2Array = PackedVector2Array()
+var _base_color: Color = Color.WHITE
+var _shape_height: float = 850.0
+
+const MARGIN: float = 40.0
+const MOLDING_INSET: float = 15.0
+
+@export_group("Pijpen")
+## Aantal orgelpijpen in de dak-zone
+@export_range(5, 30) var pipe_count: int = 19:
+	set(v):
+		pipe_count = v
+		queue_redraw()
+## Afstand van het pijpenpaneel tot de dak-contour (kleiner = groter paneel)
+@export_range(10.0, 150.0) var pipe_panel_inset: float = 40.0:
+	set(v):
+		pipe_panel_inset = v
+		queue_redraw()
+
+@export_group("Panelen")
+## Aantal panelen in de buik-zone
+@export_range(1, 5) var panel_count: int = 3:
+	set(v):
+		panel_count = v
+		queue_redraw()
+## Ruimte tussen panelen in pixels
+@export var panel_gap: float = 25.0:
+	set(v):
+		panel_gap = v
+		queue_redraw()
+
+@export_group("Boogjes (kop)")
+## Aantal sierlijke boogjes langs de kroonrand
+@export_range(3, 20) var crown_arch_count: int = 11:
+	set(v):
+		crown_arch_count = v
+		queue_redraw()
+## Afstand van de boogjes tot de dak-contour
+@export_range(10.0, 120.0) var crown_arch_offset: float = 48.0:
+	set(v):
+		crown_arch_offset = v
+		queue_redraw()
+## Hoogte van de kroonboogjes
+@export_range(5.0, 80.0) var crown_arch_height: float = 30.0:
+	set(v):
+		crown_arch_height = v
+		queue_redraw()
+## Radius van de bolletjes op boog-kruispunten
+@export_range(0.0, 15.0) var pendant_radius: float = 5.0:
+	set(v):
+		pendant_radius = v
+		queue_redraw()
+
+@export_group("Lijndikte")
+## Hoofdlijn van de sierlijsten
+@export_range(1.0, 12.0) var molding_width: float = 5.0:
+	set(v):
+		molding_width = v
+		queue_redraw()
+## Accentlijntjes naast de sierlijsten
+@export_range(0.5, 8.0) var molding_accent_width: float = 2.0:
+	set(v):
+		molding_accent_width = v
+		queue_redraw()
+## Buitenrand van paneel-kaders
+@export_range(1.0, 10.0) var panel_frame_width: float = 3.5:
+	set(v):
+		panel_frame_width = v
+		queue_redraw()
+## Binnenrand van paneel-kaders
+@export_range(0.5, 6.0) var panel_inner_width: float = 1.5:
+	set(v):
+		panel_inner_width = v
+		queue_redraw()
+## Gouden binnentrim langs de hele contour
+@export_range(1.0, 10.0) var gold_trim_width: float = 2.5:
+	set(v):
+		gold_trim_width = v
+		queue_redraw()
+## Lijndikte van decoratieve boogjes
+@export_range(1.0, 10.0) var arch_line_width: float = 3.0:
+	set(v):
+		arch_line_width = v
+		queue_redraw()
+## Inset van de gouden trim t.o.v. de buitenrand
+@export_range(4.0, 30.0) var gold_trim_inset: float = 10.0:
+	set(v):
+		gold_trim_inset = v
+		queue_redraw()
+
+
+func update_decoration(polygon: PackedVector2Array, base_color: Color, shape_height: float) -> void:
+	_polygon = polygon
+	_base_color = base_color
+	_shape_height = shape_height
+	queue_redraw()
+
+
+func _draw() -> void:
+	if _polygon.size() < 3:
+		return
+	var shoulder_y: float = _shape_height * 0.25
+	var hip_y: float = _shape_height * 0.75
+	var base_y: float = _shape_height
+
+	_draw_zone_shading(shoulder_y, hip_y, base_y)
+	_draw_pipe_panel(shoulder_y)
+	_draw_crown_arches(shoulder_y)
+	_draw_moldings(shoulder_y, hip_y)
+	_draw_panels_with_arches(shoulder_y, hip_y)
+	_draw_gold_trim()
+
+
+# ── Zone shading ──────────────────────────────────────────────────────
+
+func _draw_zone_shading(shoulder_y: float, hip_y: float, base_y: float) -> void:
+	var dark: Color = Color(0, 0, 0, 0.10)
+	var darker: Color = Color(0, 0, 0, 0.18)
+
+	var dak_poly: PackedVector2Array = _clip_polygon_to_band(0.0, shoulder_y)
+	if dak_poly.size() >= 3:
+		draw_colored_polygon(dak_poly, dark)
+
+	var rok_poly: PackedVector2Array = _clip_polygon_to_band(hip_y, base_y)
+	if rok_poly.size() >= 3:
+		draw_colored_polygon(rok_poly, darker)
+
+
+# ── Pijpenpaneel (dak-zone) ───────────────────────────────────────────
+
+func _draw_pipe_panel(shoulder_y: float) -> void:
+	## Tekent een paneel dat de dak-contour volgt met orgelpijpen erin
+	var panel_bottom: float = shoulder_y - MARGIN * 0.3
+
+	# Breedte op panel_bottom niveau
+	var x_range: Vector2 = _get_x_range_at_y(panel_bottom)
+	var panel_left: float = x_range.x + pipe_panel_inset
+	var panel_right: float = x_range.y - pipe_panel_inset
+	if panel_right - panel_left < 80.0:
+		return
+
+	# Bouw paneel-polygon: top volgt dak, bottom is recht
+	var samples: int = 35
+	var panel_pts: PackedVector2Array = PackedVector2Array()
+
+	# Top edge: volg het dak van links naar rechts (clamp zodat top nooit onder bottom komt)
+	var max_top_y: float = panel_bottom - 10.0
+	for i in range(samples + 1):
+		var t: float = float(i) / float(samples)
+		var x: float = lerpf(panel_left, panel_right, t)
+		var roof_y: float = _get_top_y_at_x(x)
+		var top_y: float = minf(roof_y + pipe_panel_inset, max_top_y)
+		panel_pts.append(Vector2(x, top_y))
+
+	# Bottom edge: recht van rechts naar links
+	panel_pts.append(Vector2(panel_right, panel_bottom))
+	panel_pts.append(Vector2(panel_left, panel_bottom))
+
+	# Teken paneel achtergrond
+	if panel_pts.size() >= 3:
+		draw_colored_polygon(panel_pts, Color(0, 0, 0, 0.08))
+
+	# Teken paneel rand (goud)
+	var gold: Color = Color(0.85, 0.7, 0.3, 0.6)
+	var outline_pts: PackedVector2Array = panel_pts.duplicate()
+	outline_pts.append(panel_pts[0])
+	draw_polyline(outline_pts, gold, panel_frame_width, true)
+
+	# Teken pijpen binnen het paneel
+	_draw_pipes_in_panel(panel_left, panel_right, panel_bottom)
+
+
+func _draw_pipes_in_panel(panel_left: float, panel_right: float, panel_bottom: float) -> void:
+	## Tekent orgelpijpen binnen het pijpenpaneel, begrensd door de dak-contour
+	var pipe_margin: float = MARGIN * 0.5
+	var zone_left: float = panel_left + pipe_margin
+	var zone_right: float = panel_right - pipe_margin
+	var zone_width: float = zone_right - zone_left
+	if zone_width < 80.0:
+		return
+
+	var count: int = pipe_count
+	if count % 2 == 0:
+		count -= 1
+	var gap_ratio: float = 0.25
+	var pw: float = zone_width / (float(count) * (1.0 + gap_ratio) - gap_ratio)
+	var pg: float = pw * gap_ratio
+
+	var col_body: Color = Color(0.78, 0.68, 0.42, 0.9)
+	var col_cap: Color = Color(0.88, 0.78, 0.38, 1.0)
+	var col_hi: Color = Color(1, 1, 1, 0.18)
+	var col_sh: Color = Color(0, 0, 0, 0.14)
+	var col_mouth: Color = Color(0.1, 0.08, 0.04, 0.5)
+	@warning_ignore("integer_division")
+	var center_i: int = count / 2
+
+	var pipe_bottom_y: float = panel_bottom - pipe_margin * 0.5
+
+	for i in count:
+		var x: float = zone_left + float(i) * (pw + pg)
+		var pipe_cx: float = x + pw / 2.0
+
+		# Top van de pijp is begrensd door het paneel (dak + inset + marge)
+		var roof_y: float = _get_top_y_at_x(pipe_cx)
+		var pipe_top_limit: float = roof_y + pipe_panel_inset + pipe_margin
+
+		var dist: float = absf(float(i - center_i)) / float(maxi(center_i, 1))
+		var h_factor: float = 1.0 - dist * 0.5
+		var max_h: float = pipe_bottom_y - pipe_top_limit
+		var pipe_h: float = max_h * h_factor
+		if pipe_h < 20.0:
+			continue
+
+		var pipe_y: float = pipe_bottom_y - pipe_h
+
+		draw_rect(Rect2(x, pipe_y, pw, pipe_h), col_body)
+		draw_rect(Rect2(x, pipe_y, pw * 0.2, pipe_h), col_hi)
+		draw_rect(Rect2(x + pw * 0.8, pipe_y, pw * 0.2, pipe_h), col_sh)
+		var cap_h: float = maxf(4.0, pw * 0.22)
+		var cap_extra: float = pw * 0.12
+		draw_rect(Rect2(x - cap_extra, pipe_y, pw + cap_extra * 2.0, cap_h), col_cap)
+		var mouth_y: float = pipe_y + pipe_h * 0.72
+		var mouth_h: float = maxf(2.0, pipe_h * 0.03)
+		draw_rect(Rect2(x + pw * 0.1, mouth_y, pw * 0.8, mouth_h), col_mouth)
+
+
+# ── Kroon-boogjes (tierelantijntjes bovenaan) ────────────────────────
+
+func _draw_crown_arches(shoulder_y: float) -> void:
+	## Boogjes die precies tussen het pijpenpaneel en de buitenrand passen
+	var panel_bottom: float = shoulder_y - MARGIN * 0.3
+	var max_top_y: float = panel_bottom - 10.0
+
+	# Gebruik dezelfde panel breedte als het pijpenpaneel
+	var x_range: Vector2 = _get_x_range_at_y(panel_bottom)
+	var panel_left: float = x_range.x + pipe_panel_inset
+	var panel_right: float = x_range.y - pipe_panel_inset
+	var panel_width: float = panel_right - panel_left
+	if panel_width < 80.0 or crown_arch_count < 1:
+		return
+
+	var arch_span: float = panel_width / float(crown_arch_count)
+	var gold: Color = Color(0.85, 0.7, 0.3, 0.7)
+
+	for i in crown_arch_count:
+		var x_left: float = panel_left + float(i) * arch_span
+		var x_right: float = x_left + arch_span
+
+		# Baseline = bovenkant pijpenpaneel (dak + inset, geclampt)
+		var roof_left: float = _get_top_y_at_x(x_left)
+		var roof_right: float = _get_top_y_at_x(x_right)
+		var bl_left: float = minf(roof_left + pipe_panel_inset, max_top_y)
+		var bl_right: float = minf(roof_right + pipe_panel_inset, max_top_y)
+
+		_draw_tilted_arch(
+			Vector2(x_left, bl_left), Vector2(x_right, bl_right),
+			crown_arch_height, gold
+		)
+
+	# Pendanten (bolletjes) op de snijpunten
+	if pendant_radius > 0.5:
+		for i in range(crown_arch_count + 1):
+			var px: float = panel_left + float(i) * arch_span
+			var p_roof_y: float = _get_top_y_at_x(px)
+			var py: float = minf(p_roof_y + pipe_panel_inset, max_top_y)
+			draw_circle(Vector2(px, py), pendant_radius, gold)
+
+
+# ── Sierlijsten ──────────────────────────────────────────────────────
+
+func _draw_moldings(shoulder_y: float, hip_y: float) -> void:
+	_draw_straight_molding(shoulder_y)
+	_draw_straight_molding(hip_y)
+
+
+func _draw_straight_molding(y: float) -> void:
+	var x_range: Vector2 = _get_x_range_at_y(y)
+	var left: float = x_range.x + MOLDING_INSET
+	var right: float = x_range.y - MOLDING_INSET
+	if right - left < 30.0:
+		return
+
+	var gold: Color = Color(0.85, 0.7, 0.3, 0.8)
+	var dark_gold: Color = Color(0.55, 0.42, 0.15, 0.6)
+
+	draw_line(Vector2(left, y - 5), Vector2(right, y - 5), dark_gold, molding_accent_width)
+	draw_line(Vector2(left, y), Vector2(right, y), gold, molding_width)
+	draw_line(Vector2(left, y + 5), Vector2(right, y + 5), dark_gold, molding_accent_width)
+
+
+# ── Panelen met boogjes ──────────────────────────────────────────────
+
+func _draw_panels_with_arches(shoulder_y: float, hip_y: float) -> void:
+	var zone_margin: float = MARGIN * 2.0
+	var arch_space: float = zone_margin * 0.7
+	var panel_top: float = shoulder_y + zone_margin + arch_space
+	var panel_bottom: float = hip_y - zone_margin
+	if panel_bottom - panel_top < 40.0 or panel_count < 1:
+		return
+
+	# Beschikbare breedte (smalste punt in het panel-gebied)
+	var x_top: Vector2 = _get_x_range_at_y(panel_top)
+	var x_bottom: Vector2 = _get_x_range_at_y(panel_bottom)
+	var left: float = maxf(x_top.x, x_bottom.x) + zone_margin
+	var right: float = minf(x_top.y, x_bottom.y) - zone_margin
+	var total_w: float = right - left
+	if total_w < 60.0:
+		return
+
+	# Bereken individuele paneelbreedte
+	var gaps_total: float = panel_gap * float(panel_count - 1)
+	var pw: float = (total_w - gaps_total) / float(panel_count)
+	if pw < 30.0:
+		return
+
+	var gold: Color = Color(0.85, 0.7, 0.3, 0.6)
+	var gold_fill: Color = Color(0.85, 0.7, 0.3, 0.08)
+	var gold_inner: Color = Color(0.85, 0.7, 0.3, 0.25)
+
+	for i in panel_count:
+		var panel_left: float = left + float(i) * (pw + panel_gap)
+		var panel_cx: float = panel_left + pw / 2.0
+
+		# ── Boogje boven het paneel ──
+		var arch_half_w: float = pw / 2.0
+		var arch_h: float = minf(arch_space * 0.85, arch_half_w * 0.4)
+		var arch_baseline: float = panel_top
+		if arch_h > 10.0:
+			_draw_arch(panel_cx, arch_baseline, arch_half_w, arch_h, gold, gold_fill)
+			# Sleutelstuk (bolletje bovenaan de boog)
+			if pendant_radius > 0.5:
+				draw_circle(Vector2(panel_cx, arch_baseline - arch_h), pendant_radius, gold)
+
+		# ── Paneel-kader ──
+		var rect: Rect2 = Rect2(panel_left, panel_top, pw, panel_bottom - panel_top)
+		draw_rect(rect, Color(1, 1, 1, 0.06))
+		draw_rect(rect, gold, false, panel_frame_width)
+
+		var inner: Rect2 = rect.grow(-12.0)
+		if inner.size.x > 30 and inner.size.y > 30:
+			draw_rect(inner, gold_inner, false, panel_inner_width)
+
+
+# ── Gouden trim ──────────────────────────────────────────────────────
+
+func _draw_gold_trim() -> void:
+	if _polygon.size() < 3:
+		return
+	var inset_poly: PackedVector2Array = _inset_polygon(gold_trim_inset)
+	if inset_poly.size() < 3:
+		return
+
+	var gold: Color = Color(0.85, 0.7, 0.3, 0.4)
+	var n: int = inset_poly.size()
+	for i in n:
+		draw_line(inset_poly[i], inset_poly[(i + 1) % n], gold, gold_trim_width)
+
+
+# ── Boog-tekenfunctie (herbruikbaar) ─────────────────────────────────
+
+func _draw_arch(cx: float, baseline_y: float, half_w: float, height: float, color: Color, fill_color: Color = Color.TRANSPARENT) -> void:
+	## Tekent een elliptische boog (∩) met optionele vulling
+	var segments: int = 14
+	var points: PackedVector2Array = PackedVector2Array()
+	for j in range(segments + 1):
+		var t: float = float(j) / float(segments)
+		var angle: float = PI * t
+		var x: float = cx - half_w * cos(angle)
+		var y: float = baseline_y - height * sin(angle)
+		points.append(Vector2(x, y))
+
+	# Optionele vulling
+	if fill_color.a > 0.01:
+		var fill_pts: PackedVector2Array = points.duplicate()
+		fill_pts.append(Vector2(cx + half_w, baseline_y))
+		draw_colored_polygon(fill_pts, fill_color)
+
+	draw_polyline(points, color, arch_line_width, true)
+
+
+func _draw_tilted_arch(p_left: Vector2, p_right: Vector2, height: float, color: Color) -> void:
+	## Tekent een ronde boog tussen twee punten die op verschillende hoogtes kunnen liggen.
+	## De lift staat loodrecht op de basislijn zodat de boog altijd rond blijft.
+	var segments: int = 14
+	var baseline_dir: Vector2 = (p_right - p_left).normalized()
+	var normal: Vector2 = Vector2(-baseline_dir.y, baseline_dir.x)
+	# Zorg dat normaal omhoog wijst (negatieve y)
+	if normal.y > 0:
+		normal = -normal
+
+	var points: PackedVector2Array = PackedVector2Array()
+	for j in range(segments + 1):
+		var t: float = float(j) / float(segments)
+		var base_pt: Vector2 = p_left.lerp(p_right, t)
+		var lift: float = sin(t * PI) * height
+		points.append(base_pt + normal * lift)
+
+	draw_polyline(points, color, arch_line_width, true)
+
+
+# ── Helpers ───────────────────────────────────────────────────────────
+
+func _get_top_y_at_x(x: float) -> float:
+	## Vindt de bovenste y-coördinaat (laagste y) van de polygon op x-positie
+	var min_y: float = INF
+	var n: int = _polygon.size()
+	for i in n:
+		var p1: Vector2 = _polygon[i]
+		var p2: Vector2 = _polygon[(i + 1) % n]
+		if (p1.x <= x and p2.x >= x) or (p1.x >= x and p2.x <= x):
+			if absf(p2.x - p1.x) < 0.001:
+				min_y = minf(min_y, minf(p1.y, p2.y))
+			else:
+				var t: float = (x - p1.x) / (p2.x - p1.x)
+				var y: float = p1.y + t * (p2.y - p1.y)
+				min_y = minf(min_y, y)
+	return min_y if min_y < INF else 0.0
+
+
+func _get_x_range_at_y(y: float) -> Vector2:
+	var min_x: float = INF
+	var max_x: float = -INF
+	var n: int = _polygon.size()
+	for i in n:
+		var p1: Vector2 = _polygon[i]
+		var p2: Vector2 = _polygon[(i + 1) % n]
+		if (p1.y <= y and p2.y >= y) or (p1.y >= y and p2.y <= y):
+			if absf(p2.y - p1.y) < 0.001:
+				min_x = minf(min_x, minf(p1.x, p2.x))
+				max_x = maxf(max_x, maxf(p1.x, p2.x))
+			else:
+				var t: float = (y - p1.y) / (p2.y - p1.y)
+				var x: float = p1.x + t * (p2.x - p1.x)
+				min_x = minf(min_x, x)
+				max_x = maxf(max_x, x)
+	if min_x == INF:
+		return Vector2.ZERO
+	return Vector2(min_x, max_x)
+
+
+func _clip_polygon_to_band(y_min: float, y_max: float) -> PackedVector2Array:
+	var clipped: PackedVector2Array = _clip_below(_polygon, y_max)
+	return _clip_above(clipped, y_min)
+
+
+func _clip_below(poly: PackedVector2Array, y_max: float) -> PackedVector2Array:
+	var result: PackedVector2Array = PackedVector2Array()
+	var n: int = poly.size()
+	if n < 3:
+		return result
+	for i in n:
+		var c: Vector2 = poly[i]
+		var nx: Vector2 = poly[(i + 1) % n]
+		var c_in: bool = c.y <= y_max
+		var n_in: bool = nx.y <= y_max
+		if c_in:
+			result.append(c)
+		if c_in != n_in and absf(nx.y - c.y) > 0.001:
+			var t: float = (y_max - c.y) / (nx.y - c.y)
+			result.append(c.lerp(nx, t))
+	return result
+
+
+func _clip_above(poly: PackedVector2Array, y_min: float) -> PackedVector2Array:
+	var result: PackedVector2Array = PackedVector2Array()
+	var n: int = poly.size()
+	if n < 3:
+		return result
+	for i in n:
+		var c: Vector2 = poly[i]
+		var nx: Vector2 = poly[(i + 1) % n]
+		var c_in: bool = c.y >= y_min
+		var n_in: bool = nx.y >= y_min
+		if c_in:
+			result.append(c)
+		if c_in != n_in and absf(nx.y - c.y) > 0.001:
+			var t: float = (y_min - c.y) / (nx.y - c.y)
+			result.append(c.lerp(nx, t))
+	return result
+
+
+func _inset_polygon(amount: float) -> PackedVector2Array:
+	var n: int = _polygon.size()
+	if n < 3:
+		return _polygon
+	var centroid: Vector2 = Vector2.ZERO
+	for p in _polygon:
+		centroid += p
+	centroid /= float(n)
+	var result: PackedVector2Array = PackedVector2Array()
+	for p in _polygon:
+		var dir: Vector2 = (centroid - p).normalized()
+		result.append(p + dir * amount)
+	return result
