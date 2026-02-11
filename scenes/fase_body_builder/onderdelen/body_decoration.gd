@@ -280,6 +280,7 @@ func _draw() -> void:
 	_draw_crown_arches(shoulder_y)
 	_draw_moldings(shoulder_y, hip_y)
 	_draw_panels_with_arches(shoulder_y, hip_y)
+	_draw_rok_decoration(hip_y, base_y)
 	_draw_gold_trim()
 	_draw_3d_edge()
 
@@ -397,14 +398,36 @@ func _draw_pipes_in_panel(panel_left: float, panel_right: float, panel_bottom: f
 
 		var pipe_y: float = pipe_bottom_y - pipe_h
 
+		# Pijp body + texture
 		draw_rect(Rect2(x, pipe_y, pw, pipe_h), col_body)
 		_draw_textured_rect(Rect2(x, pipe_y, pw, pipe_h), copper_texture,
 			_make_tint(col_body, copper_texture_opacity, copper_color_blend), copper_texture_scale)
-		# Cap
+
+		# Cilindrische 3D shading: highlight links, schaduw rechts
+		var shade_w: float = pw * 0.35
+		draw_rect(Rect2(x, pipe_y, shade_w, pipe_h),
+			Color(1, 1, 0.9, 0.18))
+		draw_rect(Rect2(x + pw - shade_w, pipe_y, shade_w, pipe_h),
+			Color(0, 0, 0, 0.15))
+
+		# Cap (dop bovenaan)
 		var cap_h: float = maxf(4.0, pw * 0.22)
 		var cap_extra: float = pw * 0.12
 		var cap_w: float = pw + cap_extra * 2.0
 		draw_rect(Rect2(x - cap_extra, pipe_y, cap_w, cap_h), col_cap)
+
+		# Voet (trapeziumvormig blok onderaan)
+		var foot_h: float = maxf(3.0, pw * 0.18)
+		var foot_extra: float = pw * 0.08
+		var foot_pts: PackedVector2Array = PackedVector2Array([
+			Vector2(x - foot_extra, pipe_bottom_y),
+			Vector2(x + pw + foot_extra, pipe_bottom_y),
+			Vector2(x + pw, pipe_bottom_y - foot_h),
+			Vector2(x, pipe_bottom_y - foot_h)
+		])
+		draw_colored_polygon(foot_pts, col_cap)
+
+		# Mond (labium)
 		var mouth_y: float = pipe_y + pipe_h * 0.72
 		var mouth_h: float = maxf(2.0, pipe_h * 0.03)
 		draw_rect(Rect2(x + pw * 0.1, mouth_y, pw * 0.8, mouth_h), col_mouth)
@@ -536,6 +559,41 @@ func _draw_panels_with_arches(shoulder_y: float, hip_y: float) -> void:
 		var inner: Rect2 = rect.grow(-12.0)
 		if inner.size.x > 30 and inner.size.y > 30:
 			draw_rect(inner, gold_inner, false, panel_inner_width)
+
+
+# ── Rok-decoratie ────────────────────────────────────────────────────
+
+func _draw_rok_decoration(hip_y: float, base_y: float) -> void:
+	## Tekent een decoratief paneel in de rok-zone (onder het lichaam)
+	var zone_margin: float = MARGIN * 2.5
+	var rok_top: float = hip_y + zone_margin
+	var rok_bottom: float = base_y - zone_margin
+	if rok_bottom - rok_top < 30.0:
+		return
+
+	var x_top: Vector2 = _get_x_range_at_y(rok_top)
+	var x_bottom: Vector2 = _get_x_range_at_y(rok_bottom)
+	var left: float = maxf(x_top.x, x_bottom.x) + zone_margin
+	var right: float = minf(x_top.y, x_bottom.y) - zone_margin
+	if right - left < 60.0:
+		return
+
+	var gold: Color = Color(0.85, 0.7, 0.3, 0.5)
+	var gold_inner: Color = Color(0.85, 0.7, 0.3, 0.2)
+
+	# Buitenkader
+	var rect: Rect2 = Rect2(left, rok_top, right - left, rok_bottom - rok_top)
+	draw_rect(rect, gold, false, panel_frame_width)
+
+	# Binnenkader
+	var inner: Rect2 = rect.grow(-10.0)
+	if inner.size.x > 40 and inner.size.y > 20:
+		draw_rect(inner, gold_inner, false, panel_inner_width)
+
+	# Horizontale accentlijn in het midden
+	var mid_y: float = (rok_top + rok_bottom) / 2.0
+	draw_line(Vector2(left + 15, mid_y), Vector2(right - 15, mid_y),
+		Color(0.85, 0.7, 0.3, 0.3), molding_accent_width)
 
 
 # ── Gouden trim ──────────────────────────────────────────────────────
