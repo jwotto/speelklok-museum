@@ -105,11 +105,11 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		kop_texture_scale = v
 		queue_redraw()
-@export_range(0.0, 1.0) var kop_texture_opacity: float = 0.5:
+@export_range(0.0, 1.0) var kop_texture_opacity: float = 0.35:
 	set(v):
 		kop_texture_opacity = v
 		queue_redraw()
-@export_range(0.0, 1.0) var kop_color_blend: float = 0.3:
+@export_range(0.0, 1.0) var kop_color_blend: float = 0.2:
 	set(v):
 		kop_color_blend = v
 		queue_redraw()
@@ -122,11 +122,11 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		lichaam_texture_scale = v
 		queue_redraw()
-@export_range(0.0, 1.0) var lichaam_texture_opacity: float = 0.5:
+@export_range(0.0, 1.0) var lichaam_texture_opacity: float = 0.3:
 	set(v):
 		lichaam_texture_opacity = v
 		queue_redraw()
-@export_range(0.0, 1.0) var lichaam_color_blend: float = 0.3:
+@export_range(0.0, 1.0) var lichaam_color_blend: float = 0.2:
 	set(v):
 		lichaam_color_blend = v
 		queue_redraw()
@@ -139,11 +139,11 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		rok_texture_scale = v
 		queue_redraw()
-@export_range(0.0, 1.0) var rok_texture_opacity: float = 0.5:
+@export_range(0.0, 1.0) var rok_texture_opacity: float = 0.35:
 	set(v):
 		rok_texture_opacity = v
 		queue_redraw()
-@export_range(0.0, 1.0) var rok_color_blend: float = 0.3:
+@export_range(0.0, 1.0) var rok_color_blend: float = 0.25:
 	set(v):
 		rok_color_blend = v
 		queue_redraw()
@@ -156,11 +156,11 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		pipe_panel_texture_scale = v
 		queue_redraw()
-@export_range(0.0, 1.0) var pipe_panel_texture_opacity: float = 0.5:
+@export_range(0.0, 1.0) var pipe_panel_texture_opacity: float = 0.3:
 	set(v):
 		pipe_panel_texture_opacity = v
 		queue_redraw()
-@export_range(0.0, 1.0) var pipe_panel_color_blend: float = 0.3:
+@export_range(0.0, 1.0) var pipe_panel_color_blend: float = 0.25:
 	set(v):
 		pipe_panel_color_blend = v
 		queue_redraw()
@@ -173,11 +173,11 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		panel_texture_scale = v
 		queue_redraw()
-@export_range(0.0, 1.0) var panel_texture_opacity: float = 0.5:
+@export_range(0.0, 1.0) var panel_texture_opacity: float = 0.3:
 	set(v):
 		panel_texture_opacity = v
 		queue_redraw()
-@export_range(0.0, 1.0) var panel_color_blend: float = 0.3:
+@export_range(0.0, 1.0) var panel_color_blend: float = 0.2:
 	set(v):
 		panel_color_blend = v
 		queue_redraw()
@@ -190,11 +190,11 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		copper_texture_scale = v
 		queue_redraw()
-@export_range(0.0, 1.0) var copper_texture_opacity: float = 0.5:
+@export_range(0.0, 1.0) var copper_texture_opacity: float = 0.35:
 	set(v):
 		copper_texture_opacity = v
 		queue_redraw()
-@export_range(0.0, 1.0) var copper_color_blend: float = 0.3:
+@export_range(0.0, 1.0) var copper_color_blend: float = 0.2:
 	set(v):
 		copper_color_blend = v
 		queue_redraw()
@@ -287,21 +287,26 @@ func _draw() -> void:
 # ── Zone textures ────────────────────────────────────────────────────
 
 func _draw_zone_textures(shoulder_y: float, hip_y: float, base_y: float) -> void:
-	## Tekent per zone een aparte texture (3D shading via shader overlay)
+	## Tekent per zone een opake gekleurde laag + texture (sticker-look)
 	var kop_poly: PackedVector2Array = _clip_polygon_to_band(0.0, shoulder_y)
 	if kop_poly.size() >= 3:
+		var kop_col: Color = _zone_color(0.05, 0.08)
+		draw_colored_polygon(kop_poly, kop_col)
 		_draw_textured_poly(kop_poly, kop_texture,
-			_make_tint(kop_texture_opacity, kop_color_blend), kop_texture_scale)
+			_make_tint(kop_col, kop_texture_opacity, kop_color_blend), kop_texture_scale)
 
 	var lichaam_poly: PackedVector2Array = _clip_polygon_to_band(shoulder_y, hip_y)
 	if lichaam_poly.size() >= 3:
+		draw_colored_polygon(lichaam_poly, _base_color)
 		_draw_textured_poly(lichaam_poly, lichaam_texture,
-			_make_tint(lichaam_texture_opacity, lichaam_color_blend), lichaam_texture_scale)
+			_make_tint(_base_color, lichaam_texture_opacity, lichaam_color_blend), lichaam_texture_scale)
 
 	var rok_poly: PackedVector2Array = _clip_polygon_to_band(hip_y, base_y)
 	if rok_poly.size() >= 3:
+		var rok_col: Color = _zone_color(0.0, 0.1)
+		draw_colored_polygon(rok_poly, rok_col)
 		_draw_textured_poly(rok_poly, rok_texture,
-			_make_tint(rok_texture_opacity, rok_color_blend), rok_texture_scale)
+			_make_tint(rok_col, rok_texture_opacity, rok_color_blend), rok_texture_scale)
 
 
 # ── Pijpenpaneel (dak-zone) ───────────────────────────────────────────
@@ -334,11 +339,12 @@ func _draw_pipe_panel(shoulder_y: float) -> void:
 	panel_pts.append(Vector2(panel_right, panel_bottom))
 	panel_pts.append(Vector2(panel_left, panel_bottom))
 
-	# Teken paneel achtergrond + texture
+	# Teken paneel achtergrond + texture (opak, eigen kleur)
 	if panel_pts.size() >= 3:
-		draw_colored_polygon(panel_pts, Color(0, 0, 0, 0.08))
+		var pp_col: Color = _zone_color(-0.05, 0.1)
+		draw_colored_polygon(panel_pts, pp_col)
 		_draw_textured_poly(panel_pts, pipe_panel_texture,
-			_make_tint(pipe_panel_texture_opacity, pipe_panel_color_blend), pipe_panel_texture_scale)
+			_make_tint(pp_col, pipe_panel_texture_opacity, pipe_panel_color_blend), pipe_panel_texture_scale)
 
 	# Teken paneel rand (goud)
 	var gold: Color = Color(0.85, 0.7, 0.3, 0.6)
@@ -393,7 +399,7 @@ func _draw_pipes_in_panel(panel_left: float, panel_right: float, panel_bottom: f
 
 		draw_rect(Rect2(x, pipe_y, pw, pipe_h), col_body)
 		_draw_textured_rect(Rect2(x, pipe_y, pw, pipe_h), copper_texture,
-			_make_tint(copper_texture_opacity, copper_color_blend), copper_texture_scale)
+			_make_tint(col_body, copper_texture_opacity, copper_color_blend), copper_texture_scale)
 		# Cap
 		var cap_h: float = maxf(4.0, pw * 0.22)
 		var cap_extra: float = pw * 0.12
@@ -518,11 +524,12 @@ func _draw_panels_with_arches(shoulder_y: float, hip_y: float) -> void:
 			if pendant_radius > 0.5:
 				draw_circle(Vector2(panel_cx, arch_baseline - arch_h), pendant_radius, gold)
 
-		# ── Paneel-kader ──
+		# ── Paneel-kader (opak, eigen kleur) ──
 		var rect: Rect2 = Rect2(panel_left, panel_top, pw, panel_bottom - panel_top)
-		draw_rect(rect, Color(1, 1, 1, 0.06))
+		var panel_col: Color = _zone_color(0.08, 0.0)
+		draw_rect(rect, panel_col)
 		_draw_textured_rect(rect, panel_texture,
-			_make_tint(panel_texture_opacity, panel_color_blend), panel_texture_scale)
+			_make_tint(panel_col, panel_texture_opacity, panel_color_blend), panel_texture_scale)
 
 		draw_rect(rect, gold, false, panel_frame_width)
 
@@ -639,9 +646,18 @@ func _draw_3d_edge() -> void:
 
 # ── Texture helpers ──────────────────────────────────────────────────
 
-func _make_tint(opacity: float, blend: float) -> Color:
-	## Berekent de kleur-modulatie op basis van per-zone blend en opacity
-	var c: Color = Color.WHITE.lerp(_base_color, blend)
+func _zone_color(val_offset: float, sat_offset: float = 0.0) -> Color:
+	## Leidt een zone-kleur af van de basekleur met HSV offsets
+	return Color.from_hsv(
+		_base_color.h,
+		clampf(_base_color.s + sat_offset, 0.0, 1.0),
+		clampf(_base_color.v + val_offset, 0.1, 1.0)
+	)
+
+
+func _make_tint(zone_col: Color, opacity: float, blend: float) -> Color:
+	## Berekent de textuur-tint: blend tussen wit en zone-kleur, met opacity
+	var c: Color = Color.WHITE.lerp(zone_col, blend)
 	c.a = opacity
 	return c
 

@@ -19,7 +19,7 @@ fill_to = Vector2(0.93434346, 0.9478114)
 
 [sub_resource type="Gradient" id="Gradient_shading"]
 offsets = PackedFloat32Array(0, 0.4, 1)
-colors = PackedColorArray(0, 0, 0.02, 0.32, 0, 0, 0, 0, 1, 1, 0.95, 0.2)
+colors = PackedColorArray(0, 0, 0.02, 0.18, 0, 0, 0, 0, 1, 1, 0.95, 0.25)
 
 [sub_resource type="GradientTexture2D" id="GradientTexture2D_shading"]
 gradient = SubResource("Gradient_shading")
@@ -72,22 +72,29 @@ panel_inner_width = 5.0
 gold_trim_width = 5.0
 arch_line_width = 5.0
 kop_texture = ExtResource("5_wood_tex")
+kop_texture_scale = 2.5
+kop_texture_opacity = 0.35
+kop_color_blend = 0.2
 lichaam_texture = ExtResource("5_wood_tex")
-lichaam_texture_scale = 2.401
-lichaam_texture_opacity = 0.464
-lichaam_color_blend = 0.55
+lichaam_texture_scale = 3.0
+lichaam_texture_opacity = 0.3
+lichaam_color_blend = 0.2
 rok_texture = ExtResource("5_wood_tex")
-rok_texture_opacity = 0.738
-rok_color_blend = 1.0
+rok_texture_scale = 2.0
+rok_texture_opacity = 0.35
+rok_color_blend = 0.25
 pipe_panel_texture = ExtResource("5_wood_tex")
-pipe_panel_color_blend = 0.778
+pipe_panel_texture_scale = 2.0
+pipe_panel_texture_opacity = 0.3
+pipe_panel_color_blend = 0.25
 panel_texture = ExtResource("5_wood_tex")
-panel_texture_scale = 3.825
-panel_texture_opacity = 0.515
-panel_color_blend = 1.0
+panel_texture_scale = 4.0
+panel_texture_opacity = 0.3
+panel_color_blend = 0.2
 copper_texture = ExtResource("6_copper_tex")
-copper_texture_scale = 0.96
-copper_color_blend = 0.49
+copper_texture_scale = 1.0
+copper_texture_opacity = 0.35
+copper_color_blend = 0.2
 shading_gradient = SubResource("GradientTexture2D_shading")
 highlight_strength = 0.815
 

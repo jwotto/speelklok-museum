@@ -58,9 +58,9 @@ class_name BodyShape
 
 @export_group("Appearance")
 ## Verzadiging van de vulkleur
-@export_range(0.0, 1.0) var color_saturation: float = 0.55
+@export_range(0.0, 1.0) var color_saturation: float = 0.65
 ## Helderheid van de vulkleur
-@export_range(0.0, 1.0) var color_value: float = 0.85
+@export_range(0.0, 1.0) var color_value: float = 0.92
 ## Kleur van de contourlijn
 @export var outline_color: Color = Color(0.15, 0.1, 0.05, 0.8):
 	set(v):
