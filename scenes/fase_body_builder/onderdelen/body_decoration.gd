@@ -95,6 +95,118 @@ const MOLDING_INSET: float = 15.0
 		gold_trim_inset = v
 		queue_redraw()
 
+@export_group("Texture: Kop")
+@export var kop_texture: Texture2D:
+	set(v):
+		kop_texture = v
+		queue_redraw()
+@export_range(0.1, 10.0) var kop_texture_scale: float = 3.0:
+	set(v):
+		kop_texture_scale = v
+		queue_redraw()
+@export_range(0.0, 1.0) var kop_texture_opacity: float = 0.5:
+	set(v):
+		kop_texture_opacity = v
+		queue_redraw()
+@export_range(0.0, 1.0) var kop_color_blend: float = 0.3:
+	set(v):
+		kop_color_blend = v
+		queue_redraw()
+
+@export_group("Texture: Lichaam")
+@export var lichaam_texture: Texture2D:
+	set(v):
+		lichaam_texture = v
+		queue_redraw()
+@export_range(0.1, 10.0) var lichaam_texture_scale: float = 3.0:
+	set(v):
+		lichaam_texture_scale = v
+		queue_redraw()
+@export_range(0.0, 1.0) var lichaam_texture_opacity: float = 0.5:
+	set(v):
+		lichaam_texture_opacity = v
+		queue_redraw()
+@export_range(0.0, 1.0) var lichaam_color_blend: float = 0.3:
+	set(v):
+		lichaam_color_blend = v
+		queue_redraw()
+
+@export_group("Texture: Rok")
+@export var rok_texture: Texture2D:
+	set(v):
+		rok_texture = v
+		queue_redraw()
+@export_range(0.1, 10.0) var rok_texture_scale: float = 3.0:
+	set(v):
+		rok_texture_scale = v
+		queue_redraw()
+@export_range(0.0, 1.0) var rok_texture_opacity: float = 0.5:
+	set(v):
+		rok_texture_opacity = v
+		queue_redraw()
+@export_range(0.0, 1.0) var rok_color_blend: float = 0.3:
+	set(v):
+		rok_color_blend = v
+		queue_redraw()
+
+@export_group("Texture: Pijpenpaneel")
+@export var pipe_panel_texture: Texture2D:
+	set(v):
+		pipe_panel_texture = v
+		queue_redraw()
+@export_range(0.1, 10.0) var pipe_panel_texture_scale: float = 3.0:
+	set(v):
+		pipe_panel_texture_scale = v
+		queue_redraw()
+@export_range(0.0, 1.0) var pipe_panel_texture_opacity: float = 0.5:
+	set(v):
+		pipe_panel_texture_opacity = v
+		queue_redraw()
+@export_range(0.0, 1.0) var pipe_panel_color_blend: float = 0.3:
+	set(v):
+		pipe_panel_color_blend = v
+		queue_redraw()
+
+@export_group("Texture: Buik-panelen")
+@export var panel_texture: Texture2D:
+	set(v):
+		panel_texture = v
+		queue_redraw()
+@export_range(0.1, 10.0) var panel_texture_scale: float = 3.0:
+	set(v):
+		panel_texture_scale = v
+		queue_redraw()
+@export_range(0.0, 1.0) var panel_texture_opacity: float = 0.5:
+	set(v):
+		panel_texture_opacity = v
+		queue_redraw()
+@export_range(0.0, 1.0) var panel_color_blend: float = 0.3:
+	set(v):
+		panel_color_blend = v
+		queue_redraw()
+
+@export_group("Texture: Pijpen")
+@export var copper_texture: Texture2D:
+	set(v):
+		copper_texture = v
+		queue_redraw()
+@export_range(0.1, 10.0) var copper_texture_scale: float = 1.0:
+	set(v):
+		copper_texture_scale = v
+		queue_redraw()
+@export_range(0.0, 1.0) var copper_texture_opacity: float = 0.5:
+	set(v):
+		copper_texture_opacity = v
+		queue_redraw()
+@export_range(0.0, 1.0) var copper_color_blend: float = 0.3:
+	set(v):
+		copper_color_blend = v
+		queue_redraw()
+
+
+func _ready() -> void:
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+
 
 func update_decoration(polygon: PackedVector2Array, base_color: Color, shape_height: float) -> void:
 	_polygon = polygon
@@ -110,12 +222,33 @@ func _draw() -> void:
 	var hip_y: float = _shape_height * 0.75
 	var base_y: float = _shape_height
 
+	_draw_zone_textures(shoulder_y, hip_y, base_y)
 	_draw_zone_shading(shoulder_y, hip_y, base_y)
 	_draw_pipe_panel(shoulder_y)
 	_draw_crown_arches(shoulder_y)
 	_draw_moldings(shoulder_y, hip_y)
 	_draw_panels_with_arches(shoulder_y, hip_y)
 	_draw_gold_trim()
+
+
+# ── Zone textures ────────────────────────────────────────────────────
+
+func _draw_zone_textures(shoulder_y: float, hip_y: float, base_y: float) -> void:
+	## Tekent per zone een aparte texture
+	var kop_poly: PackedVector2Array = _clip_polygon_to_band(0.0, shoulder_y)
+	if kop_poly.size() >= 3:
+		_draw_textured_poly(kop_poly, kop_texture,
+			_make_tint(kop_texture_opacity, kop_color_blend), kop_texture_scale)
+
+	var lichaam_poly: PackedVector2Array = _clip_polygon_to_band(shoulder_y, hip_y)
+	if lichaam_poly.size() >= 3:
+		_draw_textured_poly(lichaam_poly, lichaam_texture,
+			_make_tint(lichaam_texture_opacity, lichaam_color_blend), lichaam_texture_scale)
+
+	var rok_poly: PackedVector2Array = _clip_polygon_to_band(hip_y, base_y)
+	if rok_poly.size() >= 3:
+		_draw_textured_poly(rok_poly, rok_texture,
+			_make_tint(rok_texture_opacity, rok_color_blend), rok_texture_scale)
 
 
 # ── Zone shading ──────────────────────────────────────────────────────
@@ -163,9 +296,11 @@ func _draw_pipe_panel(shoulder_y: float) -> void:
 	panel_pts.append(Vector2(panel_right, panel_bottom))
 	panel_pts.append(Vector2(panel_left, panel_bottom))
 
-	# Teken paneel achtergrond
+	# Teken paneel achtergrond + texture
 	if panel_pts.size() >= 3:
 		draw_colored_polygon(panel_pts, Color(0, 0, 0, 0.08))
+		_draw_textured_poly(panel_pts, pipe_panel_texture,
+			_make_tint(pipe_panel_texture_opacity, pipe_panel_color_blend), pipe_panel_texture_scale)
 
 	# Teken paneel rand (goud)
 	var gold: Color = Color(0.85, 0.7, 0.3, 0.6)
@@ -221,6 +356,8 @@ func _draw_pipes_in_panel(panel_left: float, panel_right: float, panel_bottom: f
 		var pipe_y: float = pipe_bottom_y - pipe_h
 
 		draw_rect(Rect2(x, pipe_y, pw, pipe_h), col_body)
+		_draw_textured_rect(Rect2(x, pipe_y, pw, pipe_h), copper_texture,
+			_make_tint(copper_texture_opacity, copper_color_blend), copper_texture_scale)
 		draw_rect(Rect2(x, pipe_y, pw * 0.2, pipe_h), col_hi)
 		draw_rect(Rect2(x + pw * 0.8, pipe_y, pw * 0.2, pipe_h), col_sh)
 		var cap_h: float = maxf(4.0, pw * 0.22)
@@ -321,7 +458,7 @@ func _draw_panels_with_arches(shoulder_y: float, hip_y: float) -> void:
 		return
 
 	var gold: Color = Color(0.85, 0.7, 0.3, 0.6)
-	var gold_fill: Color = Color(0.85, 0.7, 0.3, 0.08)
+	var gold_fill: Color = Color(0.15, 0.1, 0.02, 0.25)
 	var gold_inner: Color = Color(0.85, 0.7, 0.3, 0.25)
 
 	for i in panel_count:
@@ -341,6 +478,8 @@ func _draw_panels_with_arches(shoulder_y: float, hip_y: float) -> void:
 		# ── Paneel-kader ──
 		var rect: Rect2 = Rect2(panel_left, panel_top, pw, panel_bottom - panel_top)
 		draw_rect(rect, Color(1, 1, 1, 0.06))
+		_draw_textured_rect(rect, panel_texture,
+			_make_tint(panel_texture_opacity, panel_color_blend), panel_texture_scale)
 		draw_rect(rect, gold, false, panel_frame_width)
 
 		var inner: Rect2 = rect.grow(-12.0)
@@ -403,6 +542,41 @@ func _draw_tilted_arch(p_left: Vector2, p_right: Vector2, height: float, color: 
 		points.append(base_pt + normal * lift)
 
 	draw_polyline(points, color, arch_line_width, true)
+
+
+# ── Texture helpers ──────────────────────────────────────────────────
+
+func _make_tint(opacity: float, blend: float) -> Color:
+	## Berekent de kleur-modulatie op basis van per-zone blend en opacity
+	var c: Color = Color.WHITE.lerp(_base_color, blend)
+	c.a = opacity
+	return c
+
+
+func _draw_textured_poly(points: PackedVector2Array, tex: Texture2D, tint: Color, scale: float) -> void:
+	## Tekent een getiled texture-polygon met kleur-modulatie en eigen schaal
+	if not tex or tint.a < 0.01 or points.size() < 3:
+		return
+	var tex_size: Vector2 = Vector2(tex.get_width(), tex.get_height()) * scale
+	var uvs: PackedVector2Array = PackedVector2Array()
+	var colors: PackedColorArray = PackedColorArray()
+	for p in points:
+		uvs.append(p / tex_size)
+		colors.append(tint)
+	draw_polygon(points, colors, uvs, tex)
+
+
+func _draw_textured_rect(rect: Rect2, tex: Texture2D, tint: Color, scale: float) -> void:
+	## Tekent een getiled texture-rect met kleur-modulatie en eigen schaal
+	if not tex or tint.a < 0.01:
+		return
+	var pts: PackedVector2Array = PackedVector2Array([
+		rect.position,
+		Vector2(rect.end.x, rect.position.y),
+		rect.end,
+		Vector2(rect.position.x, rect.end.y)
+	])
+	_draw_textured_poly(pts, tex, tint, scale)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
