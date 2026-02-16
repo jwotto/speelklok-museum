@@ -14,6 +14,12 @@ enum IconType { ROTATE, SCALE }
 	set(v):
 		icon_type = v
 		queue_redraw()
+## Horizontale modus (track gaat links-rechts in plaats van boven-onder)
+@export var horizontal: bool = false:
+	set(v):
+		horizontal = v
+		_update_minimum_size()
+		queue_redraw()
 
 @export_group("Value")
 ## Ondergrens van de slider
@@ -89,26 +95,33 @@ func _ready() -> void:
 
 func _update_minimum_size() -> void:
 	## Pas minimum grootte aan zodat track_length + thumb past
-	custom_minimum_size = Vector2(thumb_radius * 2.0, track_length + thumb_radius * 2.0)
+	if horizontal:
+		custom_minimum_size = Vector2(track_length + thumb_radius * 2.0, thumb_radius * 2.0)
+	else:
+		custom_minimum_size = Vector2(thumb_radius * 2.0, track_length + thumb_radius * 2.0)
 
 
 func _draw() -> void:
-	var cx = size.x / 2.0
-	var top_y = (size.y - track_length) / 2.0
-	var bottom_y = top_y + track_length
-
-	# Track
-	draw_line(Vector2(cx, top_y), Vector2(cx, bottom_y), track_color, track_width, true)
-
-	# Thumb positie gebaseerd op value
 	var t = inverse_lerp(min_value, max_value, value) if max_value > min_value else 0.5
-	var thumb_y = lerpf(bottom_y, top_y, t)
-	var thumb_pos = Vector2(cx, thumb_y)
+	var thumb_pos: Vector2
+
+	if horizontal:
+		var cy = size.y / 2.0
+		var left_x = (size.x - track_length) / 2.0
+		var right_x = left_x + track_length
+		draw_line(Vector2(left_x, cy), Vector2(right_x, cy), track_color, track_width, true)
+		thumb_pos = Vector2(lerpf(left_x, right_x, t), cy)
+	else:
+		var cx = size.x / 2.0
+		var top_y = (size.y - track_length) / 2.0
+		var bottom_y = top_y + track_length
+		draw_line(Vector2(cx, top_y), Vector2(cx, bottom_y), track_color, track_width, true)
+		thumb_pos = Vector2(cx, lerpf(bottom_y, top_y, t))
 
 	# Witte cirkel
 	draw_circle(thumb_pos, thumb_radius, thumb_color)
 
-	# Icoon in de thumb
+	# Icoon in de thumb (altijd rechtop, ongeacht oriëntatie)
 	match icon_type:
 		IconType.ROTATE:
 			_draw_rotate_icon(thumb_pos)
@@ -165,21 +178,26 @@ func _gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		if event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 			_dragging = true
-			_update_from_position(event.position.y)
+			_update_from_position(event.position.x if horizontal else event.position.y)
 			accept_event()
 		elif not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 			_dragging = false
 			accept_event()
 	elif event is InputEventMouseMotion and _dragging:
-		_update_from_position(event.position.y)
+		_update_from_position(event.position.x if horizontal else event.position.y)
 		accept_event()
 
 
-func _update_from_position(local_y: float) -> void:
+func _update_from_position(local_pos: float) -> void:
 	## Bereken nieuwe value uit thumb positie
-	var top_y = (size.y - track_length) / 2.0
-	var bottom_y = top_y + track_length
-	var t = 1.0 - clampf((local_y - top_y) / (bottom_y - top_y), 0.0, 1.0)
+	var primary_size = size.x if horizontal else size.y
+	var start = (primary_size - track_length) / 2.0
+	var end = start + track_length
+	var t: float
+	if horizontal:
+		t = clampf((local_pos - start) / (end - start), 0.0, 1.0)
+	else:
+		t = 1.0 - clampf((local_pos - start) / (end - start), 0.0, 1.0)
 	var new_val = lerpf(min_value, max_value, t)
 	var old_val = value
 	value = new_val

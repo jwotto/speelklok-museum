@@ -13,10 +13,10 @@ signal phase_completed
 # Scene node references
 @onready var _background: TextureRect = $Background
 @onready var _sticker_container: Node2D = $Stickers
-@onready var _trash_button: IconButton = $UILayer/TrashButton
-@onready var _add_button: IconButton = $UILayer/AddButton
+@onready var _trash_button: IconButton = $UILayer/StickerSliders/TrashButton
+@onready var _add_button: IconButton = $UILayer/StickerSliders/AddButton
 @onready var _picker: StickerPicker = $UILayer/StickerPicker
-@onready var _slider_container: VBoxContainer = $UILayer/StickerSliders
+@onready var _slider_container: HBoxContainer = $UILayer/StickerSliders
 @onready var _rotate_slider: Control = $UILayer/StickerSliders/RotateSlider
 @onready var _scale_slider: Control = $UILayer/StickerSliders/ScaleSlider
 
@@ -67,16 +67,16 @@ func _on_picker_closed() -> void:
 
 func _update_button_visibility() -> void:
 	if _picker_open:
-		_trash_button.visible = false
-		_add_button.visible = false
-	elif _any_dragging:
-		_trash_button.visible = true
-		_add_button.visible = false
-	else:
-		_trash_button.visible = false
-		_add_button.visible = true
-	# Sliders: toon als sticker geselecteerd en picker niet open
-	_slider_container.visible = _tracked_sticker != null and not _picker_open
+		_slider_container.visible = false
+		return
+	# Container altijd zichtbaar (bevat nu ook knoppen)
+	_slider_container.visible = true
+	_trash_button.visible = _any_dragging
+	_add_button.visible = not _any_dragging
+	# Sliders: alleen tonen als sticker geselecteerd
+	var show_sliders := _tracked_sticker != null
+	_rotate_slider.visible = show_sliders
+	_scale_slider.visible = show_sliders
 
 
 func _is_touch_over_ui(pos: Vector2) -> bool:
@@ -108,28 +108,15 @@ func _set_stickers_input(enabled: bool) -> void:
 
 
 func set_phase_data(data: Dictionary) -> void:
-	## Ontvang polygon + kleur van de body builder fase
+	## Ontvang polygon + kleur + zoom positie van de body builder fase
 	if not data.has("polygon") or not data.has("color"):
 		return
 	var polygon: PackedVector2Array = data["polygon"]
 	var color: Color = data["color"]
 
-	# Bereken bounding box van de polygon
-	var min_p := Vector2(INF, INF)
-	var max_p := Vector2(-INF, -INF)
-	for p in polygon:
-		min_p = Vector2(minf(min_p.x, p.x), minf(min_p.y, p.y))
-		max_p = Vector2(maxf(max_p.x, p.x), maxf(max_p.y, p.y))
-	var shape_size := max_p - min_p
-	var shape_center := (min_p + max_p) / 2.0
-
-	# Scale om 85% van viewport te vullen
-	var viewport_size := get_viewport_rect().size
-	var target_scale_f := minf(
-		viewport_size.x / shape_size.x, viewport_size.y / shape_size.y
-	) * 0.85
-	var viewport_center := viewport_size / 2.0
-	var contour_pos := viewport_center - shape_center * target_scale_f
+	# Gebruik exact dezelfde zoom waarden als de body builder animatie
+	var target_scale_f: float = data["zoom_scale"]
+	var contour_pos: Vector2 = data["zoom_position"]
 
 	# Maak OrganContour node
 	var OrganContourScript = preload("res://scenes/fase_sticker_placer/onderdelen/organ_contour.gd")
@@ -149,8 +136,13 @@ func set_phase_data(data: Dictionary) -> void:
 	for p in polygon:
 		_organ_polygon_world.append(p * target_scale_f + contour_pos)
 
-	# Bereken organ center in world space
-	_organ_center = shape_center * target_scale_f + contour_pos
+	# Bereken organ center uit world-space bounding box
+	var wmin := Vector2(INF, INF)
+	var wmax := Vector2(-INF, -INF)
+	for wp in _organ_polygon_world:
+		wmin = Vector2(minf(wmin.x, wp.x), minf(wmin.y, wp.y))
+		wmax = Vector2(maxf(wmax.x, wp.x), maxf(wmax.y, wp.y))
+	_organ_center = (wmin + wmax) / 2.0
 
 	# Achtergrond op volle sterkte houden (zelfde als body builder)
 	_background.modulate = Color.WHITE

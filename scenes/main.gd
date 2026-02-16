@@ -25,6 +25,8 @@ func _ready() -> void:
 
 	# Globale touch-naar-muis emulatie (Godot editor verwijdert deze setting steeds)
 	Input.emulate_mouse_from_touch = true
+	# Overschrijf titel (verwijdert "(DEBUG)" label)
+	DisplayServer.window_set_title("Speelklok Museum")
 
 	start_phase(start_phase_index)
 
@@ -36,6 +38,12 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_ESCAPE:
 			get_tree().quit()
+		# F11 = toggle fullscreen
+		elif event.keycode == KEY_F11:
+			if DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			else:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
 		# Toets 1-9 = wissel naar fase
 		elif event.keycode >= KEY_1 and event.keycode <= KEY_9:
 			var index = event.keycode - KEY_1

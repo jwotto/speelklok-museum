@@ -8,12 +8,12 @@ signal phase_completed
 
 @onready var _background: TextureRect = $Background
 @onready var _body_shape: Node2D = $BodyShape
-@onready var _slider_container: VBoxContainer = $UILayer/SliderContainer
-@onready var _dak_slider: Control = $UILayer/SliderContainer/DakSlider
-@onready var _buik_slider: Control = $UILayer/SliderContainer/BuikSlider
-@onready var _rok_slider: Control = $UILayer/SliderContainer/RokSlider
-@onready var _kleur_slider: Control = $UILayer/SliderContainer/KleurSlider
-@onready var _done_button: IconButton = $UILayer/DoneButton
+@onready var _slider_container: HBoxContainer = $UILayer/SliderContainer
+@onready var _dak_slider: Control = $UILayer/SliderContainer/LeftSliders/DakSlider
+@onready var _buik_slider: Control = $UILayer/SliderContainer/LeftSliders/BuikSlider
+@onready var _rok_slider: Control = $UILayer/SliderContainer/RightSliders/RokSlider
+@onready var _kleur_slider: Control = $UILayer/SliderContainer/RightSliders/KleurSlider
+@onready var _done_button: IconButton = $UILayer/SliderContainer/DoneButton
 
 var _shape_data: Dictionary = {}
 
@@ -58,25 +58,14 @@ func _on_kleur_changed(val: float) -> void:
 func _on_done_pressed() -> void:
 	if Engine.is_editor_hint():
 		return
-	_shape_data = {
-		"polygon": _body_shape.get_polygon(),
-		"color": Color.from_hsv(
-			_body_shape.kleur, _body_shape.color_saturation, _body_shape.color_value
-		),
-	}
-	_animate_zoom_in()
 
-
-func get_phase_data() -> Dictionary:
-	return _shape_data
-
-
-func _animate_zoom_in() -> void:
-	var viewport_size := get_viewport_rect().size
-	var viewport_center := viewport_size / 2.0
-
-	# Bereken bounding box van de polygon
 	var polygon: PackedVector2Array = _body_shape.get_polygon()
+	var color := Color.from_hsv(
+		_body_shape.kleur, _body_shape.color_saturation, _body_shape.color_value
+	)
+
+	# Bereken zoom rondom het visuele centrum van de shape (geen verplaatsing)
+	var viewport_size := get_viewport_rect().size
 	var min_p := Vector2(INF, INF)
 	var max_p := Vector2(-INF, -INF)
 	for p in polygon:
@@ -85,24 +74,36 @@ func _animate_zoom_in() -> void:
 	var shape_size := max_p - min_p
 	var shape_center_local := (min_p + max_p) / 2.0
 
-	# Target scale zodat contour 88% van viewport vult
 	var target_scale_f := minf(
 		viewport_size.x / shape_size.x, viewport_size.y / shape_size.y
 	) * 0.88
-	var target_scale := Vector2(target_scale_f, target_scale_f)
+	# Positie aanpassen zodat het visuele centrum op dezelfde plek blijft
+	var target_pos := _body_shape.position + shape_center_local * (1.0 - target_scale_f)
 
-	# Target positie zodat het midden van de contour op viewport center staat
-	var target_pos := viewport_center - shape_center_local * target_scale_f
+	_shape_data = {
+		"polygon": polygon,
+		"color": color,
+		"zoom_scale": target_scale_f,
+		"zoom_position": target_pos,
+	}
+	_animate_transition()
 
-	# Animatie opbouwen
+
+func get_phase_data() -> Dictionary:
+	return _shape_data
+
+
+func _animate_transition() -> void:
+	var target_scale_f: float = _shape_data["zoom_scale"]
+	var target_pos: Vector2 = _shape_data["zoom_position"]
+
 	var tween := create_tween()
 	tween.set_parallel()
 
 	# Fade out UI
 	tween.tween_property(_slider_container, "modulate:a", 0.0, 0.3)
-	tween.tween_property(_done_button, "modulate:a", 0.0, 0.3)
 
-	# Fade out decoraties en outline (laat alleen ShapeFill over)
+	# Fade out decoraties en outline
 	var decoration := _body_shape.get_node_or_null("BodyDecoration")
 	var outline := _body_shape.get_node_or_null("ShapeOutline")
 	if decoration:
@@ -110,8 +111,8 @@ func _animate_zoom_in() -> void:
 	if outline:
 		tween.tween_property(outline, "modulate:a", 0.0, 0.4).set_delay(0.15)
 
-	# Zoom body shape naar het midden van het scherm
-	tween.tween_property(_body_shape, "scale", target_scale, 0.8) \
+	# Zoom in-place (visueel centrum blijft op dezelfde plek)
+	tween.tween_property(_body_shape, "scale", Vector2(target_scale_f, target_scale_f), 0.8) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
 	tween.tween_property(_body_shape, "position", target_pos, 0.8) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
