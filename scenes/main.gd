@@ -16,6 +16,7 @@ signal phase_completed(phase_index: int)
 
 var _current_phase_index: int = -1
 var _current_phase: Node = null
+var _phase_data: Dictionary = {}
 
 
 func _ready() -> void:
@@ -39,6 +40,7 @@ func _input(event: InputEvent) -> void:
 		elif event.keycode >= KEY_1 and event.keycode <= KEY_9:
 			var index = event.keycode - KEY_1
 			if index < phase_scenes.size():
+				_phase_data = {}
 				start_phase(index)
 
 
@@ -56,11 +58,17 @@ func start_phase(index: int) -> void:
 	_current_phase_index = index
 	_current_phase = phase_scenes[index].instantiate()
 	_phase_container.add_child(_current_phase)
+	# Geef data van vorige fase door
+	if _current_phase.has_method("set_phase_data") and _phase_data.size() > 0:
+		_current_phase.set_phase_data(_phase_data)
 	# Verbind phase_completed signal als de fase dat heeft
 	if _current_phase.has_signal("phase_completed"):
 		_current_phase.phase_completed.connect(_on_phase_completed)
 
 
 func _on_phase_completed() -> void:
+	# Haal data op van huidige fase voordat die vernietigd wordt
+	if _current_phase.has_method("get_phase_data"):
+		_phase_data = _current_phase.get_phase_data()
 	phase_completed.emit(_current_phase_index)
 	start_phase(_current_phase_index + 1)

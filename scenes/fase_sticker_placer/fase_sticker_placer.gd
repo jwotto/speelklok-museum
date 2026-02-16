@@ -27,6 +27,8 @@ var _any_dragging: bool = false
 var _picker_open: bool = false
 var _tracked_sticker: Sticker = null
 var _updating_sliders: bool = false
+var _organ_polygon_world: PackedVector2Array = PackedVector2Array()
+var _organ_center: Vector2 = Vector2.ZERO
 
 
 func _ready() -> void:
@@ -105,8 +107,60 @@ func _set_stickers_input(enabled: bool) -> void:
 			sticker.set_process_unhandled_input(enabled)
 
 
+func set_phase_data(data: Dictionary) -> void:
+	## Ontvang polygon + kleur van de body builder fase
+	if not data.has("polygon") or not data.has("color"):
+		return
+	var polygon: PackedVector2Array = data["polygon"]
+	var color: Color = data["color"]
+
+	# Bereken bounding box van de polygon
+	var min_p := Vector2(INF, INF)
+	var max_p := Vector2(-INF, -INF)
+	for p in polygon:
+		min_p = Vector2(minf(min_p.x, p.x), minf(min_p.y, p.y))
+		max_p = Vector2(maxf(max_p.x, p.x), maxf(max_p.y, p.y))
+	var shape_size := max_p - min_p
+	var shape_center := (min_p + max_p) / 2.0
+
+	# Scale om 85% van viewport te vullen
+	var viewport_size := get_viewport_rect().size
+	var target_scale_f := minf(
+		viewport_size.x / shape_size.x, viewport_size.y / shape_size.y
+	) * 0.85
+	var viewport_center := viewport_size / 2.0
+	var contour_pos := viewport_center - shape_center * target_scale_f
+
+	# Maak OrganContour node
+	var OrganContourScript = preload("res://scenes/fase_sticker_placer/onderdelen/organ_contour.gd")
+	var contour := Node2D.new()
+	contour.set_script(OrganContourScript)
+	contour.name = "OrganContour"
+	contour.position = contour_pos
+	contour.scale = Vector2(target_scale_f, target_scale_f)
+
+	# Voeg toe vóór Stickers container (z-order: achtergrond)
+	add_child(contour)
+	move_child(contour, _sticker_container.get_index())
+	contour.setup(polygon, color)
+
+	# Bereken world-space polygon voor constraining
+	_organ_polygon_world = PackedVector2Array()
+	for p in polygon:
+		_organ_polygon_world.append(p * target_scale_f + contour_pos)
+
+	# Bereken organ center in world space
+	_organ_center = shape_center * target_scale_f + contour_pos
+
+	# Achtergrond op volle sterkte houden (zelfde als body builder)
+	_background.modulate = Color.WHITE
+
+	# Zet constraint callable op Sticker class
+	Sticker._constrain_position = _constrain_to_organ
+
+
 func _on_sticker_selected(scene: PackedScene, from_position: Vector2) -> void:
-	var target = get_viewport_rect().size / 2
+	var target = _organ_center if _organ_polygon_world.size() > 0 else get_viewport_rect().size / 2
 	var sticker = scene.instantiate()
 	sticker.position = from_position
 	_sticker_container.add_child(sticker)
@@ -202,7 +256,9 @@ func _delete_sticker(sticker: Sticker, trash_center: Vector2) -> void:
 	## Animeer sticker naar prullenbak en verwijder
 	sticker._deselect()
 	sticker.set_process_unhandled_input(false)
-	sticker.set_process(false)
+	sticker.set_process(false)  # Voorkomt ook snap-back via _check_snap_back
+	sticker._outside_boundary = false
+	sticker.modulate = Color.WHITE  # Reset rode tint voor delete-animatie
 	var tween = create_tween().set_parallel()
 	tween.tween_property(sticker, "position", trash_center, 0.25).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tween.tween_property(sticker, "scale", Vector2.ZERO, 0.25).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
@@ -276,3 +332,55 @@ func _resize_background() -> void:
 		else:
 			size = get_viewport_rect().size
 		_background.size = size
+
+
+# === ORGEL CONTOUR CONSTRAINING ===
+
+func _constrain_to_organ(pos: Vector2) -> Vector2:
+	## Beperk positie tot binnen de orgel-contour polygon
+	if _organ_polygon_world.size() < 3:
+		return pos
+	if _point_in_polygon(pos, _organ_polygon_world):
+		return pos
+	return _nearest_point_on_edge(pos, _organ_polygon_world)
+
+
+static func _point_in_polygon(point: Vector2, polygon: PackedVector2Array) -> bool:
+	## Ray-casting point-in-polygon test
+	var inside := false
+	var n := polygon.size()
+	var j := n - 1
+	for i in range(n):
+		var pi := polygon[i]
+		var pj := polygon[j]
+		if ((pi.y > point.y) != (pj.y > point.y)) and \
+			(point.x < (pj.x - pi.x) * (point.y - pi.y) / (pj.y - pi.y) + pi.x):
+			inside = not inside
+		j = i
+	return inside
+
+
+static func _nearest_point_on_edge(point: Vector2, polygon: PackedVector2Array) -> Vector2:
+	## Vind het dichtstbijzijnde punt op de rand van de polygon
+	var best_point := polygon[0]
+	var best_dist := INF
+	var n := polygon.size()
+	for i in range(n):
+		var a := polygon[i]
+		var b := polygon[(i + 1) % n]
+		var closest := _closest_point_on_segment(point, a, b)
+		var dist := point.distance_squared_to(closest)
+		if dist < best_dist:
+			best_dist = dist
+			best_point = closest
+	return best_point
+
+
+static func _closest_point_on_segment(point: Vector2, a: Vector2, b: Vector2) -> Vector2:
+	## Vind het dichtstbijzijnde punt op een lijnsegment
+	var ab := b - a
+	var len_sq := ab.length_squared()
+	if len_sq < 0.001:
+		return a
+	var t := clampf((point - a).dot(ab) / len_sq, 0.0, 1.0)
+	return a + ab * t

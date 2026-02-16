@@ -57,12 +57,14 @@ signal selection_changed(is_selected: bool)
 static var _active_sticker: Sticker = null  # Welke sticker wordt nu gedragged
 static var _top_z_index: int = 0  # Hoogste z_index voor bovenop brengen
 static var _selected_sticker: Sticker = null  # Welke sticker is geselecteerd
+static var _constrain_position: Callable = Callable()  # Optionele positie-beperking
 
 
 static func reset_statics() -> void:
 	_active_sticker = null
 	_top_z_index = 0
 	_selected_sticker = null
+	_constrain_position = Callable()
 
 # === INTERNE VARIABELEN ===
 
@@ -97,6 +99,10 @@ var _outline_shader = preload("res://scenes/fase_sticker_placer/onderdelen/stick
 
 # Selectie systeem
 var selected: bool = false
+
+# Boundary tracking
+var _outside_boundary: bool = false
+var _snapping_back: bool = false
 
 
 # === LIFECYCLE ===
@@ -206,7 +212,47 @@ func _end_drag() -> void:
 	dragging = false
 	first_touch_index = -1
 	_active_sticker = null
+
+	# Als buiten contour: wacht kort (trash detectie) en snap dan terug
+	if _outside_boundary and _constrain_position.is_valid():
+		get_tree().create_timer(0.05).timeout.connect(_check_snap_back)
+		return
 	_start_inertia()
+
+
+func _check_snap_back() -> void:
+	## Na korte vertraging: snap terug naar contour als sticker niet verwijderd is
+	if not is_inside_tree() or not is_processing():
+		return  # Verwijderd of bezig met delete-animatie
+	if not _constrain_position.is_valid():
+		return
+	var constrained = _constrain_position.call(global_position)
+	if constrained.distance_squared_to(global_position) > 1.0:
+		_snap_back_to(constrained)
+	else:
+		_set_outside_tint(false)
+
+
+func _snap_back_to(target: Vector2) -> void:
+	## Animeer sticker terug naar de contourrand
+	_snapping_back = true
+	_inertia_active = false
+	_velocity = Vector2.ZERO
+	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(self, "global_position", target, 0.3)
+	tween.parallel().tween_property(self, "modulate", Color.WHITE, 0.2)
+	tween.tween_callback(func():
+		_outside_boundary = false
+		_snapping_back = false
+	)
+
+
+func _set_outside_tint(outside: bool) -> void:
+	## Kleur sticker rood als buiten de contour
+	if _outside_boundary == outside or _snapping_back:
+		return
+	_outside_boundary = outside
+	modulate = Color(1.0, 0.4, 0.4, 0.8) if outside else Color.WHITE
 
 
 func _bring_to_front() -> void:
@@ -238,6 +284,12 @@ func _get_sibling_stickers() -> Array:
 func _update_single_finger_drag(finger_position: Vector2) -> void:
 	## Update positie bij single finger drag en track velocity voor inertia
 	var new_position = finger_position + drag_offset
+
+	# Visuele feedback: rood kleuren als buiten de contour
+	if _constrain_position.is_valid():
+		var constrained = _constrain_position.call(new_position)
+		_set_outside_tint(constrained.distance_squared_to(new_position) > 100.0)
+
 	var frame_velocity = new_position - global_position
 
 	# Voeg velocity sample toe
@@ -403,7 +455,19 @@ func _process_inertia(_delta: float) -> void:
 		return
 
 	# Pas velocity toe op positie
-	global_position += _velocity
+	var new_pos := global_position + _velocity
+
+	# Constraint toepassen - stop inertia als rand geraakt wordt
+	if _constrain_position.is_valid():
+		var constrained := _constrain_position.call(new_pos) as Vector2
+		if constrained.distance_squared_to(new_pos) > 1.0:
+			global_position = constrained
+			_inertia_active = false
+			_velocity = Vector2.ZERO
+			return
+		new_pos = constrained
+
+	global_position = new_pos
 
 	# Vertraag velocity met friction
 	_velocity *= inertia_friction

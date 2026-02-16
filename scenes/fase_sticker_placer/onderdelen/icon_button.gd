@@ -4,7 +4,7 @@ class_name IconButton
 
 ## Configureerbare button met kleur, afgeronde hoeken en icoon
 
-enum IconType { NONE, ADD, TRASH }
+enum IconType { NONE, ADD, TRASH, CHECKMARK }
 
 @export var icon_type: IconType = IconType.NONE:
 	set(value):
@@ -54,6 +54,8 @@ func _regenerate() -> void:
 			_draw_add_icon(img)
 		IconType.TRASH:
 			_draw_trash_icon(img)
+		IconType.CHECKMARK:
+			_draw_checkmark_icon(img)
 	texture_normal = ImageTexture.create_from_image(img)
 	custom_minimum_size = Vector2(button_size, button_size)
 
@@ -122,6 +124,39 @@ func _draw_trash_icon(img: Image) -> void:
 		for y in range(lid_y2, s - margin):
 			if x < bin_margin + bin_border or x > s - bin_margin - bin_border or y > s - margin - bin_border:
 				img.set_pixel(x, y, icon_color)
+
+
+func _draw_checkmark_icon(img: Image) -> void:
+	var s = button_size
+	var sc: float = s / 120.0
+	var thick = int(7 * sc)
+	# Vinkje: kort been van linksboven naar midden-onder, lang been naar rechtsboven
+	# Punt links: (30%, 50%), knik: (42%, 70%), punt rechts: (75%, 28%)
+	var p0 = Vector2(0.28 * s, 0.50 * s)
+	var p1 = Vector2(0.42 * s, 0.70 * s)
+	var p2 = Vector2(0.75 * s, 0.28 * s)
+	_draw_thick_line(img, p0, p1, thick)
+	_draw_thick_line(img, p1, p2, thick)
+
+
+func _draw_thick_line(img: Image, from: Vector2, to: Vector2, thickness: int) -> void:
+	var w = img.get_width()
+	var h = img.get_height()
+	var dist = from.distance_to(to)
+	if dist < 1.0:
+		return
+	var steps = int(dist * 2.0)
+	for i in range(steps + 1):
+		var t = float(i) / float(steps)
+		var p = from.lerp(to, t)
+		for dx in range(-thickness, thickness + 1):
+			for dy in range(-thickness, thickness + 1):
+				if dx * dx + dy * dy <= thickness * thickness:
+					var px = int(p.x) + dx
+					var py = int(p.y) + dy
+					if px >= 0 and px < w and py >= 0 and py < h:
+						if _is_in_rounded_rect(px, py, w, h, corner_radius):
+							img.set_pixel(px, py, icon_color)
 
 
 # === ANIMATIES ===

@@ -7,6 +7,6 @@
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main_script")
 phase_scenes = Array[PackedScene]([ExtResource("2_body_builder"), ExtResource("3_sticker_placer")])
-start_phase_index = 1
+start_phase_index = 0
 
 [node name="PhaseContainer" type="Node2D" parent="."]
