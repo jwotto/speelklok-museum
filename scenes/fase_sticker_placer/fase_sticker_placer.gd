@@ -136,6 +136,10 @@ func set_phase_data(data: Dictionary) -> void:
 		decoration.panel_inner_width = 0.0
 		decoration.crown_arch_count = 0  # Geen kroonboogjes
 		decoration.pendant_radius = 0.0  # Geen bolletjes
+		decoration.neck_frame_inset = 0.0  # Geen nek-kader
+		decoration.neck_fill_color = Color(0, 0, 0, 0)  # Geen nek-vulling
+		decoration.rok_frame_inset = 0.0  # Geen rok-kader
+		decoration.rok_fill_color = Color(0, 0, 0, 0)  # Geen rok-vulling
 		decoration.uniform_zones = true  # Uniforme kleur (geen donkere/lichte zones)
 		# Maak texture opacity en blend uniform over alle zones
 		decoration.kop_texture_opacity = decoration.lichaam_texture_opacity
