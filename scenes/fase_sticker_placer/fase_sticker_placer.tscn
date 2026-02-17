@@ -111,6 +111,7 @@ icon_scale = 0.388
 icon_arrow_size = 22.5
 
 [node name="TrashButton" parent="UILayer/StickerSliders" unique_id=1069783050 instance=ExtResource("13_trash")]
+visible = false
 z_index = 50
 custom_minimum_size = Vector2(120, 120)
 layout_mode = 2

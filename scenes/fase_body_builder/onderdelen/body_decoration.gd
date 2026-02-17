@@ -8,43 +8,30 @@ extends Node2D
 var _polygon: PackedVector2Array = PackedVector2Array()
 var _base_color: Color = Color.WHITE
 var _shape_height: float = 1050.0
-var _shoulder_y: float = 212.5
-var _hip_y: float = 837.5
+var _neck_y: float = 212.5
+var _shoulder_y: float = 312.5
+var _hip_y: float = 937.5
 var _shading_overlay: Polygon2D
 
 const MARGIN: float = 40.0
 const MOLDING_INSET: float = 15.0
 
+## ═══════════════════════════════════════════════════════════════════════
+## ALGEMEEN
+## ═══════════════════════════════════════════════════════════════════════
+
+@export_group("Algemeen")
+## Gebruik uniforme kleur voor alle zones (geen kleurvariaties)
 @export var uniform_zones: bool = false:
 	set(v):
 		uniform_zones = v
 		queue_redraw()
 
-@export_group("Pijpen")
-## Aantal orgelpijpen in de dak-zone
-@export_range(5, 30) var pipe_count: int = 19:
-	set(v):
-		pipe_count = v
-		queue_redraw()
-## Afstand van het pijpenpaneel tot de dak-contour (kleiner = groter paneel)
-@export_range(10.0, 150.0) var pipe_panel_inset: float = 40.0:
-	set(v):
-		pipe_panel_inset = v
-		queue_redraw()
+## ═══════════════════════════════════════════════════════════════════════
+## ZONE: KOP (DAK)
+## ═══════════════════════════════════════════════════════════════════════
 
-@export_group("Panelen")
-## Aantal panelen in de buik-zone
-@export_range(1, 5) var panel_count: int = 3:
-	set(v):
-		panel_count = v
-		queue_redraw()
-## Ruimte tussen panelen in pixels
-@export var panel_gap: float = 25.0:
-	set(v):
-		panel_gap = v
-		queue_redraw()
-
-@export_group("Boogjes (kop)")
+@export_group("Zone: Kop - Kroonboogjes")
 ## Aantal sierlijke boogjes langs de kroonrand
 @export_range(3, 20) var crown_arch_count: int = 11:
 	set(v):
@@ -66,95 +53,12 @@ const MOLDING_INSET: float = 15.0
 		pendant_radius = v
 		queue_redraw()
 
-@export_group("Lijndikte")
-## Hoofdlijn van de sierlijsten
-@export_range(1.0, 12.0) var molding_width: float = 5.0:
+@export_group("Zone: Kop - Pijpenpaneel")
+## Afstand van het pijpenpaneel tot de dak-contour (kleiner = groter paneel)
+@export_range(10.0, 150.0) var pipe_panel_inset: float = 40.0:
 	set(v):
-		molding_width = v
+		pipe_panel_inset = v
 		queue_redraw()
-## Accentlijntjes naast de sierlijsten
-@export_range(0.5, 8.0) var molding_accent_width: float = 2.0:
-	set(v):
-		molding_accent_width = v
-		queue_redraw()
-## Buitenrand van paneel-kaders
-@export_range(1.0, 10.0) var panel_frame_width: float = 3.5:
-	set(v):
-		panel_frame_width = v
-		queue_redraw()
-## Binnenrand van paneel-kaders
-@export_range(0.5, 6.0) var panel_inner_width: float = 1.5:
-	set(v):
-		panel_inner_width = v
-		queue_redraw()
-## Gouden binnentrim langs de hele contour
-@export_range(1.0, 10.0) var gold_trim_width: float = 2.5:
-	set(v):
-		gold_trim_width = v
-		queue_redraw()
-## Lijndikte van decoratieve boogjes
-@export_range(1.0, 10.0) var arch_line_width: float = 3.0:
-	set(v):
-		arch_line_width = v
-		queue_redraw()
-## Inset van de gouden trim t.o.v. de buitenrand
-@export_range(4.0, 30.0) var gold_trim_inset: float = 10.0:
-	set(v):
-		gold_trim_inset = v
-		queue_redraw()
-
-@export_group("Texture: Kop")
-@export var kop_texture: Texture2D:
-	set(v):
-		kop_texture = v
-		queue_redraw()
-@export_range(0.1, 10.0) var kop_texture_scale: float = 3.0:
-	set(v):
-		kop_texture_scale = v
-		queue_redraw()
-@export_range(0.0, 1.0) var kop_texture_opacity: float = 0.35:
-	set(v):
-		kop_texture_opacity = v
-		queue_redraw()
-@export_range(0.0, 1.0) var kop_color_blend: float = 0.2:
-	set(v):
-		kop_color_blend = v
-		queue_redraw()
-@export_group("Texture: Lichaam")
-@export var lichaam_texture: Texture2D:
-	set(v):
-		lichaam_texture = v
-		queue_redraw()
-@export_range(0.1, 10.0) var lichaam_texture_scale: float = 3.0:
-	set(v):
-		lichaam_texture_scale = v
-		queue_redraw()
-@export_range(0.0, 1.0) var lichaam_texture_opacity: float = 0.3:
-	set(v):
-		lichaam_texture_opacity = v
-		queue_redraw()
-@export_range(0.0, 1.0) var lichaam_color_blend: float = 0.2:
-	set(v):
-		lichaam_color_blend = v
-		queue_redraw()
-@export_group("Texture: Rok")
-@export var rok_texture: Texture2D:
-	set(v):
-		rok_texture = v
-		queue_redraw()
-@export_range(0.1, 10.0) var rok_texture_scale: float = 3.0:
-	set(v):
-		rok_texture_scale = v
-		queue_redraw()
-@export_range(0.0, 1.0) var rok_texture_opacity: float = 0.35:
-	set(v):
-		rok_texture_opacity = v
-		queue_redraw()
-@export_range(0.0, 1.0) var rok_color_blend: float = 0.25:
-	set(v):
-		rok_color_blend = v
-		queue_redraw()
-@export_group("Texture: Pijpenpaneel")
 @export var pipe_panel_texture: Texture2D:
 	set(v):
 		pipe_panel_texture = v
@@ -171,7 +75,182 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		pipe_panel_color_blend = v
 		queue_redraw()
-@export_group("Texture: Buik-panelen")
+## Helderheid offset voor pijpenpaneel-achtergrond
+@export_range(-1.0, 1.0) var pipe_panel_value_offset: float = -0.05:
+	set(v):
+		pipe_panel_value_offset = v
+		queue_redraw()
+## Verzadiging offset voor pijpenpaneel-achtergrond
+@export_range(-1.0, 1.0) var pipe_panel_sat_offset: float = 0.1:
+	set(v):
+		pipe_panel_sat_offset = v
+		queue_redraw()
+
+@export_group("Zone: Kop - Orgelpijpen")
+## Aantal orgelpijpen in de dak-zone
+@export_range(5, 30) var pipe_count: int = 19:
+	set(v):
+		pipe_count = v
+		queue_redraw()
+## Koperkleur voor orgelpijp body
+@export var pipe_body_color: Color = Color(0.78, 0.68, 0.42, 0.9):
+	set(v):
+		pipe_body_color = v
+		queue_redraw()
+## Koperkleur voor pijp doppen (caps)
+@export var pipe_cap_color: Color = Color(0.88, 0.78, 0.38, 1.0):
+	set(v):
+		pipe_cap_color = v
+		queue_redraw()
+## Donkere kleur voor pijp monden (labium)
+@export var pipe_mouth_color: Color = Color(0.1, 0.08, 0.04, 0.5):
+	set(v):
+		pipe_mouth_color = v
+		queue_redraw()
+@export var copper_texture: Texture2D:
+	set(v):
+		copper_texture = v
+		queue_redraw()
+@export_range(0.1, 10.0) var copper_texture_scale: float = 1.0:
+	set(v):
+		copper_texture_scale = v
+		queue_redraw()
+@export_range(0.0, 1.0) var copper_texture_opacity: float = 0.35:
+	set(v):
+		copper_texture_opacity = v
+		queue_redraw()
+@export_range(0.0, 1.0) var copper_color_blend: float = 0.2:
+	set(v):
+		copper_color_blend = v
+		queue_redraw()
+
+@export_group("Zone: Kop - Achtergrond")
+@export var kop_texture: Texture2D:
+	set(v):
+		kop_texture = v
+		queue_redraw()
+@export_range(0.1, 10.0) var kop_texture_scale: float = 3.0:
+	set(v):
+		kop_texture_scale = v
+		queue_redraw()
+@export_range(0.0, 1.0) var kop_texture_opacity: float = 0.35:
+	set(v):
+		kop_texture_opacity = v
+		queue_redraw()
+@export_range(0.0, 1.0) var kop_color_blend: float = 0.2:
+	set(v):
+		kop_color_blend = v
+		queue_redraw()
+## Helderheid offset voor kop-zone (-1.0 = donkerder, +1.0 = lichter)
+@export_range(-1.0, 1.0) var kop_value_offset: float = 0.05:
+	set(v):
+		kop_value_offset = v
+		queue_redraw()
+## Verzadiging offset voor kop-zone
+@export_range(-1.0, 1.0) var kop_sat_offset: float = 0.08:
+	set(v):
+		kop_sat_offset = v
+		queue_redraw()
+
+## ═══════════════════════════════════════════════════════════════════════
+## ZONE: NEK
+## ═══════════════════════════════════════════════════════════════════════
+
+@export_group("Zone: Nek - Kader")
+## Afstand van het nek-kader tot de zone-rand
+@export_range(5.0, 50.0) var neck_frame_inset: float = 20.0:
+	set(v):
+		neck_frame_inset = v
+		queue_redraw()
+## Vulkleur van het nek-kader (transparant = geen vulling)
+@export var neck_fill_color: Color = Color(0.1, 0.07, 0.02, 0.0):
+	set(v):
+		neck_fill_color = v
+		queue_redraw()
+
+@export_group("Zone: Nek - Achtergrond")
+@export var nek_texture: Texture2D:
+	set(v):
+		nek_texture = v
+		queue_redraw()
+@export_range(0.1, 10.0) var nek_texture_scale: float = 3.0:
+	set(v):
+		nek_texture_scale = v
+		queue_redraw()
+@export_range(0.0, 1.0) var nek_texture_opacity: float = 0.3:
+	set(v):
+		nek_texture_opacity = v
+		queue_redraw()
+@export_range(0.0, 1.0) var nek_color_blend: float = 0.2:
+	set(v):
+		nek_color_blend = v
+		queue_redraw()
+## Helderheid offset voor nek-zone
+@export_range(-1.0, 1.0) var nek_value_offset: float = 0.0:
+	set(v):
+		nek_value_offset = v
+		queue_redraw()
+## Verzadiging offset voor nek-zone
+@export_range(-1.0, 1.0) var nek_sat_offset: float = 0.05:
+	set(v):
+		nek_sat_offset = v
+		queue_redraw()
+
+## ═══════════════════════════════════════════════════════════════════════
+## ZONE: LICHAAM (BUIK)
+## ═══════════════════════════════════════════════════════════════════════
+
+@export_group("Zone: Lichaam - Panelen")
+## Aantal panelen in de buik-zone
+@export_range(1, 5) var panel_count: int = 3:
+	set(v):
+		panel_count = v
+		queue_redraw()
+## Ruimte tussen panelen in pixels
+@export var panel_gap: float = 25.0:
+	set(v):
+		panel_gap = v
+		queue_redraw()
+## Afstand van de panelen tot de zone-rand (boven, onder én zijkanten)
+@export_range(10.0, 150.0) var panel_zone_inset: float = 80.0:
+	set(v):
+		panel_zone_inset = v
+		queue_redraw()
+## Donkere vulling van boogjes boven de panelen
+@export var arch_fill_color: Color = Color(0.15, 0.1, 0.02, 0.25):
+	set(v):
+		arch_fill_color = v
+		queue_redraw()
+## Hoogte van de boogjes boven de panelen (wordt geclampt op beschikbare ruimte)
+@export_range(5.0, 120.0) var panel_arch_height: float = 48.0:
+	set(v):
+		panel_arch_height = v
+		queue_redraw()
+## Lijndikte van de boogjes boven de panelen
+@export_range(1.0, 10.0) var arch_line_width: float = 3.0:
+	set(v):
+		arch_line_width = v
+		queue_redraw()
+## Buitenrand van paneel-kaders
+@export_range(1.0, 10.0) var panel_frame_width: float = 3.5:
+	set(v):
+		panel_frame_width = v
+		queue_redraw()
+## Binnenrand van paneel-kaders
+@export_range(0.5, 6.0) var panel_inner_width: float = 1.5:
+	set(v):
+		panel_inner_width = v
+		queue_redraw()
+## Helderheid offset voor paneel-achtergrond
+@export_range(-1.0, 1.0) var panel_value_offset: float = 0.08:
+	set(v):
+		panel_value_offset = v
+		queue_redraw()
+## Verzadiging offset voor paneel-achtergrond
+@export_range(-1.0, 1.0) var panel_sat_offset: float = 0.0:
+	set(v):
+		panel_sat_offset = v
+		queue_redraw()
 @export var panel_texture: Texture2D:
 	set(v):
 		panel_texture = v
@@ -188,22 +267,112 @@ const MOLDING_INSET: float = 15.0
 	set(v):
 		panel_color_blend = v
 		queue_redraw()
-@export_group("Texture: Pijpen")
-@export var copper_texture: Texture2D:
+
+@export_group("Zone: Lichaam - Achtergrond")
+@export var lichaam_texture: Texture2D:
 	set(v):
-		copper_texture = v
+		lichaam_texture = v
 		queue_redraw()
-@export_range(0.1, 10.0) var copper_texture_scale: float = 1.0:
+@export_range(0.1, 10.0) var lichaam_texture_scale: float = 3.0:
 	set(v):
-		copper_texture_scale = v
+		lichaam_texture_scale = v
 		queue_redraw()
-@export_range(0.0, 1.0) var copper_texture_opacity: float = 0.35:
+@export_range(0.0, 1.0) var lichaam_texture_opacity: float = 0.3:
 	set(v):
-		copper_texture_opacity = v
+		lichaam_texture_opacity = v
 		queue_redraw()
-@export_range(0.0, 1.0) var copper_color_blend: float = 0.2:
+@export_range(0.0, 1.0) var lichaam_color_blend: float = 0.2:
 	set(v):
-		copper_color_blend = v
+		lichaam_color_blend = v
+		queue_redraw()
+
+## ═══════════════════════════════════════════════════════════════════════
+## ZONE: ROK
+## ═══════════════════════════════════════════════════════════════════════
+
+@export_group("Zone: Rok - Kader")
+## Afstand van het rok-kader tot de zone-rand
+@export_range(5.0, 80.0) var rok_frame_inset: float = 50.0:
+	set(v):
+		rok_frame_inset = v
+		queue_redraw()
+## Vulkleur van het rok-kader (transparant = geen vulling)
+@export var rok_fill_color: Color = Color(0.1, 0.07, 0.02, 0.0):
+	set(v):
+		rok_fill_color = v
+		queue_redraw()
+## Helderheid offset voor rok-zone
+@export_range(-1.0, 1.0) var rok_value_offset: float = 0.0:
+	set(v):
+		rok_value_offset = v
+		queue_redraw()
+## Verzadiging offset voor rok-zone
+@export_range(-1.0, 1.0) var rok_sat_offset: float = 0.1:
+	set(v):
+		rok_sat_offset = v
+		queue_redraw()
+
+@export_group("Zone: Rok - Achtergrond")
+@export var rok_texture: Texture2D:
+	set(v):
+		rok_texture = v
+		queue_redraw()
+@export_range(0.1, 10.0) var rok_texture_scale: float = 3.0:
+	set(v):
+		rok_texture_scale = v
+		queue_redraw()
+@export_range(0.0, 1.0) var rok_texture_opacity: float = 0.35:
+	set(v):
+		rok_texture_opacity = v
+		queue_redraw()
+@export_range(0.0, 1.0) var rok_color_blend: float = 0.25:
+	set(v):
+		rok_color_blend = v
+		queue_redraw()
+
+## ═══════════════════════════════════════════════════════════════════════
+## DECORATIE (gedeeld over alle zones)
+## ═══════════════════════════════════════════════════════════════════════
+
+@export_group("Decoratie - Goud")
+## Hoofdkleur voor gouden kaders en boogjes
+@export var gold_color: Color = Color(0.85, 0.7, 0.3, 0.7):
+	set(v):
+		gold_color = v
+		queue_redraw()
+## Donkerder goud voor sierlijsten en accenten
+@export var dark_gold_color: Color = Color(0.55, 0.42, 0.15, 0.6):
+	set(v):
+		dark_gold_color = v
+		queue_redraw()
+## Lichte transparante gouden binnenkant
+@export var gold_inner_color: Color = Color(0.85, 0.7, 0.3, 0.25):
+	set(v):
+		gold_inner_color = v
+		queue_redraw()
+
+@export_group("Decoratie - Sierlijsten")
+## Hoofdlijn van de sierlijsten (tussen zones)
+@export_range(1.0, 12.0) var molding_width: float = 5.0:
+	set(v):
+		molding_width = v
+		queue_redraw()
+## Accentlijntjes naast de sierlijsten
+@export_range(0.5, 8.0) var molding_accent_width: float = 2.0:
+	set(v):
+		molding_accent_width = v
+		queue_redraw()
+
+@export_group("Decoratie - Gouden Trim")
+## Gouden binnentrim langs de hele contour
+@export_range(1.0, 10.0) var gold_trim_width: float = 2.5:
+	set(v):
+		gold_trim_width = v
+		queue_redraw()
+## Inset van de gouden trim t.o.v. de buitenrand
+@export_range(4.0, 30.0) var gold_trim_inset: float = 10.0:
+	set(v):
+		gold_trim_inset = v
 		queue_redraw()
 @export_group("3D Shading")
 ## GradientTexture2D overlay voor licht/schaduw effect (bewerkbaar in Inspector)
@@ -245,10 +414,11 @@ func _setup_shading_overlay() -> void:
 	add_child(_shading_overlay, false, Node.INTERNAL_MODE_BACK)
 
 
-func update_decoration(polygon: PackedVector2Array, base_color: Color, shape_height: float, shoulder_y: float, hip_y: float) -> void:
+func update_decoration(polygon: PackedVector2Array, base_color: Color, shape_height: float, neck_y: float, shoulder_y: float, hip_y: float) -> void:
 	_polygon = polygon
 	_base_color = base_color
 	_shape_height = shape_height
+	_neck_y = neck_y
 	_shoulder_y = shoulder_y
 	_hip_y = hip_y
 	_update_shading_overlay()
@@ -281,14 +451,16 @@ func _draw() -> void:
 	if _polygon.size() < 3:
 		return
 	# Gebruik de zone posities die door body_shape zijn berekend
+	var neck_y: float = _neck_y
 	var shoulder_y: float = _shoulder_y
 	var hip_y: float = _hip_y
 	var base_y: float = _shape_height
 
-	_draw_zone_textures(shoulder_y, hip_y, base_y)
-	_draw_pipe_panel(shoulder_y)
-	_draw_crown_arches(shoulder_y)
-	_draw_moldings(shoulder_y, hip_y)
+	_draw_zone_textures(neck_y, shoulder_y, hip_y, base_y)
+	_draw_pipe_panel(neck_y)
+	_draw_crown_arches(neck_y)
+	_draw_moldings(neck_y, shoulder_y, hip_y)
+	_draw_neck_decoration(neck_y, shoulder_y)
 	_draw_panels_with_arches(shoulder_y, hip_y)
 	_draw_rok_decoration(hip_y, base_y)
 	_draw_gold_trim()
@@ -297,24 +469,35 @@ func _draw() -> void:
 
 # ── Zone textures ────────────────────────────────────────────────────
 
-func _draw_zone_textures(shoulder_y: float, hip_y: float, base_y: float) -> void:
+func _draw_zone_textures(neck_y: float, shoulder_y: float, hip_y: float, base_y: float) -> void:
 	## Tekent per zone een opake gekleurde laag + texture (sticker-look)
-	var kop_poly: PackedVector2Array = _clip_polygon_to_band(0.0, shoulder_y)
+	# Dak (kop)
+	var kop_poly: PackedVector2Array = _clip_polygon_to_band(0.0, neck_y)
 	if kop_poly.size() >= 3:
-		var kop_col: Color = _zone_color(0.05, 0.08)
+		var kop_col: Color = _zone_color(kop_value_offset, kop_sat_offset)
 		draw_colored_polygon(kop_poly, kop_col)
 		_draw_textured_poly(kop_poly, kop_texture,
 			_make_tint(kop_col, kop_texture_opacity, kop_color_blend), kop_texture_scale)
 
+	# Nek (vlak met gouden rand)
+	var nek_poly: PackedVector2Array = _clip_polygon_to_band(neck_y, shoulder_y)
+	if nek_poly.size() >= 3:
+		var nek_col: Color = _zone_color(nek_value_offset, nek_sat_offset)
+		draw_colored_polygon(nek_poly, nek_col)
+		_draw_textured_poly(nek_poly, nek_texture,
+			_make_tint(nek_col, nek_texture_opacity, nek_color_blend), nek_texture_scale)
+
+	# Lichaam (buik)
 	var lichaam_poly: PackedVector2Array = _clip_polygon_to_band(shoulder_y, hip_y)
 	if lichaam_poly.size() >= 3:
 		draw_colored_polygon(lichaam_poly, _base_color)
 		_draw_textured_poly(lichaam_poly, lichaam_texture,
 			_make_tint(_base_color, lichaam_texture_opacity, lichaam_color_blend), lichaam_texture_scale)
 
+	# Rok
 	var rok_poly: PackedVector2Array = _clip_polygon_to_band(hip_y, base_y)
 	if rok_poly.size() >= 3:
-		var rok_col: Color = _zone_color(0.0, 0.1)
+		var rok_col: Color = _zone_color(rok_value_offset, rok_sat_offset)
 		draw_colored_polygon(rok_poly, rok_col)
 		_draw_textured_poly(rok_poly, rok_texture,
 			_make_tint(rok_col, rok_texture_opacity, rok_color_blend), rok_texture_scale)
@@ -322,9 +505,9 @@ func _draw_zone_textures(shoulder_y: float, hip_y: float, base_y: float) -> void
 
 # ── Pijpenpaneel (dak-zone) ───────────────────────────────────────────
 
-func _draw_pipe_panel(shoulder_y: float) -> void:
+func _draw_pipe_panel(neck_y: float) -> void:
 	## Tekent een paneel dat de dak-contour volgt met orgelpijpen erin
-	var panel_bottom: float = shoulder_y - MARGIN * 0.3
+	var panel_bottom: float = neck_y - MARGIN * 0.3
 
 	# Breedte op panel_bottom niveau
 	var x_range: Vector2 = _get_x_range_at_y(panel_bottom)
@@ -352,16 +535,15 @@ func _draw_pipe_panel(shoulder_y: float) -> void:
 
 	# Teken paneel achtergrond + texture (opak, eigen kleur)
 	if panel_pts.size() >= 3:
-		var pp_col: Color = _zone_color(-0.05, 0.1)
+		var pp_col: Color = _zone_color(pipe_panel_value_offset, pipe_panel_sat_offset)
 		draw_colored_polygon(panel_pts, pp_col)
 		_draw_textured_poly(panel_pts, pipe_panel_texture,
 			_make_tint(pp_col, pipe_panel_texture_opacity, pipe_panel_color_blend), pipe_panel_texture_scale)
 
 	# Teken paneel rand (goud)
-	var gold: Color = Color(0.85, 0.7, 0.3, 0.6)
 	var outline_pts: PackedVector2Array = panel_pts.duplicate()
 	outline_pts.append(panel_pts[0])
-	draw_polyline(outline_pts, gold, panel_frame_width, true)
+	draw_polyline(outline_pts, gold_color, panel_frame_width, true)
 
 	# Teken pijpen binnen het paneel
 	_draw_pipes_in_panel(panel_left, panel_right, panel_bottom)
@@ -383,9 +565,9 @@ func _draw_pipes_in_panel(panel_left: float, panel_right: float, panel_bottom: f
 	var pw: float = zone_width / (float(count) * (1.0 + gap_ratio) - gap_ratio)
 	var pg: float = pw * gap_ratio
 
-	var col_body: Color = Color(0.78, 0.68, 0.42, 0.9)
-	var col_cap: Color = Color(0.88, 0.78, 0.38, 1.0)
-	var col_mouth: Color = Color(0.1, 0.08, 0.04, 0.5)
+	var col_body: Color = pipe_body_color
+	var col_cap: Color = pipe_cap_color
+	var col_mouth: Color = pipe_mouth_color
 	@warning_ignore("integer_division")
 	var center_i: int = count / 2
 
@@ -445,9 +627,9 @@ func _draw_pipes_in_panel(panel_left: float, panel_right: float, panel_bottom: f
 
 # ── Kroon-boogjes (tierelantijntjes bovenaan) ────────────────────────
 
-func _draw_crown_arches(shoulder_y: float) -> void:
+func _draw_crown_arches(neck_y: float) -> void:
 	## Boogjes die precies tussen het pijpenpaneel en de buitenrand passen
-	var panel_bottom: float = shoulder_y - MARGIN * 0.3
+	var panel_bottom: float = neck_y - MARGIN * 0.3
 	var max_top_y: float = panel_bottom - 10.0
 
 	# Gebruik dezelfde panel breedte als het pijpenpaneel
@@ -459,7 +641,6 @@ func _draw_crown_arches(shoulder_y: float) -> void:
 		return
 
 	var arch_span: float = panel_width / float(crown_arch_count)
-	var gold: Color = Color(0.85, 0.7, 0.3, 0.7)
 
 	for i in crown_arch_count:
 		var x_left: float = panel_left + float(i) * arch_span
@@ -473,7 +654,7 @@ func _draw_crown_arches(shoulder_y: float) -> void:
 
 		_draw_tilted_arch(
 			Vector2(x_left, bl_left), Vector2(x_right, bl_right),
-			crown_arch_height, gold
+			crown_arch_height, gold_color
 		)
 
 	# Pendanten (bolletjes) op de snijpunten
@@ -482,12 +663,13 @@ func _draw_crown_arches(shoulder_y: float) -> void:
 			var px: float = panel_left + float(i) * arch_span
 			var p_roof_y: float = _get_top_y_at_x(px)
 			var py: float = minf(p_roof_y + pipe_panel_inset, max_top_y)
-			draw_circle(Vector2(px, py), pendant_radius, gold)
+			draw_circle(Vector2(px, py), pendant_radius, gold_color)
 
 
 # ── Sierlijsten ──────────────────────────────────────────────────────
 
-func _draw_moldings(shoulder_y: float, hip_y: float) -> void:
+func _draw_moldings(neck_y: float, shoulder_y: float, hip_y: float) -> void:
+	_draw_straight_molding(neck_y)
 	_draw_straight_molding(shoulder_y)
 	_draw_straight_molding(hip_y)
 
@@ -499,16 +681,13 @@ func _draw_straight_molding(y: float) -> void:
 	if right - left < 30.0:
 		return
 
-	var gold: Color = Color(0.85, 0.7, 0.3, 0.8)
-	var dark_gold: Color = Color(0.55, 0.42, 0.15, 0.6)
-
 	# 3D molding: highlight boven, schaduw onder = verhoogd profiel
 	if shading_strength > 0.01:
 		draw_line(Vector2(left, y - 7), Vector2(right, y - 7),
 			Color(1, 1, 0.9, 0.15 * shading_strength), molding_width * 0.6)
-	draw_line(Vector2(left, y - 5), Vector2(right, y - 5), dark_gold, molding_accent_width)
-	draw_line(Vector2(left, y), Vector2(right, y), gold, molding_width)
-	draw_line(Vector2(left, y + 5), Vector2(right, y + 5), dark_gold, molding_accent_width)
+	draw_line(Vector2(left, y - 5), Vector2(right, y - 5), dark_gold_color, molding_accent_width)
+	draw_line(Vector2(left, y), Vector2(right, y), gold_color, molding_width)
+	draw_line(Vector2(left, y + 5), Vector2(right, y + 5), dark_gold_color, molding_accent_width)
 	if shading_strength > 0.01:
 		draw_line(Vector2(left, y + 7), Vector2(right, y + 7),
 			Color(0, 0, 0, 0.12 * shading_strength), molding_width * 0.6)
@@ -517,18 +696,18 @@ func _draw_straight_molding(y: float) -> void:
 # ── Panelen met boogjes ──────────────────────────────────────────────
 
 func _draw_panels_with_arches(shoulder_y: float, hip_y: float) -> void:
-	var zone_margin: float = MARGIN * 2.0
-	var arch_space: float = zone_margin * 0.7
-	var panel_top: float = shoulder_y + zone_margin + arch_space
-	var panel_bottom: float = hip_y - zone_margin
+	# arch_space is gebaseerd op de vaste arch hoogte (+ kleine marge voor de lijn)
+	var arch_space: float = panel_arch_height + 10.0
+	var panel_top: float = shoulder_y + panel_zone_inset + arch_space
+	var panel_bottom: float = hip_y - panel_zone_inset
 	if panel_bottom - panel_top < 40.0 or panel_count < 1:
 		return
 
 	# Beschikbare breedte (smalste punt in het panel-gebied)
 	var x_top: Vector2 = _get_x_range_at_y(panel_top)
 	var x_bottom: Vector2 = _get_x_range_at_y(panel_bottom)
-	var left: float = maxf(x_top.x, x_bottom.x) + zone_margin
-	var right: float = minf(x_top.y, x_bottom.y) - zone_margin
+	var left: float = maxf(x_top.x, x_bottom.x) + panel_zone_inset
+	var right: float = minf(x_top.y, x_bottom.y) - panel_zone_inset
 	var total_w: float = right - left
 	if total_w < 60.0:
 		return
@@ -539,71 +718,97 @@ func _draw_panels_with_arches(shoulder_y: float, hip_y: float) -> void:
 	if pw < 30.0:
 		return
 
-	var gold: Color = Color(0.85, 0.7, 0.3, 0.6)
-	var gold_fill: Color = Color(0.15, 0.1, 0.02, 0.25)
-	var gold_inner: Color = Color(0.85, 0.7, 0.3, 0.25)
-
 	for i in panel_count:
 		var panel_left: float = left + float(i) * (pw + panel_gap)
 		var panel_cx: float = panel_left + pw / 2.0
 
 		# ── Boogje boven het paneel ──
 		var arch_half_w: float = pw / 2.0
-		var arch_h: float = minf(arch_space * 0.85, arch_half_w * 0.4)
+		var arch_h: float = panel_arch_height  # vaste hoogte, onafhankelijk van inset
 		var arch_baseline: float = panel_top
 		if arch_h > 10.0:
-			_draw_arch(panel_cx, arch_baseline, arch_half_w, arch_h, gold, gold_fill)
+			_draw_arch(panel_cx, arch_baseline, arch_half_w, arch_h, gold_color, arch_fill_color)
 			# Sleutelstuk (bolletje bovenaan de boog)
 			if pendant_radius > 0.5:
-				draw_circle(Vector2(panel_cx, arch_baseline - arch_h), pendant_radius, gold)
+				draw_circle(Vector2(panel_cx, arch_baseline - arch_h), pendant_radius, gold_color)
 
 		# ── Paneel-kader (opak, eigen kleur) ──
 		var rect: Rect2 = Rect2(panel_left, panel_top, pw, panel_bottom - panel_top)
-		var panel_col: Color = _zone_color(0.08, 0.0)
+		var panel_col: Color = _zone_color(panel_value_offset, panel_sat_offset)
 		draw_rect(rect, panel_col)
 		_draw_textured_rect(rect, panel_texture,
 			_make_tint(panel_col, panel_texture_opacity, panel_color_blend), panel_texture_scale)
 
-		draw_rect(rect, gold, false, panel_frame_width)
+		draw_rect(rect, gold_color, false, panel_frame_width)
 
 		var inner: Rect2 = rect.grow(-12.0)
 		if inner.size.x > 30 and inner.size.y > 30:
-			draw_rect(inner, gold_inner, false, panel_inner_width)
+			draw_rect(inner, gold_inner_color, false, panel_inner_width)
+
+
+# ── Nek-decoratie ────────────────────────────────────────────────────
+
+func _draw_neck_decoration(neck_y: float, shoulder_y: float) -> void:
+	## Tekent een gouden kader in de nek-zone (tussen dak en buik)
+	var nek_top: float = neck_y + neck_frame_inset
+	var nek_bottom: float = shoulder_y - neck_frame_inset
+	if nek_bottom - nek_top < 20.0:
+		return
+
+	var x_top: Vector2 = _get_x_range_at_y(nek_top)
+	var x_bottom: Vector2 = _get_x_range_at_y(nek_bottom)
+	var left: float = maxf(x_top.x, x_bottom.x) + neck_frame_inset
+	var right: float = minf(x_top.y, x_bottom.y) - neck_frame_inset
+	if right - left < 40.0:
+		return
+
+	# Vulling
+	var rect: Rect2 = Rect2(left, nek_top, right - left, nek_bottom - nek_top)
+	if neck_fill_color.a > 0.01:
+		draw_rect(rect, neck_fill_color)
+
+	# Buitenkader
+	draw_rect(rect, gold_color, false, panel_frame_width)
+
+	# Binnenkader
+	var inner: Rect2 = rect.grow(-8.0)
+	if inner.size.x > 30 and inner.size.y > 15:
+		draw_rect(inner, gold_inner_color, false, panel_inner_width)
 
 
 # ── Rok-decoratie ────────────────────────────────────────────────────
 
 func _draw_rok_decoration(hip_y: float, base_y: float) -> void:
 	## Tekent een decoratief paneel in de rok-zone (onder het lichaam)
-	var zone_margin: float = MARGIN * 2.5
-	var rok_top: float = hip_y + zone_margin
-	var rok_bottom: float = base_y - zone_margin
+	var rok_top: float = hip_y + rok_frame_inset
+	var rok_bottom: float = base_y - rok_frame_inset
 	if rok_bottom - rok_top < 30.0:
 		return
 
 	var x_top: Vector2 = _get_x_range_at_y(rok_top)
 	var x_bottom: Vector2 = _get_x_range_at_y(rok_bottom)
-	var left: float = maxf(x_top.x, x_bottom.x) + zone_margin
-	var right: float = minf(x_top.y, x_bottom.y) - zone_margin
+	var left: float = maxf(x_top.x, x_bottom.x) + rok_frame_inset
+	var right: float = minf(x_top.y, x_bottom.y) - rok_frame_inset
 	if right - left < 60.0:
 		return
 
-	var gold: Color = Color(0.85, 0.7, 0.3, 0.5)
-	var gold_inner: Color = Color(0.85, 0.7, 0.3, 0.2)
+	# Vulling
+	var rect: Rect2 = Rect2(left, rok_top, right - left, rok_bottom - rok_top)
+	if rok_fill_color.a > 0.01:
+		draw_rect(rect, rok_fill_color)
 
 	# Buitenkader
-	var rect: Rect2 = Rect2(left, rok_top, right - left, rok_bottom - rok_top)
-	draw_rect(rect, gold, false, panel_frame_width)
+	draw_rect(rect, gold_color, false, panel_frame_width)
 
 	# Binnenkader
 	var inner: Rect2 = rect.grow(-10.0)
 	if inner.size.x > 40 and inner.size.y > 20:
-		draw_rect(inner, gold_inner, false, panel_inner_width)
+		draw_rect(inner, gold_inner_color, false, panel_inner_width)
 
 	# Horizontale accentlijn in het midden
 	var mid_y: float = (rok_top + rok_bottom) / 2.0
 	draw_line(Vector2(left + 15, mid_y), Vector2(right - 15, mid_y),
-		Color(0.85, 0.7, 0.3, 0.3), molding_accent_width)
+		gold_inner_color, molding_accent_width)
 
 
 # ── Gouden trim ──────────────────────────────────────────────────────
@@ -615,13 +820,12 @@ func _draw_gold_trim() -> void:
 	if inset_poly.size() < 3:
 		return
 
-	var gold: Color = Color(0.85, 0.7, 0.3, 0.4)
 	var to_light: Vector2 = Vector2(0.7, -0.7).normalized()
 	var n: int = inset_poly.size()
 	for i in n:
 		var p1: Vector2 = inset_poly[i]
 		var p2: Vector2 = inset_poly[(i + 1) % n]
-		draw_line(p1, p2, gold, gold_trim_width)
+		draw_line(p1, p2, gold_color, gold_trim_width)
 
 		# 3D trim: highlight/schaduw per segment op basis van lichtrichting
 		if shading_strength > 0.01 and gold_trim_width >= 2.0:
@@ -733,11 +937,11 @@ func _make_tint(zone_col: Color, opacity: float, blend: float) -> Color:
 	return c
 
 
-func _draw_textured_poly(points: PackedVector2Array, tex: Texture2D, tint: Color, scale: float) -> void:
+func _draw_textured_poly(points: PackedVector2Array, tex: Texture2D, tint: Color, tex_scale: float) -> void:
 	## Tekent een getiled texture-polygon met kleur-modulatie en eigen schaal
 	if not tex or tint.a < 0.01 or points.size() < 3:
 		return
-	var tex_size: Vector2 = Vector2(tex.get_width(), tex.get_height()) * scale
+	var tex_size: Vector2 = Vector2(tex.get_width(), tex.get_height()) * tex_scale
 	var uvs: PackedVector2Array = PackedVector2Array()
 	var colors: PackedColorArray = PackedColorArray()
 	for p in points:
@@ -746,7 +950,7 @@ func _draw_textured_poly(points: PackedVector2Array, tex: Texture2D, tint: Color
 	draw_polygon(points, colors, uvs, tex)
 
 
-func _draw_textured_rect(rect: Rect2, tex: Texture2D, tint: Color, scale: float) -> void:
+func _draw_textured_rect(rect: Rect2, tex: Texture2D, tint: Color, tex_scale: float) -> void:
 	## Tekent een getiled texture-rect met kleur-modulatie en eigen schaal
 	if not tex or tint.a < 0.01:
 		return
@@ -756,7 +960,7 @@ func _draw_textured_rect(rect: Rect2, tex: Texture2D, tint: Color, scale: float)
 		rect.end,
 		Vector2(rect.position.x, rect.end.y)
 	])
-	_draw_textured_poly(pts, tex, tint, scale)
+	_draw_textured_poly(pts, tex, tint, tex_scale)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────

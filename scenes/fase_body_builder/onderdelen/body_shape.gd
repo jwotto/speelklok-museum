@@ -40,6 +40,11 @@ class_name BodyShape
 	set(v):
 		dak_zone_height = v
 		_update_shape()
+## Hoogte van de nek-zone in pixels (rechthoek tussen dak en buik)
+@export var nek_zone_height: float = 100.0:
+	set(v):
+		nek_zone_height = v
+		_update_shape()
 ## Hoogte van de buik-zone in pixels
 @export var buik_zone_height: float = 625.0:
 	set(v):
@@ -70,16 +75,22 @@ class_name BodyShape
 
 @export_group("Appearance")
 ## Verzadiging van de vulkleur
-@export_range(0.0, 1.0) var color_saturation: float = 0.65
+@export_range(0.0, 1.0) var color_saturation: float = 0.65:
+	set(v):
+		color_saturation = v
+		_update_color()
 ## Helderheid van de vulkleur
-@export_range(0.0, 1.0) var color_value: float = 0.92
+@export_range(0.0, 1.0) var color_value: float = 0.92:
+	set(v):
+		color_value = v
+		_update_color()
 ## Kleur van de contourlijn
 @export var outline_color: Color = Color(0.15, 0.1, 0.05, 0.8):
 	set(v):
 		outline_color = v
 		_update_outline_color()
 ## Dikte van de contourlijn
-@export var outline_width: float = 6.0:
+@export_range(1.0, 20.0) var outline_width: float = 6.0:
 	set(v):
 		outline_width = v
 		if _shape_outline:
@@ -97,17 +108,22 @@ func _ready() -> void:
 
 func get_shape_height() -> float:
 	## Berekent de totale hoogte op basis van de zone hoogtes
-	return dak_zone_height + buik_zone_height + rok_zone_height
+	return dak_zone_height + nek_zone_height + buik_zone_height + rok_zone_height
+
+
+func get_neck_y() -> float:
+	## Geeft de y-positie waar het dak eindigt en de nek begint
+	return dak_zone_height
 
 
 func get_shoulder_y() -> float:
-	## Geeft de y-positie waar het dak eindigt en de buik begint
-	return dak_zone_height
+	## Geeft de y-positie waar de nek eindigt en de buik begint
+	return dak_zone_height + nek_zone_height
 
 
 func get_hip_y() -> float:
 	## Geeft de y-positie waar de buik eindigt en de rok begint
-	return dak_zone_height + buik_zone_height
+	return dak_zone_height + nek_zone_height + buik_zone_height
 
 
 func _update_shape() -> void:
@@ -140,6 +156,7 @@ func _update_decoration() -> void:
 		_shape_fill.polygon,
 		Color.from_hsv(kleur, color_saturation, color_value),
 		get_shape_height(),
+		get_neck_y(),
 		get_shoulder_y(),
 		get_hip_y()
 	)
@@ -207,6 +224,7 @@ func _generate_points() -> PackedVector2Array:
 	var points: PackedVector2Array = []
 	var half_w = shape_width / 2.0
 	# Zones op basis van instelbare zone hoogtes
+	var neck_y = get_neck_y()
 	var shoulder_y = get_shoulder_y()
 	var hip_y = get_hip_y()
 	var base_y = get_shape_height()
@@ -219,7 +237,11 @@ func _generate_points() -> PackedVector2Array:
 		var x_norm = float(i) / 8.0
 		var x = x_norm * half_w
 		var y_offset = _dak_y(x_norm) * dak_height
-		points.append(Vector2(x, shoulder_y - y_offset))
+		points.append(Vector2(x, neck_y - y_offset))
+
+	# Nek: rechthoek van neck_y naar shoulder_y (rechte lijnen)
+	points.append(Vector2(half_w, neck_y))
+	points.append(Vector2(half_w, shoulder_y))
 
 	# Buik: 7 punten van schouder naar heup (rechterzijde)
 	for i in range(7):
@@ -258,12 +280,16 @@ func _generate_points() -> PackedVector2Array:
 		var x_offset = _buik_x_offset(t)
 		points.append(Vector2(-half_w - x_offset, y))
 
+	# Nek (gespiegeld, van shoulder_y naar neck_y)
+	points.append(Vector2(-half_w, shoulder_y))
+	points.append(Vector2(-half_w, neck_y))
+
 	# Dak (gespiegeld, van linkerrand terug naar center)
 	for i in range(8, -1, -1):
 		var x_norm = float(i) / 8.0
 		var x = -x_norm * half_w
 		var y_offset = _dak_y(x_norm) * dak_height
-		points.append(Vector2(x, shoulder_y - y_offset))
+		points.append(Vector2(x, neck_y - y_offset))
 
 	return points
 
