@@ -1,0 +1,26 @@
+[gd_scene format=3 uid="uid://dyb5vhpg6c0nm"]
+
+[ext_resource type="Script" path="res://scenes/fase_body_builder/onderdelen/body_shape.gd" id="1"]
+[ext_resource type="Script" path="res://scenes/fase_body_builder/onderdelen/body_decoration.gd" id="2"]
+
+[node name="BodyShape" type="Node2D"]
+script = ExtResource("1")
+shape_width = 900.0
+dak_zone_height = 300.0
+buik_zone_height = 800.0
+rok_zone_height = 400.0
+max_belly_offset = 50.0
+max_flare_offset = 90.0
+corner_radius = 90.0
+
+[node name="ShapeFill" type="Polygon2D" parent="."]
+color = Color(0.5, 0.92, 0.92, 1)
+
+[node name="BodyDecoration" type="Node2D" parent="."]
+texture_repeat = 2
+script = ExtResource("2")
+
+[node name="ShapeOutline" type="Line2D" parent="."]
+width = 6.0
+default_color = Color(0.15, 0.1, 0.05, 0.8)
+joint_mode = 2

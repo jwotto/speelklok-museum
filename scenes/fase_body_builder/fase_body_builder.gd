@@ -77,14 +77,14 @@ func _on_done_pressed() -> void:
 	var target_scale_f := minf(
 		viewport_size.x / shape_size.x, viewport_size.y / shape_size.y
 	) * 0.88
-	# Positie aanpassen zodat het visuele centrum op dezelfde plek blijft
-	var target_pos := _body_shape.position + shape_center_local * (1.0 - target_scale_f)
+
+	# Maak een ECHTE duplicate van de body shape node (ALLE properties automatisch mee)
+	var body_duplicate = _body_shape.duplicate()
 
 	_shape_data = {
-		"polygon": polygon,
-		"color": color,
+		"body_node": body_duplicate,  # De complete node zelf!
 		"zoom_scale": target_scale_f,
-		"zoom_position": target_pos,
+		"polygon": polygon,  # Voor constraining
 	}
 	_animate_transition()
 
@@ -95,7 +95,6 @@ func get_phase_data() -> Dictionary:
 
 func _animate_transition() -> void:
 	var target_scale_f: float = _shape_data["zoom_scale"]
-	var target_pos: Vector2 = _shape_data["zoom_position"]
 
 	var tween := create_tween()
 	tween.set_parallel()
@@ -111,10 +110,8 @@ func _animate_transition() -> void:
 	if outline:
 		tween.tween_property(outline, "modulate:a", 0.0, 0.4).set_delay(0.15)
 
-	# Zoom in-place (visueel centrum blijft op dezelfde plek)
+	# Zoom (alleen scale, GEEN position verandering!)
 	tween.tween_property(_body_shape, "scale", Vector2(target_scale_f, target_scale_f), 0.8) \
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
-	tween.tween_property(_body_shape, "position", target_pos, 0.8) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
 
 	# Fade achtergrond

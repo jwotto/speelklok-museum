@@ -7,11 +7,18 @@ extends Node2D
 
 var _polygon: PackedVector2Array = PackedVector2Array()
 var _base_color: Color = Color.WHITE
-var _shape_height: float = 850.0
+var _shape_height: float = 1050.0
+var _shoulder_y: float = 212.5
+var _hip_y: float = 837.5
 var _shading_overlay: Polygon2D
 
 const MARGIN: float = 40.0
 const MOLDING_INSET: float = 15.0
+
+@export var uniform_zones: bool = false:
+	set(v):
+		uniform_zones = v
+		queue_redraw()
 
 @export_group("Pijpen")
 ## Aantal orgelpijpen in de dak-zone
@@ -238,10 +245,12 @@ func _setup_shading_overlay() -> void:
 	add_child(_shading_overlay, false, Node.INTERNAL_MODE_BACK)
 
 
-func update_decoration(polygon: PackedVector2Array, base_color: Color, shape_height: float) -> void:
+func update_decoration(polygon: PackedVector2Array, base_color: Color, shape_height: float, shoulder_y: float, hip_y: float) -> void:
 	_polygon = polygon
 	_base_color = base_color
 	_shape_height = shape_height
+	_shoulder_y = shoulder_y
+	_hip_y = hip_y
 	_update_shading_overlay()
 	queue_redraw()
 
@@ -271,8 +280,9 @@ func _update_shading_overlay() -> void:
 func _draw() -> void:
 	if _polygon.size() < 3:
 		return
-	var shoulder_y: float = _shape_height * 0.25
-	var hip_y: float = _shape_height * 0.75
+	# Gebruik de zone posities die door body_shape zijn berekend
+	var shoulder_y: float = _shoulder_y
+	var hip_y: float = _hip_y
 	var base_y: float = _shape_height
 
 	_draw_zone_textures(shoulder_y, hip_y, base_y)
@@ -706,6 +716,9 @@ func _draw_3d_edge() -> void:
 
 func _zone_color(val_offset: float, sat_offset: float = 0.0) -> Color:
 	## Leidt een zone-kleur af van de basekleur met HSV offsets
+	## Als uniform_zones aan staat, retourneer altijd de basekleur
+	if uniform_zones:
+		return _base_color
 	return Color.from_hsv(
 		_base_color.h,
 		clampf(_base_color.s + sat_offset, 0.0, 1.0),

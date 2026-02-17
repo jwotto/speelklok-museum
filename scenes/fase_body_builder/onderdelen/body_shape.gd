@@ -33,18 +33,30 @@ class_name BodyShape
 	set(v):
 		shape_width = v
 		_update_shape()
-## Hoogte van de kast in pixels
-@export var shape_height: float = 850.0:
+
+@export_group("Zone Heights")
+## Hoogte van de dak-zone in pixels
+@export var dak_zone_height: float = 212.5:
 	set(v):
-		shape_height = v
+		dak_zone_height = v
+		_update_shape()
+## Hoogte van de buik-zone in pixels
+@export var buik_zone_height: float = 625.0:
+	set(v):
+		buik_zone_height = v
+		_update_shape()
+## Hoogte van de rok-zone in pixels
+@export var rok_zone_height: float = 212.5:
+	set(v):
+		rok_zone_height = v
 		_update_shape()
 ## Maximale buik-uitbuiging in pixels
-@export var max_belly_offset: float = 100.0:
+@export var max_belly_offset: float = 50.0:
 	set(v):
 		max_belly_offset = v
 		_update_shape()
 ## Maximale rok-verbreding in pixels
-@export var max_flare_offset: float = 120.0:
+@export var max_flare_offset: float = 90.0:
 	set(v):
 		max_flare_offset = v
 		_update_shape()
@@ -83,6 +95,21 @@ func _ready() -> void:
 	_update_color()
 
 
+func get_shape_height() -> float:
+	## Berekent de totale hoogte op basis van de zone hoogtes
+	return dak_zone_height + buik_zone_height + rok_zone_height
+
+
+func get_shoulder_y() -> float:
+	## Geeft de y-positie waar het dak eindigt en de buik begint
+	return dak_zone_height
+
+
+func get_hip_y() -> float:
+	## Geeft de y-positie waar de buik eindigt en de rok begint
+	return dak_zone_height + buik_zone_height
+
+
 func _update_shape() -> void:
 	if not _shape_fill or not _shape_outline:
 		return
@@ -112,7 +139,9 @@ func _update_decoration() -> void:
 	_decoration.update_decoration(
 		_shape_fill.polygon,
 		Color.from_hsv(kleur, color_saturation, color_value),
-		shape_height
+		get_shape_height(),
+		get_shoulder_y(),
+		get_hip_y()
 	)
 
 
@@ -177,10 +206,11 @@ func _generate_points() -> PackedVector2Array:
 	## Berekent alle polygon punten op basis van de 4 parameters
 	var points: PackedVector2Array = []
 	var half_w = shape_width / 2.0
-	var shoulder_y = shape_height * 0.25
-	var hip_y = shape_height * 0.75
-	var base_y = shape_height
-	var dak_height = shoulder_y
+	# Zones op basis van instelbare zone hoogtes
+	var shoulder_y = get_shoulder_y()
+	var hip_y = get_hip_y()
+	var base_y = get_shape_height()
+	var dak_height = dak_zone_height
 
 	# --- RECHTS: van top-center naar rechtsonder ---
 

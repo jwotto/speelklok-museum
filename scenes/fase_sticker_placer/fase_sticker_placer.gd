@@ -108,33 +108,54 @@ func _set_stickers_input(enabled: bool) -> void:
 
 
 func set_phase_data(data: Dictionary) -> void:
-	## Ontvang polygon + kleur + zoom positie van de body builder fase
-	if not data.has("polygon") or not data.has("color"):
+	## Ontvang de geduplicate body node van de body builder fase
+	if not data.has("body_node") or not data.has("polygon"):
 		return
+
+	# Gebruik de GEDUPLICATE node uit fase 1 - EXACT dezelfde properties!
+	var body_shape: Node2D = data["body_node"]
 	var polygon: PackedVector2Array = data["polygon"]
-	var color: Color = data["color"]
-
-	# Gebruik exact dezelfde zoom waarden als de body builder animatie
 	var target_scale_f: float = data["zoom_scale"]
-	var contour_pos: Vector2 = data["zoom_position"]
 
-	# Maak OrganContour node
-	var OrganContourScript = preload("res://scenes/fase_sticker_placer/onderdelen/organ_contour.gd")
-	var contour := Node2D.new()
-	contour.set_script(OrganContourScript)
-	contour.name = "OrganContour"
-	contour.position = contour_pos
-	contour.scale = Vector2(target_scale_f, target_scale_f)
+	body_shape.name = "OrganContour"
+	add_child(body_shape)
+	move_child(body_shape, _sticker_container.get_index())
 
-	# Voeg toe vóór Stickers container (z-order: achtergrond)
-	add_child(contour)
-	move_child(contour, _sticker_container.get_index())
-	contour.setup(polygon, color)
+	# Gebruik BodyDecoration maar ZONDER versieringen - alleen basis hout texture
+	var decoration := body_shape.get_node_or_null("BodyDecoration")
+	if decoration:
+		decoration.visible = true
+		# Schakel ALLE decoraties uit - houd alleen de basis texture
+		decoration.pipe_count = 0  # Geen pijpen
+		decoration.panel_count = 0  # Geen panelen
+		decoration.molding_width = 0.0  # Geen lijstwerk
+		decoration.molding_accent_width = 0.0
+		decoration.gold_trim_width = 0.0  # Geen gouden rand
+		decoration.arch_line_width = 0.0
+		decoration.panel_frame_width = 0.0  # Geen paneel randen
+		decoration.panel_inner_width = 0.0
+		decoration.crown_arch_count = 0  # Geen kroonboogjes
+		decoration.pendant_radius = 0.0  # Geen bolletjes
+		decoration.uniform_zones = true  # Uniforme kleur (geen donkere/lichte zones)
+		# Maak texture opacity en blend uniform over alle zones
+		decoration.kop_texture_opacity = decoration.lichaam_texture_opacity
+		decoration.rok_texture_opacity = decoration.lichaam_texture_opacity
+		decoration.kop_color_blend = decoration.lichaam_color_blend
+		decoration.rok_color_blend = decoration.lichaam_color_blend
+		# Nu blijft alleen de basis kleur + hout texture over!
+
+	# ShapeFill blijft hidden (BodyDecoration tekent de vorm)
+	var shape_fill := body_shape.get_node_or_null("ShapeFill")
+	if shape_fill:
+		shape_fill.visible = false
+
+	# Scale is al gezet door de animatie in fase 1, dus laten we die
+	# (position en scale zijn al exact zoals ze moeten zijn!)
 
 	# Bereken world-space polygon voor constraining
 	_organ_polygon_world = PackedVector2Array()
 	for p in polygon:
-		_organ_polygon_world.append(p * target_scale_f + contour_pos)
+		_organ_polygon_world.append(p * target_scale_f + body_shape.position)
 
 	# Bereken organ center uit world-space bounding box
 	var wmin := Vector2(INF, INF)
