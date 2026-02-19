@@ -4,6 +4,7 @@ extends Node2D
 ## Fase 2: Muziekinstrumenten plaatsen
 ## Self-contained scene met sticker plaatsing, prullenbak, picker en sliders
 
+@warning_ignore("unused_signal")
 signal phase_completed
 
 @export_group("Trash")

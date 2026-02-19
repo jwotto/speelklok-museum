@@ -60,9 +60,6 @@ func _on_done_pressed() -> void:
 		return
 
 	var polygon: PackedVector2Array = _body_shape.get_polygon()
-	var color := Color.from_hsv(
-		_body_shape.kleur, _body_shape.color_saturation, _body_shape.color_value
-	)
 
 	# Bereken zoom rondom het visuele centrum van de shape (geen verplaatsing)
 	var viewport_size := get_viewport_rect().size
@@ -72,7 +69,6 @@ func _on_done_pressed() -> void:
 		min_p = Vector2(minf(min_p.x, p.x), minf(min_p.y, p.y))
 		max_p = Vector2(maxf(max_p.x, p.x), maxf(max_p.y, p.y))
 	var shape_size := max_p - min_p
-	var shape_center_local := (min_p + max_p) / 2.0
 
 	var target_scale_f := minf(
 		viewport_size.x / shape_size.x, viewport_size.y / shape_size.y
