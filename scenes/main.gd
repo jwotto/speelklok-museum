@@ -28,6 +28,7 @@ func _ready() -> void:
 	# Overschrijf titel (verwijdert "(DEBUG)" label)
 	DisplayServer.window_set_title("Speelklok Museum")
 
+
 	start_phase(start_phase_index)
 
 
