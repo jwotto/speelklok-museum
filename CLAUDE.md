@@ -127,40 +127,37 @@ In PowerShell op je laptop:
 Get-Content $env:USERPROFILE\.ssh\id_ed25519.pub | ssh wotto@<TAILSCALE_IP> "mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys"
 ```
 
-### 5. Sunshine (streaming server)
+### 5. Remote Desktop (GNOME RDP)
+Ingebouwde GNOME Remote Desktop — verbind via Windows Remote Desktop Connection (mstsc).
+
+Op de Ubuntu PC via terminal:
 ```bash
-sudo apt install -y wget
-wget https://github.com/LizardByte/Sunshine/releases/latest/download/sunshine-ubuntu-24.04-amd64.deb
-sudo dpkg -i sunshine-ubuntu-24.04-amd64.deb && sudo apt install -f -y
+# TLS certificaat genereren
+mkdir -p ~/.local/share/gnome-remote-desktop
+openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
+  -subj '/CN=wotto-pc1' \
+  -keyout ~/.local/share/gnome-remote-desktop/rdp-tls.key \
+  -out ~/.local/share/gnome-remote-desktop/rdp-tls.crt
+
+# RDP configureren
+grdctl rdp set-tls-cert ~/.local/share/gnome-remote-desktop/rdp-tls.crt
+grdctl rdp set-tls-key ~/.local/share/gnome-remote-desktop/rdp-tls.key
+grdctl rdp set-credentials wotto wotto
+grdctl rdp disable-view-only
+grdctl rdp enable
 ```
 
-Credentials instellen (gebruikersnaam + wachtwoord voor web UI):
-```bash
-sunshine --creds wotto wotto
-```
+**Belangrijk: GNOME Keyring wachtwoord leeg maken** (anders werkt RDP niet na reboot met auto-login):
+1. Open `seahorse` (Wachtwoorden en Sleutels)
+2. Rechtermuisklik op **Default** keyring (met slotje) → Change Password
+3. Oud wachtwoord: je login-wachtwoord
+4. Nieuw wachtwoord: **leeg laten**
+5. Bevestig (negeer waarschuwing)
 
-### 6. Sunshine autostart + PIN uitzetten
-Service aanmaken:
-```bash
-sudo tee /etc/systemd/system/sunshine.service > /dev/null << 'EOF'
-[Unit]
-Description=Sunshine Game Streaming Server
-After=graphical.target
+Verbinden vanaf Windows: `mstsc` → `<TAILSCALE_IP>` → user: wotto, wachtwoord: wotto.
+Toont portrait-scherm correct gedraaid.
 
-[Service]
-User=wotto
-ExecStart=/usr/bin/sunshine
-Restart=on-failure
-
-[Install]
-WantedBy=graphical.target
-EOF
-sudo systemctl daemon-reload && sudo systemctl enable sunshine
-```
-
-Eerste keer pairen per apparaat: open Moonlight, voer de getoonde PIN in via de Sunshine web UI op `https://<TAILSCALE_IP>:47990` (login: wotto/wotto). Daarna onthoudt hij het apparaat permanent.
-
-### 7. Auto-login (zonder wachtwoord op scherm)
+### 6. Auto-login (zonder wachtwoord op scherm)
 ```bash
 sudo mkdir -p /etc/gdm3 && sudo tee /etc/gdm3/custom.conf > /dev/null << 'EOF'
 [daemon]
@@ -169,22 +166,21 @@ AutomaticLogin=wotto
 EOF
 ```
 
-### 8. GRUB direct boot (geen OS-keuzemenu)
+### 7. GRUB direct boot (geen OS-keuzemenu)
 ```bash
 echo 'GRUB_DISABLE_OS_PROBER=true' | sudo tee -a /etc/default/grub
 sudo update-grub
 ```
 
-### 9. Boot optimalisatie (38s → 24s)
+### 8. Boot optimalisatie (38s → 24s)
 Splash screen uitzetten (bespaart ~20s):
 ```bash
 sudo sed -i 's/quiet splash/quiet nosplash/g' /etc/default/grub
 sudo update-grub
 sudo systemctl disable plymouth-quit-wait.service
 ```
-**Let op**: `NetworkManager-wait-online` NIET disablen — Sunshine heeft netwerk nodig bij boot.
 
-### 10. Scherm altijd aan (geen screensaver/lock/slaapstand)
+### 9. Scherm altijd aan (geen screensaver/lock/slaapstand)
 ```bash
 export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
 gsettings set org.gnome.desktop.session idle-delay 0
@@ -192,14 +188,38 @@ gsettings set org.gnome.desktop.screensaver lock-enabled false
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
 ```
 
+### 10. Portrait modus (touchscreen rotatie)
+Display roteren via Settings → Displays → Orientation → Portrait.
+
+Touchscreen input mee laten draaien via udev rule:
+```bash
+# Zoek vendor/model ID van je touchscreen
+cat /proc/bus/input/devices | grep -A 4 -i touch
+
+# Maak udev rule aan (pas vendor/model ID aan voor jouw device)
+sudo tee /etc/udev/rules.d/99-touchscreen-rotation.rules << 'EOF'
+ACTION!="remove", KERNEL=="event[0-9]*", \
+ENV{ID_VENDOR_ID}=="2575", \
+ENV{ID_MODEL_ID}=="7317", \
+ENV{LIBINPUT_CALIBRATION_MATRIX}="0 -1 1 1 0 0"
+EOF
+sudo udevadm control --reload-rules
+sudo udevadm trigger
+```
+
+Calibration matrices per oriëntatie:
+- **Landscape (normaal)**: `1 0 0 0 1 0`
+- **Portrait 90° CW**: `0 -1 1 1 0 0`
+- **Landscape 180°**: `-1 0 1 0 -1 1`
+- **Portrait 90° CCW**: `0 1 0 -1 0 1`
+
 ### 11. Reboot en test
 ```bash
 sudo reboot
 ```
-Verbind daarna via Moonlight (laptop/telefoon) op het Tailscale IP.
+Verbind daarna via Windows Remote Desktop Connection (mstsc) op het Tailscale IP.
 
 ### Tips
-- **Moonlight via mobiel data**: voeg host handmatig toe in Moonlight met het Tailscale IP (autodiscovery werkt alleen op lokaal netwerk)
+- **Remote Desktop**: `mstsc` op Windows → Tailscale IP → user/wachtwoord. Toont portrait correct.
 - **Tailscale altijd aan (Android)**: Instellingen → Verbindingen → Meer verbindingsinstellingen → VPN → tandwiel naast Tailscale → "Altijd actieve VPN" aan
-- **Sunshine web UI**: bereikbaar op `https://localhost:47990` (op de Ubuntu PC zelf) of via SSH tunnel: `ssh -L 47990:localhost:47990 wotto@<TAILSCALE_IP>` en dan `https://localhost:47990` op je laptop
-- **Pairen**: eerste keer per apparaat PIN invoeren via Sunshine web UI, daarna permanent onthouden
+- **SSH**: `ssh wotto@<TAILSCALE_IP>` voor terminal-toegang
