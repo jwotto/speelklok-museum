@@ -27,7 +27,8 @@ func _ready() -> void:
 	Input.emulate_mouse_from_touch = true
 	# Overschrijf titel (verwijdert "(DEBUG)" label)
 	DisplayServer.window_set_title("Speelklok Museum")
-
+	# Forceer fullscreen (project.godot mode=3 werkt niet altijd op Wayland/Linux)
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
 
 	start_phase(start_phase_index)
 

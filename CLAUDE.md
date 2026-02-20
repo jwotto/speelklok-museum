@@ -188,7 +188,29 @@ gsettings set org.gnome.desktop.screensaver lock-enabled false
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
 ```
 
-### 10. Portrait modus (touchscreen rotatie)
+### 10. Godot + Git installeren
+```bash
+# Godot installeren
+mkdir -p ~/bin
+wget -O ~/bin/godot https://github.com/godotengine/godot/releases/download/4.6-stable/Godot_v4.6-stable_linux.x86_64
+chmod +x ~/bin/godot
+
+# Git repo clonen naar Desktop
+cd ~/Desktop
+git clone https://github.com/jwotto/speelklok-museum.git
+```
+
+Godot starten (vanuit terminal op de PC, niet via SSH):
+```bash
+~/bin/godot --path ~/Desktop/speelklok-museum
+```
+
+Laatste versie pullen (kan via SSH vanaf Windows):
+```bash
+ssh wotto@<TAILSCALE_IP> "cd ~/Desktop/speelklok-museum && git pull"
+```
+
+### 11. Portrait modus (touchscreen rotatie)
 Display roteren via Settings → Displays → Orientation → Portrait.
 
 Touchscreen input mee laten draaien via udev rule:
@@ -213,7 +235,7 @@ Calibration matrices per oriëntatie:
 - **Landscape 180°**: `-1 0 1 0 -1 1`
 - **Portrait 90° CCW**: `0 1 0 -1 0 1`
 
-### 11. Reboot en test
+### 12. Reboot en test
 ```bash
 sudo reboot
 ```
