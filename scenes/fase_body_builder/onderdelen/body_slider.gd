@@ -208,5 +208,5 @@ func _update_from_position(local_pos: float) -> void:
 	var new_val = lerpf(min_value, max_value, t)
 	var old_val = value
 	value = new_val
-	if absf(value - old_val) > 0.001:
+	if absf(value - old_val) > 0.005:
 		value_changed.emit(value)

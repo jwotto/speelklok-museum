@@ -43,7 +43,7 @@ signal closed
 @onready var _close_button: Button = $Panel/CloseButton
 
 var _is_open: bool = false
-var _outline_shader = preload("res://scenes/fase_sticker_placer/onderdelen/sticker_outline.gdshader")
+var _grid_populated: bool = false
 var _picker_btn_script = preload("res://scenes/fase_sticker_placer/onderdelen/sticker_picker_button.gd")
 
 
@@ -171,7 +171,6 @@ func _populate_grid() -> void:
 				tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 				tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 				tex_rect.pivot_offset = icon_size / 2
-				tex_rect.material = _make_outline_material()
 				visual = tex_rect
 			else:
 				# Meerdere sprites: container met bounding box berekening
@@ -197,13 +196,6 @@ func _populate_grid() -> void:
 		_grid.add_child(btn)
 
 
-func _make_outline_material() -> ShaderMaterial:
-	var mat = ShaderMaterial.new()
-	mat.shader = _outline_shader
-	mat.set_shader_parameter("show_outline", false)
-	mat.set_shader_parameter("outline_width", 30.0)
-	mat.set_shader_parameter("outline_color", Color.WHITE)
-	return mat
 
 
 func _create_multi_sprite_visual(sprites: Array[Dictionary], icon_size: Vector2) -> Control:
@@ -234,7 +226,6 @@ func _create_multi_sprite_visual(sprites: Array[Dictionary], icon_size: Vector2)
 		tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex_rect.stretch_mode = TextureRect.STRETCH_SCALE
 		tex_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		tex_rect.material = _make_outline_material()
 		var tex_size = s.texture.get_size()
 		var top_left: Vector2 = s.position - tex_size / 2
 		tex_rect.position = (top_left - bbox.position) * fit_scale + centering
@@ -297,7 +288,9 @@ func _calculate_icon_size() -> Vector2:
 func _update_layout() -> void:
 	if not is_inside_tree() or not _is_open:
 		return
+	_grid_populated = false
 	_populate_grid()
+	_grid_populated = true
 
 
 
@@ -309,18 +302,9 @@ func _kill_btn_tween(btn: TextureButton) -> void:
 		old_tween.kill()
 
 
-func _set_outline(visual: Control, enabled: bool) -> void:
-	if visual.material:
-		visual.material.set_shader_parameter("show_outline", enabled)
-	for child in visual.get_children():
-		if child is TextureRect and child.material:
-			child.material.set_shader_parameter("show_outline", enabled)
-
-
 func _on_btn_activate(btn: TextureButton) -> void:
 	_kill_btn_tween(btn)
 	var visual = btn.get_meta("visual") as Control
-	_set_outline(visual, true)
 	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tween.set_parallel()
 	tween.tween_property(visual, "rotation", btn.get_meta("hover_angle", 0.0), 0.2)
@@ -331,7 +315,6 @@ func _on_btn_activate(btn: TextureButton) -> void:
 func _on_btn_deactivate(btn: TextureButton) -> void:
 	_kill_btn_tween(btn)
 	var visual = btn.get_meta("visual") as Control
-	_set_outline(visual, false)
 	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
 	tween.set_parallel()
 	tween.tween_property(visual, "rotation", 0.0, 0.4)
@@ -382,7 +365,9 @@ func open() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_background.mouse_filter = Control.MOUSE_FILTER_STOP
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_populate_grid()
+	if not _grid_populated:
+		_populate_grid()
+		_grid_populated = true
 	show()
 	opened.emit()
 

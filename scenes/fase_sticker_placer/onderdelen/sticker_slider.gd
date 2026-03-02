@@ -29,7 +29,10 @@ enum IconType { ROTATE, SCALE }
 ## Huidige waarde (wordt geclampt tussen min en max)
 @export var value: float = 0.5:
 	set(v):
-		value = clampf(v, min_value, max_value)
+		var clamped = clampf(v, min_value, max_value)
+		if absf(clamped - value) < 0.001:
+			return
+		value = clamped
 		queue_redraw()
 
 @export_group("Track")

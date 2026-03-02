@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d4af8yqu38h7f"
-path="res://.godot/imported/toeter.png-8eb7979e29b8c1d8a6fd0bb342cd7a5a.ctex"
+path.s3tc="res://.godot/imported/toeter.png-8eb7979e29b8c1d8a6fd0bb342cd7a5a.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://afbeeldingen instrumenten/toeter.png"
-dest_files=["res://.godot/imported/toeter.png-8eb7979e29b8c1d8a6fd0bb342cd7a5a.ctex"]
+dest_files=["res://.godot/imported/toeter.png-8eb7979e29b8c1d8a6fd0bb342cd7a5a.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

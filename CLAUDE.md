@@ -86,20 +86,6 @@ scenes/
 - 1 wandscherm: toont collectie
 - Staand formaat
 
-### Auto Power On (Venoen H6)
-PC automatisch opstarten na stroomuitval — belangrijk voor museuminstallatie.
-
-**BIOS heeft deze optie NIET** bij dit model. Moet via hardware jumper:
-
-1. Open de behuizing (schroefjes onderkant)
-2. Zoek **PWRON1** jumper op het moederbord (3 pinnetjes met jumpercap)
-3. **Standaard**: jumpercap op pin 1-2 (auto power on UIT)
-4. **Verplaats** jumpercap naar **pin 2-3** (auto power on AAN)
-
-**Let op**: de GPIO pins aan de voorkant (SW0-SW9) zijn NIET de PWRON1 jumper — die zijn voor externe knoppen.
-
-Officiële instructies: https://www.venoen.com/H6-How-to-set-Auto-Power-On-External-switch-button-extension.html
-
 ## Ubuntu PC Setup (voor nieuwe zuilen)
 
 Stap-voor-stap guide om een verse Ubuntu PC in te richten voor remote streaming.
@@ -107,6 +93,11 @@ Stap-voor-stap guide om een verse Ubuntu PC in te richten voor remote streaming.
 ### 1. Ubuntu installeren
 - Installeer Ubuntu 24.04 LTS
 - Gebruiker: `wotto`, wachtwoord: naar keuze
+
+### 1b. SSH server (nodig voor alle volgende stappen)
+```bash
+sudo apt install -y openssh-server
+```
 
 ### 2. Tailscale (remote toegang via VPN)
 ```bash
@@ -116,18 +107,13 @@ sudo tailscale up
 ```
 Volg de link om in te loggen op je Tailscale account. Check IP met `tailscale ip -4`.
 
-### 3. SSH server
-```bash
-sudo apt install -y openssh-server
-```
-
-### 4. SSH key kopiëren (vanaf Windows PC)
+### 3. SSH key kopiëren (vanaf Windows PC)
 In PowerShell op je laptop:
 ```powershell
 Get-Content $env:USERPROFILE\.ssh\id_ed25519.pub | ssh wotto@<TAILSCALE_IP> "mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys"
 ```
 
-### 5. Remote Desktop (GNOME RDP)
+### 4. Remote Desktop (GNOME RDP)
 Ingebouwde GNOME Remote Desktop — verbind via Windows Remote Desktop Connection (mstsc).
 
 Op de Ubuntu PC via terminal:
@@ -145,6 +131,10 @@ grdctl rdp set-tls-key ~/.local/share/gnome-remote-desktop/rdp-tls.key
 grdctl rdp set-credentials wotto wotto
 grdctl rdp disable-view-only
 grdctl rdp enable
+
+# RDP service activeren (nodig, staat standaard niet aan!)
+systemctl --user enable gnome-remote-desktop
+systemctl --user start gnome-remote-desktop
 ```
 
 **Belangrijk: GNOME Keyring wachtwoord leeg maken** (anders werkt RDP niet na reboot met auto-login):
@@ -157,7 +147,7 @@ grdctl rdp enable
 Verbinden vanaf Windows: `mstsc` → `<TAILSCALE_IP>` → user: wotto, wachtwoord: wotto.
 Toont portrait-scherm correct gedraaid.
 
-### 6. Auto-login (zonder wachtwoord op scherm)
+### 5. Auto-login (zonder wachtwoord op scherm)
 ```bash
 sudo mkdir -p /etc/gdm3 && sudo tee /etc/gdm3/custom.conf > /dev/null << 'EOF'
 [daemon]
@@ -166,13 +156,13 @@ AutomaticLogin=wotto
 EOF
 ```
 
-### 7. GRUB direct boot (geen OS-keuzemenu)
+### 6. GRUB direct boot (geen OS-keuzemenu)
 ```bash
 echo 'GRUB_DISABLE_OS_PROBER=true' | sudo tee -a /etc/default/grub
 sudo update-grub
 ```
 
-### 8. Boot optimalisatie (38s → 24s)
+### 7. Boot optimalisatie (38s → 24s)
 Splash screen uitzetten (bespaart ~20s):
 ```bash
 sudo sed -i 's/quiet splash/quiet nosplash/g' /etc/default/grub
@@ -180,7 +170,7 @@ sudo update-grub
 sudo systemctl disable plymouth-quit-wait.service
 ```
 
-### 9. Scherm altijd aan (geen screensaver/lock/slaapstand)
+### 8. Scherm altijd aan (geen screensaver/lock/slaapstand)
 ```bash
 export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
 gsettings set org.gnome.desktop.session idle-delay 0
@@ -188,21 +178,19 @@ gsettings set org.gnome.desktop.screensaver lock-enabled false
 gsettings set org.gnome.settings-daemon.plugins.power sleep-inactive-ac-type 'nothing'
 ```
 
-### 10. Godot + Git installeren
-```bash
-# Godot installeren
-mkdir -p ~/bin
-wget -O ~/bin/godot https://github.com/godotengine/godot/releases/download/4.6-stable/Godot_v4.6-stable_linux.x86_64
-chmod +x ~/bin/godot
+### 9. Godot + Git installeren
 
-# Git repo clonen naar Desktop
-cd ~/Desktop
-git clone https://github.com/jwotto/speelklok-museum.git
+**Godot** installeren via Ubuntu App Center (zoek "Godot") — wget vanaf GitHub werkt niet betrouwbaar.
+
+**Git** staat niet standaard op Ubuntu, installeer via terminal:
+```bash
+sudo apt install -y git
 ```
 
-Godot starten (vanuit terminal op de PC, niet via SSH):
+Git repo clonen naar Desktop:
 ```bash
-~/bin/godot --path ~/Desktop/speelklok-museum
+cd ~/Desktop
+git clone https://github.com/jwotto/speelklok-museum.git
 ```
 
 Laatste versie pullen (kan via SSH vanaf Windows):
@@ -210,7 +198,7 @@ Laatste versie pullen (kan via SSH vanaf Windows):
 ssh wotto@<TAILSCALE_IP> "cd ~/Desktop/speelklok-museum && git pull"
 ```
 
-### 11. Portrait modus (touchscreen rotatie)
+### 10. Portrait modus (touchscreen rotatie)
 Display roteren via Settings → Displays → Orientation → Portrait.
 
 Touchscreen input mee laten draaien via udev rule:
@@ -235,11 +223,72 @@ Calibration matrices per oriëntatie:
 - **Landscape 180°**: `-1 0 1 0 -1 1`
 - **Portrait 90° CCW**: `0 1 0 -1 0 1`
 
+### 11. Kiosk-modus (touch gestures uitschakelen)
+GNOME drie/vier-vinger gestures sluiten/onderbreken fullscreen apps. Uitschakelen:
+
+```bash
+export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
+
+# Hot corners en Super key uitschakelen
+gsettings set org.gnome.desktop.interface enable-hot-corners false
+gsettings set org.gnome.mutter overlay-key ""
+
+# Slechts 1 workspace (swipe naar andere workspace doet niets)
+gsettings set org.gnome.mutter dynamic-workspaces false
+gsettings set org.gnome.desktop.wm.preferences num-workspaces 1
+```
+
+Custom GNOME Shell extensie om drie-vinger swipe (Activities overview) te blokkeren:
+```bash
+mkdir -p ~/.local/share/gnome-shell/extensions/disable-gestures@kiosk
+
+cat > ~/.local/share/gnome-shell/extensions/disable-gestures@kiosk/metadata.json << 'EOF'
+{
+  "uuid": "disable-gestures@kiosk",
+  "name": "Disable Gestures",
+  "description": "Disables touchscreen/touchpad gestures for kiosk mode",
+  "shell-version": ["46"]
+}
+EOF
+```
+
+**Let op**: het extension.js bestand raakt garbled via heredoc in sommige terminals. Gebruik `echo` of maak het bestand via een editor:
+```bash
+echo 'import {Extension} from "resource:///org/gnome/shell/extensions/extension.js";
+import * as Main from "resource:///org/gnome/shell/ui/main.js";
+export default class DisableGesturesExtension extends Extension {
+    enable() {
+        let st = Main.overview._swipeTracker;
+        if (st) { this._orig = st.enabled; st.enabled = false; }
+    }
+    disable() {
+        let st = Main.overview._swipeTracker;
+        if (st && this._orig !== undefined) { st.enabled = this._orig; }
+    }
+}' > ~/.local/share/gnome-shell/extensions/disable-gestures@kiosk/extension.js
+```
+
+Na aanmaken: reboot nodig zodat GNOME de extensie vindt, dan activeren:
+```bash
+sudo reboot
+# Na reboot opnieuw SSH'en:
+export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
+gnome-extensions enable disable-gestures@kiosk
+gnome-extensions show disable-gestures@kiosk  # moet State: ACTIVE tonen
+```
+
 ### 12. Reboot en test
 ```bash
 sudo reboot
 ```
 Verbind daarna via Windows Remote Desktop Connection (mstsc) op het Tailscale IP.
+
+### Troubleshooting
+- **RDP verbinding mislukt**: `gnome-remote-desktop` service staat standaard niet aan. Fix: `systemctl --user enable gnome-remote-desktop && systemctl --user start gnome-remote-desktop`
+- **sudo via SSH werkt niet**: Commando's met `sudo` werken niet via niet-interactieve SSH (`ssh user@ip "sudo ..."`) — je moet eerst interactief inloggen (`ssh user@ip`) en dan sudo uitvoeren
+- **Git niet gevonden**: Staat niet standaard op Ubuntu, installeer met `sudo apt install -y git`
+- **Godot wget 404**: GitHub release URL's veranderen per versie — installeer Godot via Ubuntu App Center
+- **Keyring popup bij RDP setup**: Bij `grdctl rdp set-credentials` verschijnt er een keyring-wachtwoord prompt op de PC — laat het wachtwoord leeg
 
 ### Tips
 - **Remote Desktop**: `mstsc` op Windows → Tailscale IP → user/wachtwoord. Toont portrait correct.

@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://63u5a8ws4cgu"
-path="res://.godot/imported/gitaar.png-95fe8483a0f3a4fad12966e6dda4e6c5.ctex"
+path.s3tc="res://.godot/imported/gitaar.png-95fe8483a0f3a4fad12966e6dda4e6c5.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://afbeeldingen instrumenten/gitaar.png"
-dest_files=["res://.godot/imported/gitaar.png-95fe8483a0f3a4fad12966e6dda4e6c5.ctex"]
+dest_files=["res://.godot/imported/gitaar.png-95fe8483a0f3a4fad12966e6dda4e6c5.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

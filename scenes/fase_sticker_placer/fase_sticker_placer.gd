@@ -58,12 +58,14 @@ func _on_picker_opened() -> void:
 	_picker_open = true
 	_update_button_visibility()
 	_set_stickers_input(false)
+	_set_stickers_process(false)
 
 
 func _on_picker_closed() -> void:
 	_picker_open = false
 	_update_button_visibility()
 	_set_stickers_input(true)
+	# Process wordt per sticker weer aangezet bij interactie
 
 
 func _update_button_visibility() -> void:
@@ -106,6 +108,12 @@ func _set_stickers_input(enabled: bool) -> void:
 	for sticker in _sticker_container.get_children():
 		if sticker is Sticker:
 			sticker.set_process_unhandled_input(enabled)
+
+
+func _set_stickers_process(enabled: bool) -> void:
+	for sticker in _sticker_container.get_children():
+		if sticker is Sticker:
+			sticker.set_process(enabled)
 
 
 func set_phase_data(data: Dictionary) -> void:
@@ -230,13 +238,29 @@ func _input(event: InputEvent) -> void:
 
 
 func _check_trash_zone() -> void:
-	# Check of vinger in prullenbak zone is (niet sticker positie!)
+	if _picker_open:
+		return
+
+	var any_dragging_now = false
+	for sticker in _sticker_container.get_children():
+		if sticker is Sticker and sticker.dragging:
+			any_dragging_now = true
+			break
+
+	# Toon/verberg knoppen bij drag state wijziging
+	if _any_dragging != any_dragging_now:
+		_any_dragging = any_dragging_now
+		_update_button_visibility()
+
+	# Alleen trash zone checken als er daadwerkelijk gesleept wordt of net losgelaten is
+	if not any_dragging_now and _was_dragging.is_empty():
+		return
+
 	var trash_screen = _trash_button.get_screen_transform().origin
 	var trash_center = trash_screen + _trash_button.size / 2.0
 	var finger_dist = _last_touch_pos.distance_to(trash_center)
 	var finger_in_zone = finger_dist < trash_zone_radius
 	var any_dragging_in_zone = false
-	var any_dragging_now = false
 
 	for sticker in _sticker_container.get_children():
 		if sticker is Sticker:
@@ -244,25 +268,14 @@ func _check_trash_zone() -> void:
 			var is_dragging = sticker.dragging
 			var was_dragging = _was_dragging.get(id, false)
 
-			# Track voor volgende frame
-			_was_dragging[id] = is_dragging
-
 			if is_dragging:
-				any_dragging_now = true
-
-			# Highlight trash als vinger erboven is tijdens slepen
-			if is_dragging and finger_in_zone:
-				any_dragging_in_zone = true
-
-			# Verwijder zodra vinger losgelaten wordt in zone
-			if was_dragging and not is_dragging and finger_in_zone:
+				_was_dragging[id] = true
+				if finger_in_zone:
+					any_dragging_in_zone = true
+			elif was_dragging:
 				_was_dragging.erase(id)
-				_delete_sticker(sticker, trash_center)
-
-	# Toon/verberg knoppen bij drag state wijziging
-	if _any_dragging != any_dragging_now:
-		_any_dragging = any_dragging_now
-		_update_button_visibility()
+				if finger_in_zone:
+					_delete_sticker(sticker, trash_center)
 
 	# Update modulate alleen bij wijziging
 	if _trash_highlighted != any_dragging_in_zone:
@@ -312,8 +325,10 @@ func _update_slider_values(sticker: Sticker) -> void:
 
 
 func _update_sliders() -> void:
-	## Synchroniseer slider waardes met sticker (voor pinch/rotate updates)
+	## Synchroniseer slider waardes met sticker (alleen bij pinch/rotate)
 	if _tracked_sticker == null or not _slider_container.visible:
+		return
+	if not _tracked_sticker.dragging:
 		return
 	_updating_sliders = true
 	_scale_slider.value = _tracked_sticker.scale.x

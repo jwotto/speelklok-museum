@@ -9,16 +9,22 @@ class_name BodyShape
 ## Dak: 0.0 = plat, 0.5 = rond (koepel), 1.0 = spits
 @export_range(0.0, 1.0) var dak: float = 0.5:
 	set(v):
+		if absf(v - dak) < 0.003 and not Engine.is_editor_hint():
+			return
 		dak = v
 		_update_shape()
 ## Buik: 0.0 = ingedeukt, 0.5 = recht, 1.0 = bollend
 @export_range(0.0, 1.0) var buik: float = 0.5:
 	set(v):
+		if absf(v - buik) < 0.003 and not Engine.is_editor_hint():
+			return
 		buik = v
 		_update_shape()
 ## Rok: 0.0 = taps toelopend, 0.5 = recht, 1.0 = uitlopend
 @export_range(0.0, 1.0) var rok: float = 0.5:
 	set(v):
+		if absf(v - rok) < 0.003 and not Engine.is_editor_hint():
+			return
 		rok = v
 		_update_shape()
 ## Kleur: hue waarde (0.0 - 1.0 over het kleurspectrum)
@@ -146,7 +152,9 @@ func _update_color() -> void:
 	if not _shape_fill:
 		return
 	_shape_fill.color = Color.from_hsv(kleur, color_saturation, color_value)
-	_update_decoration()
+	# Alleen kleur updaten, GEEN polygon herberekening
+	if _decoration:
+		_decoration.update_color(Color.from_hsv(kleur, color_saturation, color_value))
 
 
 func _update_decoration() -> void:

@@ -5,7 +5,7 @@
 [ext_resource type="Texture2D" uid="uid://dx1sy8guxab85" path="res://afbeeldingen instrumenten/hihat.png" id="3_hihat"]
 
 [node name="Sticker" unique_id=1268836878 instance=ExtResource("1_base")]
-scale = Vector2(0.25, 0.25)
+scale = Vector2(0.5, 0.5)
 texture = ExtResource("2_snare")
 
 [node name="Hihat" type="Sprite2D" parent="." index="0" unique_id=1513969190]

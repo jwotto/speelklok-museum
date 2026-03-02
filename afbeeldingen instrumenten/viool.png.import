@@ -3,19 +3,20 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c0vjxc2qfyww8"
-path="res://.godot/imported/viool.png-42cf7d70b7f03d5de6bf7cc2f9123228.ctex"
+path.s3tc="res://.godot/imported/viool.png-42cf7d70b7f03d5de6bf7cc2f9123228.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 
 [deps]
 
 source_file="res://afbeeldingen instrumenten/viool.png"
-dest_files=["res://.godot/imported/viool.png-42cf7d70b7f03d5de6bf7cc2f9123228.ctex"]
+dest_files=["res://.godot/imported/viool.png-42cf7d70b7f03d5de6bf7cc2f9123228.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

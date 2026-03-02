@@ -12,10 +12,6 @@ void fragment() {
 		a = max(a, texture(TEXTURE, UV + vec2(-s.x, 0.0)).a);
 		a = max(a, texture(TEXTURE, UV + vec2(0.0, s.y)).a);
 		a = max(a, texture(TEXTURE, UV + vec2(0.0, -s.y)).a);
-		a = max(a, texture(TEXTURE, UV + vec2(s.x, s.y)).a);
-		a = max(a, texture(TEXTURE, UV + vec2(-s.x, s.y)).a);
-		a = max(a, texture(TEXTURE, UV + vec2(s.x, -s.y)).a);
-		a = max(a, texture(TEXTURE, UV + vec2(-s.x, -s.y)).a);
 		if (a > 0.1) {
 			col = outline_color;
 		}

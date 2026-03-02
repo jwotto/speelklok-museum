@@ -13,6 +13,14 @@ var _shoulder_y: float = 312.5
 var _hip_y: float = 937.5
 var _shading_overlay: Polygon2D
 
+## Zone polygon cache (hergebruikt tussen redraws als polygon niet verandert)
+var _zones_dirty: bool = true
+var _cached_kop_poly: PackedVector2Array
+var _cached_nek_poly: PackedVector2Array
+var _cached_lichaam_poly: PackedVector2Array
+var _cached_rok_poly: PackedVector2Array
+var _cached_inset_poly: PackedVector2Array
+
 const MARGIN: float = 40.0
 const MOLDING_INSET: float = 15.0
 
@@ -421,7 +429,14 @@ func update_decoration(polygon: PackedVector2Array, base_color: Color, shape_hei
 	_neck_y = neck_y
 	_shoulder_y = shoulder_y
 	_hip_y = hip_y
+	_zones_dirty = true  # Polygon veranderd, zones moeten opnieuw geclipt worden
 	_update_shading_overlay()
+	queue_redraw()
+
+
+func update_color(base_color: Color) -> void:
+	## Alleen kleur updaten — hergebruikt gecachte zone polygons (GEEN herberekening)
+	_base_color = base_color
 	queue_redraw()
 
 
@@ -447,16 +462,29 @@ func _update_shading_overlay() -> void:
 	_shading_overlay.uv = uvs
 
 
+func _ensure_zone_cache() -> void:
+	## Herbereken zone polygons alleen als de polygon veranderd is
+	if not _zones_dirty:
+		return
+	_cached_kop_poly = _clip_polygon_to_band(0.0, _neck_y)
+	_cached_nek_poly = _clip_polygon_to_band(_neck_y, _shoulder_y)
+	_cached_lichaam_poly = _clip_polygon_to_band(_shoulder_y, _hip_y)
+	_cached_rok_poly = _clip_polygon_to_band(_hip_y, _shape_height)
+	_cached_inset_poly = _inset_polygon(gold_trim_inset)
+	_zones_dirty = false
+
+
 func _draw() -> void:
 	if _polygon.size() < 3:
 		return
+	_ensure_zone_cache()
 	# Gebruik de zone posities die door body_shape zijn berekend
 	var neck_y: float = _neck_y
 	var shoulder_y: float = _shoulder_y
 	var hip_y: float = _hip_y
 	var base_y: float = _shape_height
 
-	_draw_zone_textures(neck_y, shoulder_y, hip_y, base_y)
+	_draw_zone_textures()
 	_draw_pipe_panel(neck_y)
 	_draw_crown_arches(neck_y)
 	_draw_moldings(neck_y, shoulder_y, hip_y)
@@ -469,37 +497,33 @@ func _draw() -> void:
 
 # ── Zone textures ────────────────────────────────────────────────────
 
-func _draw_zone_textures(neck_y: float, shoulder_y: float, hip_y: float, base_y: float) -> void:
-	## Tekent per zone een opake gekleurde laag + texture (sticker-look)
+func _draw_zone_textures() -> void:
+	## Tekent per zone een opake gekleurde laag + texture (gebruikt gecachte polygons)
 	# Dak (kop)
-	var kop_poly: PackedVector2Array = _clip_polygon_to_band(0.0, neck_y)
-	if kop_poly.size() >= 3:
+	if _cached_kop_poly.size() >= 3:
 		var kop_col: Color = _zone_color(kop_value_offset, kop_sat_offset)
-		draw_colored_polygon(kop_poly, kop_col)
-		_draw_textured_poly(kop_poly, kop_texture,
+		draw_colored_polygon(_cached_kop_poly, kop_col)
+		_draw_textured_poly(_cached_kop_poly, kop_texture,
 			_make_tint(kop_col, kop_texture_opacity, kop_color_blend), kop_texture_scale)
 
 	# Nek (vlak met gouden rand)
-	var nek_poly: PackedVector2Array = _clip_polygon_to_band(neck_y, shoulder_y)
-	if nek_poly.size() >= 3:
+	if _cached_nek_poly.size() >= 3:
 		var nek_col: Color = _zone_color(nek_value_offset, nek_sat_offset)
-		draw_colored_polygon(nek_poly, nek_col)
-		_draw_textured_poly(nek_poly, nek_texture,
+		draw_colored_polygon(_cached_nek_poly, nek_col)
+		_draw_textured_poly(_cached_nek_poly, nek_texture,
 			_make_tint(nek_col, nek_texture_opacity, nek_color_blend), nek_texture_scale)
 
 	# Lichaam (buik)
-	var lichaam_poly: PackedVector2Array = _clip_polygon_to_band(shoulder_y, hip_y)
-	if lichaam_poly.size() >= 3:
-		draw_colored_polygon(lichaam_poly, _base_color)
-		_draw_textured_poly(lichaam_poly, lichaam_texture,
+	if _cached_lichaam_poly.size() >= 3:
+		draw_colored_polygon(_cached_lichaam_poly, _base_color)
+		_draw_textured_poly(_cached_lichaam_poly, lichaam_texture,
 			_make_tint(_base_color, lichaam_texture_opacity, lichaam_color_blend), lichaam_texture_scale)
 
 	# Rok
-	var rok_poly: PackedVector2Array = _clip_polygon_to_band(hip_y, base_y)
-	if rok_poly.size() >= 3:
+	if _cached_rok_poly.size() >= 3:
 		var rok_col: Color = _zone_color(rok_value_offset, rok_sat_offset)
-		draw_colored_polygon(rok_poly, rok_col)
-		_draw_textured_poly(rok_poly, rok_texture,
+		draw_colored_polygon(_cached_rok_poly, rok_col)
+		_draw_textured_poly(_cached_rok_poly, rok_texture,
 			_make_tint(rok_col, rok_texture_opacity, rok_color_blend), rok_texture_scale)
 
 
@@ -814,17 +838,14 @@ func _draw_rok_decoration(hip_y: float, base_y: float) -> void:
 # ── Gouden trim ──────────────────────────────────────────────────────
 
 func _draw_gold_trim() -> void:
-	if _polygon.size() < 3:
-		return
-	var inset_poly: PackedVector2Array = _inset_polygon(gold_trim_inset)
-	if inset_poly.size() < 3:
+	if _cached_inset_poly.size() < 3:
 		return
 
 	var to_light: Vector2 = Vector2(0.7, -0.7).normalized()
-	var n: int = inset_poly.size()
+	var n: int = _cached_inset_poly.size()
 	for i in n:
-		var p1: Vector2 = inset_poly[i]
-		var p2: Vector2 = inset_poly[(i + 1) % n]
+		var p1: Vector2 = _cached_inset_poly[i]
+		var p2: Vector2 = _cached_inset_poly[(i + 1) % n]
 		draw_line(p1, p2, gold_color, gold_trim_width)
 
 		# 3D trim: highlight/schaduw per segment op basis van lichtrichting

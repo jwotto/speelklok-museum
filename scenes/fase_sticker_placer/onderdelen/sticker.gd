@@ -96,6 +96,7 @@ var _shadow_last_scale: float = 0.0
 
 # Outline shader
 var _outline_shader = preload("res://scenes/fase_sticker_placer/onderdelen/sticker_outline.gdshader")
+var _cached_outline_width: float = -1.0
 
 # Selectie systeem
 var selected: bool = false
@@ -110,6 +111,7 @@ var _snapping_back: bool = false
 func _ready() -> void:
 	_base_scale = scale.x  # Sla start-grootte op als basis
 	_target_scale = scale
+	set_process(false)  # Start idle, wordt geactiveerd bij interactie
 
 
 func _process(delta: float) -> void:
@@ -117,6 +119,10 @@ func _process(delta: float) -> void:
 	_process_smooth_scale(delta)
 	_process_shadow(delta)
 	_process_outline()
+	# Schakel process uit als alles idle is
+	if not dragging and not _inertia_active and not _scale_smoothing_active \
+			and _shadow_node == null and not selected:
+		set_process(false)
 
 
 # === INPUT HANDLING ===
@@ -198,6 +204,7 @@ func _on_drag(event: InputEventScreenDrag) -> void:
 
 func _start_drag() -> void:
 	## Start een drag operatie - stopt inertia en reset velocity tracking
+	set_process(true)
 	_inertia_active = false
 	_velocity = Vector2.ZERO
 	_velocity_samples.clear()
@@ -316,6 +323,7 @@ func _select() -> void:
 		_selected_sticker._deselect()
 	_selected_sticker = self
 	selected = true
+	set_process(true)
 	if material == null:
 		_setup_outline()
 	_set_outline(true)
@@ -344,6 +352,9 @@ func _process_outline() -> void:
 	if not selected:
 		return
 	var width = outline_screen_width / scale.x
+	if absf(width - _cached_outline_width) < 0.05:
+		return
+	_cached_outline_width = width
 	if material is ShaderMaterial:
 		material.set_shader_parameter("outline_width", width)
 	for child in get_children():
@@ -484,6 +495,7 @@ func _set_target_scale(new_scale: Vector2) -> void:
 	## Zet een target scale voor smooth interpolatie
 	_target_scale = new_scale
 	_scale_smoothing_active = true
+	set_process(true)
 	# Direct toepassen tijdens drag voor responsive gevoel
 	if dragging:
 		scale = new_scale
@@ -523,8 +535,8 @@ func _process_shadow(delta: float) -> void:
 	var prev = _shadow_opacity
 	_shadow_opacity = lerpf(_shadow_opacity, target, 15.0 * delta)
 	# Hertekenen als opacity of schaal merkbaar verandert
-	var scale_changed = absf(scale.x - _shadow_last_scale) > 0.005
-	if absf(_shadow_opacity - prev) > 0.005 or scale_changed:
+	var scale_changed = absf(scale.x - _shadow_last_scale) > 0.02
+	if absf(_shadow_opacity - prev) > 0.02 or scale_changed:
 		_shadow_last_scale = scale.x
 		_shadow_node.queue_redraw()
 	# Verwijder shadow node als fade-out klaar is

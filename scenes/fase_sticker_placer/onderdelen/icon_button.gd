@@ -41,6 +41,7 @@ func _ready() -> void:
 	pivot_offset = Vector2(button_size, button_size) / 2
 	button_down.connect(_on_press)
 	button_up.connect(_on_release)
+	visibility_changed.connect(_on_visibility_changed)
 	_start_pulse()
 
 
@@ -163,11 +164,11 @@ func _draw_thick_line(img: Image, from: Vector2, to: Vector2, thickness: int) ->
 
 func _start_pulse() -> void:
 	_pulse_tween = create_tween().set_loops()
-	var angle = deg_to_rad(3.0)
-	_pulse_tween.tween_property(self, "scale", Vector2(1.04, 1.04), 1.2).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-	_pulse_tween.parallel().tween_property(self, "rotation", angle, 1.2).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-	_pulse_tween.tween_property(self, "scale", Vector2(0.96, 0.96), 1.2).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
-	_pulse_tween.parallel().tween_property(self, "rotation", -angle, 1.2).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	var angle = deg_to_rad(2.0)
+	_pulse_tween.tween_property(self, "scale", Vector2(1.02, 1.02), 1.8).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	_pulse_tween.parallel().tween_property(self, "rotation", angle, 1.8).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	_pulse_tween.tween_property(self, "scale", Vector2(0.98, 0.98), 1.8).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
+	_pulse_tween.parallel().tween_property(self, "rotation", -angle, 1.8).set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_SINE)
 
 
 func _stop_pulse() -> void:
@@ -192,3 +193,14 @@ func _on_release() -> void:
 	_press_tween.tween_property(self, "scale", Vector2.ONE, 0.4)
 	_press_tween.tween_property(self, "rotation", 0.0, 0.4)
 	_press_tween.chain().tween_callback(_start_pulse)
+
+
+func _on_visibility_changed() -> void:
+	if Engine.is_editor_hint():
+		return
+	if is_visible_in_tree():
+		_start_pulse()
+	else:
+		_stop_pulse()
+		scale = Vector2.ONE
+		rotation = 0.0
