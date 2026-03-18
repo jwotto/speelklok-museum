@@ -44,14 +44,24 @@ signal closed
 @onready var _grid: GridContainer = $Panel/ScrollContainer/MarginContainer/GridContainer
 @onready var _close_button: Button = $Panel/CloseButton
 
+## State machine voor touch input:
+##   IDLE           - niks aan de hand
+##   PRESSING       - vinger op sticker knop (visuele feedback)
+##   SCROLLING      - aan het scrollen via grid
+##   BAR_ANIMATING  - scrollbar thumb animeert naar klik-positie
+##   BAR_DRAGGING   - scrollbar thumb wordt gesleept
+enum TouchState { IDLE, PRESSING, SCROLLING, BAR_ANIMATING, BAR_DRAGGING }
+
 var _is_open: bool = false
 var _grid_populated: bool = false
 var _picker_btn_script = preload("res://scenes/fase_sticker_placer/onderdelen/sticker_picker_button.gd")
 var _outline_shader = preload("res://scenes/fase_sticker_placer/onderdelen/sticker_outline.gdshader")
 var _scroll_track: Panel
 var _scroll_thumb: Panel
-var _scrollbar_dragging: bool = false
-var _active_btn: TextureButton = null
+var _state: TouchState = TouchState.IDLE
+var _pressed_btn: TextureButton = null
+var _bar_drag_offset: float = 0.0
+var _bar_tween: Tween = null
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -178,7 +188,7 @@ func _style_scrollbar() -> void:
 	_scroll_track.add_child(_scroll_thumb)
 
 	vbar.value_changed.connect(_update_scroll_indicator)
-	vbar.value_changed.connect(_on_scroll_changed)
+	vbar.value_changed.connect(_on_scroll_value_changed)
 	vbar.changed.connect(func(): _update_scroll_indicator(vbar.value))
 	_scroll.resized.connect(func(): _update_scroll_indicator(vbar.value))
 
@@ -188,22 +198,73 @@ func _style_scrollbar() -> void:
 
 func _on_scrollbar_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		_scrollbar_dragging = event.pressed
 		if event.pressed:
-			_scroll_to_track_pos(event.position.y)
+			_deactivate_pressed_btn()
+			var thumb_rect = Rect2(_scroll_thumb.position, _scroll_thumb.size)
+			if thumb_rect.has_point(event.position):
+				# Klik op thumb → direct slepen
+				_state = TouchState.BAR_DRAGGING
+				_bar_drag_offset = event.position.y - _scroll_thumb.position.y
+			else:
+				# Klik op track → animeer thumb ernaartoe
+				_state = TouchState.BAR_ANIMATING
+				_bar_drag_offset = _scroll_thumb.size.y / 2
+				_bar_animate_to(event.position.y - _bar_drag_offset)
+		else:
+			# Release → IDLE
+			_kill_bar_tween()
+			_state = TouchState.IDLE
 		_scroll_track.accept_event()
-	elif event is InputEventMouseMotion and _scrollbar_dragging:
-		_scroll_to_track_pos(event.position.y)
-		_scroll_track.accept_event()
+	elif event is InputEventMouseMotion:
+		match _state:
+			TouchState.BAR_ANIMATING:
+				# Animatie loopt, gebruiker sleept → stop animatie, sleep vanaf huidige positie
+				_kill_bar_tween()
+				_state = TouchState.BAR_DRAGGING
+				_bar_drag_offset = event.position.y - _scroll_thumb.position.y
+				_scroll_track.accept_event()
+			TouchState.BAR_DRAGGING:
+				_scroll_to_track_pos(event.position.y - _bar_drag_offset)
+				_scroll_track.accept_event()
 
 
-func _scroll_to_track_pos(y: float) -> void:
+func _scroll_to_track_pos(thumb_top: float) -> void:
 	var vbar = _scroll.get_v_scroll_bar()
 	var max_scroll = vbar.max_value - vbar.page
 	if max_scroll <= 0:
 		return
-	var ratio = clampf(y / _scroll_track.size.y, 0.0, 1.0)
+	var track_height = _scroll_track.size.y
+	var thumb_height = _scroll_thumb.size.y
+	var max_thumb_y = track_height - thumb_height
+	if max_thumb_y <= 0:
+		return
+	var ratio = clampf(thumb_top / max_thumb_y, 0.0, 1.0)
 	_scroll.scroll_vertical = int(ratio * max_scroll)
+
+
+func _bar_animate_to(thumb_top: float) -> void:
+	## Animeer scroll naar positie (bij klik buiten thumb)
+	var vbar = _scroll.get_v_scroll_bar()
+	var max_scroll = vbar.max_value - vbar.page
+	if max_scroll <= 0:
+		return
+	var track_height = _scroll_track.size.y
+	var thumb_height = _scroll_thumb.size.y
+	var max_thumb_y = track_height - thumb_height
+	if max_thumb_y <= 0:
+		return
+	var ratio = clampf(thumb_top / max_thumb_y, 0.0, 1.0)
+	var target = int(ratio * max_scroll)
+	_kill_bar_tween()
+	_bar_tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	_bar_tween.tween_method(func(v: int): _scroll.scroll_vertical = v, _scroll.scroll_vertical, target, 0.2)
+	# Blijf in BAR_ANIMATING — offset wordt berekend bij eerste drag motion
+
+
+func _kill_bar_tween() -> void:
+	if _bar_tween and _bar_tween.is_valid():
+		_bar_tween.kill()
+	_bar_tween = null
 
 
 func _update_scroll_indicator(value: float) -> void:
@@ -286,8 +347,8 @@ func _populate_grid() -> void:
 			btn.set_meta("hover_angle", deg_to_rad(randf_range(-6.0, 6.0)))
 
 			# Touch: button_down = visuele feedback, _input release = selectie
-			btn.button_down.connect(_on_btn_activate.bind(btn))
-			btn.button_up.connect(_on_btn_deactivate.bind(btn))
+			btn.button_down.connect(_on_btn_down.bind(btn))
+			btn.button_up.connect(_on_btn_up.bind(btn))
 			btn.set_meta("scene", scene)
 
 		_grid.add_child(btn)
@@ -402,16 +463,29 @@ func _kill_btn_tween(btn: TextureButton) -> void:
 		old_tween.kill()
 
 
-func _on_scroll_changed(_value: float) -> void:
-	## Bij scrollen: actieve knop loslaten
-	if _active_btn:
-		_on_btn_deactivate(_active_btn)
+func _on_scroll_value_changed(_value: float) -> void:
+	## PRESSING → SCROLLING: scroll positie veranderd terwijl knop ingedrukt
+	if _state == TouchState.PRESSING:
+		_deactivate_pressed_btn()
+		_state = TouchState.SCROLLING
 
 
-func _on_btn_activate(btn: TextureButton) -> void:
-	if _active_btn and _active_btn != btn:
-		_on_btn_deactivate(_active_btn)
-	_active_btn = btn
+func _on_btn_down(btn: TextureButton) -> void:
+	## IDLE → PRESSING: vinger op een sticker knop
+	if _state != TouchState.IDLE:
+		return
+	_state = TouchState.PRESSING
+	_pressed_btn = btn
+	_activate_btn_visual(btn)
+
+
+func _on_btn_up(btn: TextureButton) -> void:
+	## button_up wordt niet altijd betrouwbaar gevuurd — state machine handelt dit af in _input
+	if _state == TouchState.PRESSING and _pressed_btn == btn:
+		_deactivate_pressed_btn()
+
+
+func _activate_btn_visual(btn: TextureButton) -> void:
 	_kill_btn_tween(btn)
 	var visual = btn.get_meta("visual") as Control
 	_set_outline(visual, true)
@@ -422,9 +496,11 @@ func _on_btn_activate(btn: TextureButton) -> void:
 	btn.set_meta("tween", tween)
 
 
-func _on_btn_deactivate(btn: TextureButton) -> void:
-	if _active_btn == btn:
-		_active_btn = null
+func _deactivate_pressed_btn() -> void:
+	if _pressed_btn == null:
+		return
+	var btn = _pressed_btn
+	_pressed_btn = null
 	_kill_btn_tween(btn)
 	var visual = btn.get_meta("visual") as Control
 	_set_outline(visual, false)
@@ -459,19 +535,37 @@ func _set_outline(visual: Control, enabled: bool) -> void:
 
 
 func _input(event: InputEvent) -> void:
-	## Release = actie (touch-friendly: release op knop telt als klik)
 	if Engine.is_editor_hint() or not _is_open:
 		return
+
+	# PRESSING: vinger van knop af gesleept → deactiveer
+	if event is InputEventMouseMotion and _state == TouchState.PRESSING and _pressed_btn:
+		if not _pressed_btn.get_global_rect().has_point(event.position):
+			_deactivate_pressed_btn()
+			_state = TouchState.IDLE
+
+	# Touch release
 	if event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		# Check sticker knoppen via pixel-detectie
-		var btn = _find_btn_with_has_point(event.position)
-		if btn:
-			var scene = btn.get_meta("scene", null) as PackedScene
-			if scene:
-				_on_sticker_pressed(scene, btn)
-				get_viewport().set_input_as_handled()
+		match _state:
+			TouchState.PRESSING:
+				# Vinger los op knop → selecteer sticker
+				_deactivate_pressed_btn()
+				_state = TouchState.IDLE
+				var btn = _find_btn_with_has_point(event.position)
+				if btn:
+					var scene = btn.get_meta("scene", null) as PackedScene
+					if scene:
+						_on_sticker_pressed(scene, btn)
+						get_viewport().set_input_as_handled()
+						return
+			TouchState.SCROLLING, TouchState.BAR_ANIMATING, TouchState.BAR_DRAGGING:
+				# Na scrollen: GEEN selectie
+				_kill_bar_tween()
+				_state = TouchState.IDLE
 				return
-		# Close button
+			TouchState.IDLE:
+				pass
+		# Close button (alleen vanuit IDLE/PRESSING)
 		if _close_button.get_global_rect().has_point(event.position):
 			close()
 			get_viewport().set_input_as_handled()
@@ -514,6 +608,9 @@ func open() -> void:
 
 
 func close() -> void:
+	_deactivate_pressed_btn()
+	_kill_bar_tween()
+	_state = TouchState.IDLE
 	_is_open = false
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_background.mouse_filter = Control.MOUSE_FILTER_IGNORE
