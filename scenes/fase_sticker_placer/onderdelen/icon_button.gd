@@ -4,7 +4,7 @@ class_name IconButton
 
 ## Configureerbare button met kleur, afgeronde hoeken en icoon
 
-enum IconType { NONE, ADD, TRASH, CHECKMARK, CLOSE }
+enum IconType { NONE, ADD, TRASH, CHECKMARK, CLOSE, PLAY, STOP }
 
 @export var icon_type: IconType = IconType.NONE:
 	set(value):
@@ -59,6 +59,10 @@ func _regenerate() -> void:
 			_draw_checkmark_icon(img)
 		IconType.CLOSE:
 			_draw_close_icon(img)
+		IconType.PLAY:
+			_draw_play_icon(img)
+		IconType.STOP:
+			_draw_stop_icon(img)
 	texture_normal = ImageTexture.create_from_image(img)
 	custom_minimum_size = Vector2(button_size, button_size)
 
@@ -153,6 +157,56 @@ func _draw_close_icon(img: Image) -> void:
 	var p_bl = Vector2(margin * s, (1.0 - margin) * s)
 	_draw_thick_line(img, p_tl, p_br, thick)
 	_draw_thick_line(img, p_tr, p_bl, thick)
+
+
+func _draw_play_icon(img: Image) -> void:
+	var s = button_size
+	var sc: float = s / 120.0
+	var thick = int(7 * sc)
+	## Driehoek: links-boven naar rechts-midden naar links-onder
+	var p0 = Vector2(0.35 * s, 0.25 * s)
+	var p1 = Vector2(0.75 * s, 0.50 * s)
+	var p2 = Vector2(0.35 * s, 0.75 * s)
+	_draw_thick_line(img, p0, p1, thick)
+	_draw_thick_line(img, p1, p2, thick)
+	_draw_thick_line(img, p2, p0, thick)
+	_fill_triangle(img, p0, p1, p2)
+
+
+func _draw_stop_icon(img: Image) -> void:
+	var s = button_size
+	var margin = 0.30
+	var x0 = int(margin * s)
+	var y0 = int(margin * s)
+	var x1 = int((1.0 - margin) * s)
+	var y1 = int((1.0 - margin) * s)
+	for x in range(x0, x1):
+		for y in range(y0, y1):
+			if _is_in_rounded_rect(x, y, s, s, corner_radius):
+				img.set_pixel(x, y, icon_color)
+
+
+func _fill_triangle(img: Image, a: Vector2, b: Vector2, c: Vector2) -> void:
+	var w = img.get_width()
+	var h = img.get_height()
+	var min_x = int(minf(a.x, minf(b.x, c.x)))
+	var max_x = int(maxf(a.x, maxf(b.x, c.x)))
+	var min_y = int(minf(a.y, minf(b.y, c.y)))
+	var max_y = int(maxf(a.y, maxf(b.y, c.y)))
+	for x in range(max(0, min_x), min(w, max_x + 1)):
+		for y in range(max(0, min_y), min(h, max_y + 1)):
+			if _point_in_triangle(Vector2(x, y), a, b, c):
+				if _is_in_rounded_rect(x, y, w, h, corner_radius):
+					img.set_pixel(x, y, icon_color)
+
+
+func _point_in_triangle(p: Vector2, a: Vector2, b: Vector2, c: Vector2) -> bool:
+	var d1 = (p.x - b.x) * (a.y - b.y) - (a.x - b.x) * (p.y - b.y)
+	var d2 = (p.x - c.x) * (b.y - c.y) - (b.x - c.x) * (p.y - c.y)
+	var d3 = (p.x - a.x) * (c.y - a.y) - (c.x - a.x) * (p.y - a.y)
+	var has_neg = (d1 < 0) or (d2 < 0) or (d3 < 0)
+	var has_pos = (d1 > 0) or (d2 > 0) or (d3 > 0)
+	return not (has_neg and has_pos)
 
 
 func _draw_thick_line(img: Image, from: Vector2, to: Vector2, thickness: int) -> void:

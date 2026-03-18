@@ -16,6 +16,7 @@ signal phase_completed
 @onready var _sticker_container: Node2D = $Stickers
 @onready var _trash_button: IconButton = $UILayer/StickerSliders/TrashButton
 @onready var _add_button: IconButton = $UILayer/StickerSliders/AddButton
+@onready var _play_button: IconButton = $UILayer/StickerSliders/PlayButton
 @onready var _picker: StickerPicker = $UILayer/StickerPicker
 @onready var _slider_container: HBoxContainer = $UILayer/StickerSliders
 @onready var _rotate_slider: Control = $UILayer/StickerSliders/RotateSlider
@@ -26,10 +27,12 @@ var _last_touch_pos: Vector2 = Vector2.ZERO  # Laatste vinger/muis positie
 var _trash_highlighted: bool = false
 var _any_dragging: bool = false
 var _picker_open: bool = false
+var _is_playing: bool = false
 var _tracked_sticker: Sticker = null
 var _updating_sliders: bool = false
 var _organ_polygon_world: PackedVector2Array = PackedVector2Array()
 var _organ_center: Vector2 = Vector2.ZERO
+var _audio_player: Node2D = null  ## AudioLayerPlayer
 
 
 func _ready() -> void:
@@ -42,12 +45,19 @@ func _ready() -> void:
 
 	# Runtime setup
 	_trash_button.visible = false
+	_play_button.visible = false
 	_add_button.pressed.connect(_on_add_pressed)
+	_play_button.pressed.connect(_on_play_pressed)
 	_picker.sticker_selected.connect(_on_sticker_selected)
 	_picker.opened.connect(_on_picker_opened)
 	_picker.closed.connect(_on_picker_closed)
 	_rotate_slider.value_changed.connect(_on_rotate_slider_changed)
 	_scale_slider.value_changed.connect(_on_scale_slider_changed)
+
+	# Audio systeem
+	var AudioLayerPlayerScript = preload("res://scenes/fase_sticker_placer/onderdelen/audio_layer_player.gd")
+	_audio_player = AudioLayerPlayerScript.new()
+	add_child(_audio_player)
 
 
 func _on_add_pressed() -> void:
@@ -74,8 +84,20 @@ func _update_button_visibility() -> void:
 		return
 	# Container altijd zichtbaar (bevat nu ook knoppen)
 	_slider_container.visible = true
+	var has_stickers = _sticker_container.get_child_count() > 0
+
+	if _is_playing:
+		# Tijdens afspelen: alleen stop button tonen
+		_trash_button.visible = false
+		_add_button.visible = false
+		_play_button.visible = true
+		_rotate_slider.visible = false
+		_scale_slider.visible = false
+		return
+
 	_trash_button.visible = _any_dragging
 	_add_button.visible = not _any_dragging
+	_play_button.visible = has_stickers and not _any_dragging
 	# Sliders: alleen tonen als sticker geselecteerd
 	var show_sliders := _tracked_sticker != null
 	_rotate_slider.visible = show_sliders
@@ -84,7 +106,7 @@ func _update_button_visibility() -> void:
 
 func _is_touch_over_ui(pos: Vector2) -> bool:
 	## Check of de positie boven een UI element valt
-	for btn: Control in [_add_button, _trash_button]:
+	for btn: Control in [_add_button, _trash_button, _play_button]:
 		if btn.visible and btn.get_global_rect().has_point(pos):
 			return true
 	if _slider_container.visible and _slider_container.get_global_rect().has_point(pos):
@@ -212,6 +234,8 @@ func _process(_delta: float) -> void:
 		return
 	_check_trash_zone()
 	_update_sliders()
+	if _is_playing:
+		_update_sticker_pulse()
 
 
 func _input(event: InputEvent) -> void:
@@ -296,6 +320,66 @@ func _delete_sticker(sticker: Sticker, trash_center: Vector2) -> void:
 	tween.tween_property(sticker, "rotation", sticker.rotation + TAU, 0.25).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tween.tween_property(sticker, "modulate:a", 0.0, 0.2).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tween.chain().tween_callback(sticker.queue_free)
+
+
+# === AUDIO PLAYBACK ===
+
+func _on_play_pressed() -> void:
+	if _is_playing:
+		_stop_playback()
+	else:
+		_start_playback()
+
+
+func _start_playback() -> void:
+	var active = _scan_active_instruments()
+	if active.is_empty():
+		return
+	_is_playing = true
+	_play_button.icon_type = IconButton.IconType.STOP
+	# Lock sticker interactie
+	_set_stickers_input(false)
+	# Deselecteer huidige sticker
+	if Sticker._selected_sticker:
+		Sticker._selected_sticker._deselect()
+	_audio_player.play_layers(active)
+	_update_button_visibility()
+
+
+func _stop_playback() -> void:
+	_is_playing = false
+	_play_button.icon_type = IconButton.IconType.PLAY
+	_audio_player.stop_playback()
+	# Reset sticker schalen
+	for sticker in _sticker_container.get_children():
+		if sticker is Sticker:
+			sticker.reset_audio_pulse()
+	_set_stickers_input(true)
+	_update_button_visibility()
+
+
+func _scan_active_instruments() -> Dictionary:
+	## Bouw dictionary: instrument_id → volume (altijd 1.0) op basis van geplaatste stickers
+	var result: Dictionary = {}
+	for sticker in _sticker_container.get_children():
+		if not sticker is Sticker:
+			continue
+		var instrument_id = sticker.scene_file_path.get_file().get_basename()
+		if instrument_id.is_empty():
+			continue
+		result[instrument_id] = 1.0
+	return result
+
+
+func _update_sticker_pulse() -> void:
+	## Pas sticker schaal aan op basis van hun instrument's audio amplitude
+	var magnitudes = _audio_player.get_all_magnitudes()
+	for sticker in _sticker_container.get_children():
+		if not sticker is Sticker:
+			continue
+		var instrument_id = sticker.scene_file_path.get_file().get_basename()
+		var mag = magnitudes.get(instrument_id, 0.0)
+		sticker.set_audio_pulse(mag)
 
 
 # === SLIDERS ===

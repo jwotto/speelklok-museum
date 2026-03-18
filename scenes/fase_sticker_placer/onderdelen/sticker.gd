@@ -71,6 +71,7 @@ var touch_local_points: Dictionary = {}
 
 # Smooth scaling
 var _target_scale: Vector2 = Vector2.ONE
+var _target_rotation: float = 0.0
 var _scale_smoothing_active: bool = false
 var _base_scale: float = 1.0  # Start-grootte wordt basis voor min/max
 
@@ -96,6 +97,7 @@ var _snapping_back: bool = false
 func _ready() -> void:
 	_base_scale = scale.x  # Sla start-grootte op als basis
 	_target_scale = scale
+	_target_rotation = rotation
 	set_process(false)  # Start idle, wordt geactiveerd bij interactie
 
 
@@ -409,6 +411,7 @@ func _calculate_rotation_from_pinch(p0: Vector2, p1: Vector2, local0: Vector2, l
 	var original_angle = (local1 - local0).angle()
 	var current_angle = (p1 - p0).angle()
 	rotation = current_angle - original_angle
+	_target_rotation = rotation
 
 
 # === SMOOTH SCALING SYSTEEM ===
@@ -425,7 +428,7 @@ func _set_target_scale(new_scale: Vector2) -> void:
 
 func _process_smooth_scale(_delta: float) -> void:
 	## Interpoleer schaal naar target voor vloeiende overgangen
-	if not _scale_smoothing_active or dragging:
+	if not _scale_smoothing_active or dragging or _audio_pulsing:
 		return
 
 	scale = scale.lerp(_target_scale, scale_smoothing)
@@ -543,3 +546,32 @@ func _check_pixel_alpha(x: int, y: int, size: Vector2) -> bool:
 		var pixel = _hit_image.get_pixel(x, y)
 		return pixel.a > 0.1
 	return false
+
+
+# === AUDIO PULSE ===
+
+var _audio_pulsing: bool = false
+
+func set_audio_pulse(magnitude: float) -> void:
+	## Pas schaal aan op basis van audio amplitude van dit instrument
+	## Squash & stretch: bij hoge magnitude wordt sticker breder+korter, dan terug
+	if dragging:
+		return
+	if not _audio_pulsing:
+		# Eerste frame van pulse: sla huidige rotatie op als basis
+		_target_rotation = rotation
+	_audio_pulsing = true
+	_scale_smoothing_active = false
+	var pulse_amount = magnitude * 0.30  # Max 30%
+	var squash_x = 1.0 + pulse_amount  # Breder
+	var squash_y = 1.0 - pulse_amount * 0.4  # Iets korter (40% van de breedte-toename)
+	scale = Vector2(_target_scale.x * squash_x, _target_scale.y * squash_y)
+	# Rotatie wobble: bovenop de ingestelde rotatie
+	rotation = _target_rotation + sin(Time.get_ticks_msec() * 0.012) * magnitude * 0.15
+
+
+func reset_audio_pulse() -> void:
+	## Reset pulse — herstel originele schaal en rotatie
+	_audio_pulsing = false
+	scale = _target_scale
+	rotation = _target_rotation

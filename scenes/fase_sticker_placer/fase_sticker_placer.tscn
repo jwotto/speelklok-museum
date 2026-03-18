@@ -25,6 +25,7 @@
 [ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/banjo.tscn" id="25_banjo"]
 [ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/fietsbel.tscn" id="26_fietsbel"]
 [ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/toeter.tscn" id="27_toeter"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/play_button.tscn" id="28_play"]
 
 [sub_resource type="Gradient" id="Gradient_bg"]
 offsets = PackedFloat32Array(0, 0.5, 1)
@@ -140,6 +141,13 @@ texture_normal = SubResource("ImageTexture_5gqyt")
 button_size = 120
 color = Color(1, 1, 1, 1)
 icon_color = Color(1, 1, 1, 0)
+
+[node name="PlayButton" parent="UILayer/StickerSliders" instance=ExtResource("28_play")]
+visible = false
+z_index = 50
+custom_minimum_size = Vector2(120, 120)
+layout_mode = 2
+size_flags_vertical = 4
 
 [node name="ScaleSlider" type="Control" parent="UILayer/StickerSliders" unique_id=366018914]
 custom_minimum_size = Vector2(420, 70)
