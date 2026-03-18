@@ -4,7 +4,7 @@ class_name IconButton
 
 ## Configureerbare button met kleur, afgeronde hoeken en icoon
 
-enum IconType { NONE, ADD, TRASH, CHECKMARK }
+enum IconType { NONE, ADD, TRASH, CHECKMARK, CLOSE }
 
 @export var icon_type: IconType = IconType.NONE:
 	set(value):
@@ -57,6 +57,8 @@ func _regenerate() -> void:
 			_draw_trash_icon(img)
 		IconType.CHECKMARK:
 			_draw_checkmark_icon(img)
+		IconType.CLOSE:
+			_draw_close_icon(img)
 	texture_normal = ImageTexture.create_from_image(img)
 	custom_minimum_size = Vector2(button_size, button_size)
 
@@ -138,6 +140,19 @@ func _draw_checkmark_icon(img: Image) -> void:
 	var p2 = Vector2(0.75 * s, 0.28 * s)
 	_draw_thick_line(img, p0, p1, thick)
 	_draw_thick_line(img, p1, p2, thick)
+
+
+func _draw_close_icon(img: Image) -> void:
+	var s = button_size
+	var sc: float = s / 120.0
+	var thick = int(7 * sc)
+	var margin = 0.30
+	var p_tl = Vector2(margin * s, margin * s)
+	var p_br = Vector2((1.0 - margin) * s, (1.0 - margin) * s)
+	var p_tr = Vector2((1.0 - margin) * s, margin * s)
+	var p_bl = Vector2(margin * s, (1.0 - margin) * s)
+	_draw_thick_line(img, p_tl, p_br, thick)
+	_draw_thick_line(img, p_tr, p_bl, thick)
 
 
 func _draw_thick_line(img: Image, from: Vector2, to: Vector2, thickness: int) -> void:

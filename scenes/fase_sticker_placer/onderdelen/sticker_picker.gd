@@ -42,7 +42,7 @@ signal closed
 @onready var _scroll: ScrollContainer = $Panel/ScrollContainer
 @onready var _margin: MarginContainer = $Panel/ScrollContainer/MarginContainer
 @onready var _grid: GridContainer = $Panel/ScrollContainer/MarginContainer/GridContainer
-@onready var _close_button: Button = $Panel/CloseButton
+@onready var _close_button: TextureButton = $CloseButton
 
 ## State machine voor touch input:
 ##   IDLE           - niks aan de hand

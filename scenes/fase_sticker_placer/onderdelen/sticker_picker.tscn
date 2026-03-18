@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://b51a205s8imei"]
 
 [ext_resource type="Script" uid="uid://dbf0a3mp4f7eg" path="res://scenes/fase_sticker_placer/onderdelen/sticker_picker.gd" id="1_script"]
+[ext_resource type="Script" path="res://scenes/fase_sticker_placer/onderdelen/icon_button.gd" id="2_icon_btn"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_2u7bs"]
 bg_color = Color(0.15, 0.15, 0.15, 0.9)
@@ -36,7 +37,7 @@ anchor_bottom = 1.0
 offset_left = 70.0
 offset_top = 40.0
 offset_right = -70.0
-offset_bottom = -40.0
+offset_bottom = -240.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_2u7bs")
@@ -61,17 +62,21 @@ theme_override_constants/h_separation = 25
 theme_override_constants/v_separation = 25
 columns = 3
 
-[node name="CloseButton" type="Button" parent="Panel" unique_id=977040491]
+[node name="CloseButton" type="TextureButton" parent="." unique_id=977040491]
 layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -140.0
-offset_top = 2.0
-offset_right = -2.0
-offset_bottom = 140.0
-grow_horizontal = 0
-theme_override_constants/h_separation = 0
-theme_override_font_sizes/font_size = 96
-text = "✕"
-flat = true
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -60.0
+offset_top = -190.0
+offset_right = 60.0
+offset_bottom = -70.0
+grow_horizontal = 2
+grow_vertical = 0
+script = ExtResource("2_icon_btn")
+icon_type = 4
+button_size = 120
+color = Color(1, 1, 1, 1)
+icon_color = Color(1, 1, 1, 0)

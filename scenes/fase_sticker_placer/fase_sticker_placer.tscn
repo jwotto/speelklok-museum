@@ -16,6 +16,15 @@
 [ext_resource type="Script" uid="uid://mcv8jddcd75d" path="res://scenes/fase_sticker_placer/onderdelen/sticker_slider.gd" id="15_slider"]
 [ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/trompet.tscn" id="16_trompet"]
 [ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/speelkam.tscn" id="17_speelkam"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/orgelpijp_metaal.tscn" id="19_orgelpijp_metaal"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/castagnettes.tscn" id="20_castagnettes"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/elektrische_gitaar.tscn" id="21_elektrische_gitaar"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/tuba.tscn" id="22_tuba"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/accordeon.tscn" id="23_accordeon"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/piano.tscn" id="24_piano"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/banjo.tscn" id="25_banjo"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/fietsbel.tscn" id="26_fietsbel"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/toeter.tscn" id="27_toeter"]
 
 [sub_resource type="Gradient" id="Gradient_bg"]
 offsets = PackedFloat32Array(0, 0.5, 1)
@@ -74,7 +83,7 @@ texture = SubResource("GradientTexture2D_bg")
 layer = 10
 
 [node name="StickerPicker" parent="UILayer" unique_id=1920061030 instance=ExtResource("12_picker")]
-sticker_scenes = Array[PackedScene]([ExtResource("4_snaredrum"), ExtResource("18_hihat"), ExtResource("5_bongo"), ExtResource("6_contrabas"), ExtResource("7_gitaar"), ExtResource("8_orgelpijp"), ExtResource("9_viool"), ExtResource("10_xylofoon"), ExtResource("11_bellen"), ExtResource("16_trompet"), ExtResource("17_speelkam")])
+sticker_scenes = Array[PackedScene]([ExtResource("4_snaredrum"), ExtResource("18_hihat"), ExtResource("5_bongo"), ExtResource("6_contrabas"), ExtResource("7_gitaar"), ExtResource("8_orgelpijp"), ExtResource("19_orgelpijp_metaal"), ExtResource("9_viool"), ExtResource("10_xylofoon"), ExtResource("11_bellen"), ExtResource("16_trompet"), ExtResource("17_speelkam"), ExtResource("20_castagnettes"), ExtResource("21_elektrische_gitaar"), ExtResource("22_tuba"), ExtResource("23_accordeon"), ExtResource("24_piano"), ExtResource("25_banjo"), ExtResource("26_fietsbel"), ExtResource("27_toeter")])
 panel_gradient = SubResource("GradientTexture2D_picker")
 
 [node name="StickerSliders" type="HBoxContainer" parent="UILayer" unique_id=2086034980]
