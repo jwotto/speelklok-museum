@@ -283,6 +283,29 @@ sudo reboot
 ```
 Verbind daarna via Windows Remote Desktop Connection (mstsc) op het Tailscale IP.
 
+### 13. Fish shell + btop (terminal tools)
+
+**Fish** — interactieve shell met autosuggestions en syntax highlighting:
+```bash
+sudo apt install -y fish
+chsh -s /usr/bin/fish    # maak het de default shell
+```
+Bij volgende SSH-sessie start Fish automatisch. Terug naar bash: `chsh -s /bin/bash`.
+
+**btop** — systeemmonitor (CPU, RAM, disk, netwerk + GPU):
+```bash
+sudo apt install -y btop rocm-smi
+```
+`rocm-smi` is nodig voor AMD GPU-monitoring (780M). Zonder rocm-smi toont btop geen GPU-data.
+
+Start met `btop`, GPU-stats staan onderaan de CPU-box (gebruik %, VRAM, temperatuur).
+
+**radeontop** — gedetailleerde AMD GPU-monitor:
+```bash
+sudo apt install -y radeontop
+```
+Start met `sudo radeontop`. Toont UNKNOWN_CHIP voor de 780M maar data klopt wel.
+
 ### Troubleshooting
 - **RDP verbinding mislukt**: `gnome-remote-desktop` service staat standaard niet aan. Fix: `systemctl --user enable gnome-remote-desktop && systemctl --user start gnome-remote-desktop`
 - **sudo via SSH werkt niet**: Commando's met `sudo` werken niet via niet-interactieve SSH (`ssh user@ip "sudo ..."`) — je moet eerst interactief inloggen (`ssh user@ip`) en dan sudo uitvoeren

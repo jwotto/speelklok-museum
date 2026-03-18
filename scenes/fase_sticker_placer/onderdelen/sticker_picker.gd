@@ -45,6 +45,7 @@ signal closed
 var _is_open: bool = false
 var _grid_populated: bool = false
 var _picker_btn_script = preload("res://scenes/fase_sticker_placer/onderdelen/sticker_picker_button.gd")
+var _outline_shader = preload("res://scenes/fase_sticker_placer/onderdelen/sticker_outline.gdshader")
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -305,6 +306,7 @@ func _kill_btn_tween(btn: TextureButton) -> void:
 func _on_btn_activate(btn: TextureButton) -> void:
 	_kill_btn_tween(btn)
 	var visual = btn.get_meta("visual") as Control
+	_set_outline(visual, true)
 	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tween.set_parallel()
 	tween.tween_property(visual, "rotation", btn.get_meta("hover_angle", 0.0), 0.2)
@@ -315,11 +317,35 @@ func _on_btn_activate(btn: TextureButton) -> void:
 func _on_btn_deactivate(btn: TextureButton) -> void:
 	_kill_btn_tween(btn)
 	var visual = btn.get_meta("visual") as Control
+	_set_outline(visual, false)
 	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
 	tween.set_parallel()
 	tween.tween_property(visual, "rotation", 0.0, 0.4)
 	tween.tween_property(visual, "scale", Vector2.ONE, 0.4)
 	btn.set_meta("tween", tween)
+
+
+func _set_outline(visual: Control, enabled: bool) -> void:
+	## Zet witte outline shader op alle TextureRects in de visual
+	if visual is TextureRect and visual.texture:
+		if enabled:
+			if visual.material == null:
+				var mat = ShaderMaterial.new()
+				mat.shader = _outline_shader
+				mat.set_shader_parameter("outline_color", Color.WHITE)
+				visual.material = mat
+			# Compenseer outline dikte voor schaal (texture pixels vs display pixels)
+			var tex_size = visual.texture.get_size()
+			var display_size = visual.size
+			var scale_ratio = tex_size.x / maxf(display_size.x, 1.0)
+			(visual.material as ShaderMaterial).set_shader_parameter("outline_width", 6.0 * scale_ratio)
+			(visual.material as ShaderMaterial).set_shader_parameter("show_outline", true)
+		else:
+			if visual.material is ShaderMaterial:
+				(visual.material as ShaderMaterial).set_shader_parameter("show_outline", false)
+	for child in visual.get_children():
+		if child is TextureRect:
+			_set_outline(child, enabled)
 
 
 func _input(event: InputEvent) -> void:

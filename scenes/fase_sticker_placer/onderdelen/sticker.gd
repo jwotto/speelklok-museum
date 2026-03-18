@@ -5,7 +5,6 @@ class_name Sticker
 ## Features:
 ## - Drag met 1 vinger
 ## - Pinch/zoom/rotate met 2 vingers (vingers blijven "geplakt")
-## - Inertia: sticker glijdt door na loslaten
 ## - Smooth scaling: vloeiende schaal overgangen
 ## - Schaduw: verschijnt bij oppakken
 
@@ -19,21 +18,13 @@ signal selection_changed(is_selected: bool)
 ## Maximale schaal als multiplier van de start-grootte (2.0 = 2x zo groot)
 @export var max_scale: float = 2.0
 
-@export_group("Inertia")
-## Hoeveel slide/momentum na loslaten (0 = geen, 1 = normaal, 2 = veel)
-@export var inertia_amount: float = 1.0
-## Hoe snel de sticker vertraagt na loslaten (0-1, lager = sneller stoppen)
-@export var inertia_friction: float = 0.95
-## Minimale snelheid voordat inertia stopt
-@export var inertia_min_velocity: float = 5.0
-
 @export_group("Smoothing")
 ## Hoe snel de schaal interpoleert naar target (0-1, hoger = sneller)
 @export var scale_smoothing: float = 0.3
 
 @export_group("Hit Detection")
 ## Extra marge rondom de zichtbare pixels voor klikken (in pixels)
-@export var hit_margin: float = 20.0
+@export var hit_margin: float = 2.0
 
 @export_group("Shadow")
 ## Schaduw tonen bij draggen
@@ -78,12 +69,6 @@ var first_touch_index: int = -1
 # Voor pinch: lokale posities waar vingers de sticker raken
 var touch_local_points: Dictionary = {}
 
-# Inertia systeem
-var _velocity: Vector2 = Vector2.ZERO
-var _velocity_samples: Array[Vector2] = []
-var _inertia_active: bool = false
-const VELOCITY_SAMPLE_COUNT: int = 5  # Aantal frames om te meten
-
 # Smooth scaling
 var _target_scale: Vector2 = Vector2.ONE
 var _scale_smoothing_active: bool = false
@@ -115,12 +100,11 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	_process_inertia(delta)
 	_process_smooth_scale(delta)
 	_process_shadow(delta)
 	_process_outline()
 	# Schakel process uit als alles idle is
-	if not dragging and not _inertia_active and not _scale_smoothing_active \
+	if not dragging and not _scale_smoothing_active \
 			and _shadow_node == null and not selected:
 		set_process(false)
 
@@ -203,11 +187,8 @@ func _on_drag(event: InputEventScreenDrag) -> void:
 # === DRAG SYSTEEM ===
 
 func _start_drag() -> void:
-	## Start een drag operatie - stopt inertia en reset velocity tracking
+	## Start een drag operatie
 	set_process(true)
-	_inertia_active = false
-	_velocity = Vector2.ZERO
-	_velocity_samples.clear()
 	_select()
 	# Shadow apart van selectie (alleen bij body drag)
 	if _shadow_node == null:
@@ -224,7 +205,6 @@ func _end_drag() -> void:
 	if _outside_boundary and _constrain_position.is_valid():
 		get_tree().create_timer(0.05).timeout.connect(_check_snap_back)
 		return
-	_start_inertia()
 
 
 func _check_snap_back() -> void:
@@ -243,8 +223,6 @@ func _check_snap_back() -> void:
 func _snap_back_to(target: Vector2) -> void:
 	## Animeer sticker terug naar de contourrand
 	_snapping_back = true
-	_inertia_active = false
-	_velocity = Vector2.ZERO
 	var tween = create_tween().set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tween.tween_property(self, "global_position", target, 0.3)
 	tween.parallel().tween_property(self, "modulate", Color.WHITE, 0.2)
@@ -289,20 +267,13 @@ func _get_sibling_stickers() -> Array:
 
 
 func _update_single_finger_drag(finger_position: Vector2) -> void:
-	## Update positie bij single finger drag en track velocity voor inertia
+	## Update positie bij single finger drag
 	var new_position = finger_position + drag_offset
 
 	# Visuele feedback: rood kleuren als buiten de contour
 	if _constrain_position.is_valid():
 		var constrained = _constrain_position.call(new_position)
 		_set_outside_tint(constrained.distance_squared_to(new_position) > 100.0)
-
-	var frame_velocity = new_position - global_position
-
-	# Voeg velocity sample toe
-	_velocity_samples.append(frame_velocity)
-	if _velocity_samples.size() > VELOCITY_SAMPLE_COUNT:
-		_velocity_samples.remove_at(0)
 
 	global_position = new_position
 
@@ -440,55 +411,6 @@ func _calculate_rotation_from_pinch(p0: Vector2, p1: Vector2, local0: Vector2, l
 	rotation = current_angle - original_angle
 
 
-# === INERTIA SYSTEEM ===
-
-func _start_inertia() -> void:
-	## Start inertia beweging gebaseerd op gemiddelde swipe snelheid
-	# Bereken gemiddelde velocity van de laatste frames
-	if _velocity_samples.size() > 0:
-		var total = Vector2.ZERO
-		for sample in _velocity_samples:
-			total += sample
-		_velocity = total / _velocity_samples.size()
-	else:
-		_velocity = Vector2.ZERO
-
-	# Pas inertia_amount toe
-	_velocity *= inertia_amount
-
-	if _velocity.length() > inertia_min_velocity:
-		_inertia_active = true
-
-
-func _process_inertia(_delta: float) -> void:
-	## Verwerk inertia - laat sticker doorglijden na loslaten
-	if not _inertia_active or dragging:
-		return
-
-	# Pas velocity toe op positie
-	var new_pos := global_position + _velocity
-
-	# Constraint toepassen - stop inertia als rand geraakt wordt
-	if _constrain_position.is_valid():
-		var constrained := _constrain_position.call(new_pos) as Vector2
-		if constrained.distance_squared_to(new_pos) > 1.0:
-			global_position = constrained
-			_inertia_active = false
-			_velocity = Vector2.ZERO
-			return
-		new_pos = constrained
-
-	global_position = new_pos
-
-	# Vertraag velocity met friction
-	_velocity *= inertia_friction
-
-	# Stop als velocity te laag is
-	if _velocity.length() < inertia_min_velocity:
-		_inertia_active = false
-		_velocity = Vector2.ZERO
-
-
 # === SMOOTH SCALING SYSTEEM ===
 
 func _set_target_scale(new_scale: Vector2) -> void:
@@ -530,7 +452,7 @@ func _process_shadow(delta: float) -> void:
 	## Update schaduw - zichtbaar bij draggen of inertia, met kleine fade
 	if _shadow_node == null:
 		return
-	var show_shadow = dragging or _inertia_active
+	var show_shadow = dragging
 	var target = 1.0 if show_shadow else 0.0
 	var prev = _shadow_opacity
 	_shadow_opacity = lerpf(_shadow_opacity, target, 15.0 * delta)
