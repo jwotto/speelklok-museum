@@ -513,9 +513,11 @@ func _hit_test(pos: Vector2) -> bool:
 	if abs(local.x) >= size.x / 2 + margin_local or abs(local.y) >= size.y / 2 + margin_local:
 		return false
 
-	# Laad image lazy (alleen eerste keer)
+	# Laad image lazy (decompress nodig voor VRAM-compressed textures)
 	if _hit_image == null:
 		_hit_image = texture.get_image()
+		if _hit_image and not _hit_image.is_empty():
+			_hit_image.decompress()
 
 	# Converteer naar texture coördinaten (0,0 = linksboven)
 	var tex_x = int(local.x + size.x / 2)

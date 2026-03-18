@@ -154,7 +154,7 @@ func _populate_grid() -> void:
 			btn.texture_normal = sprites[0].texture
 		else:
 			btn = _picker_btn_script.new()
-			btn.hit_margin = 30.0
+			btn.hit_margin = 2.0
 			btn.texture_normal = sprites[0].texture
 			btn.self_modulate = Color(1, 1, 1, 0)  # Verberg button tekening
 		btn.ignore_texture_size = true
@@ -183,7 +183,7 @@ func _populate_grid() -> void:
 			# Vaste random hoek per knop
 			btn.set_meta("hover_angle", deg_to_rad(randf_range(-6.0, 6.0)))
 
-			# Hover en press effecten
+			# Hover via Godot's _has_point() pixel-detectie
 			btn.mouse_entered.connect(_on_btn_activate.bind(btn))
 			btn.mouse_exited.connect(_on_btn_deactivate.bind(btn))
 			btn.button_down.connect(_on_btn_activate.bind(btn))
@@ -353,8 +353,8 @@ func _input(event: InputEvent) -> void:
 	if Engine.is_editor_hint() or not _is_open:
 		return
 	if event is InputEventMouseButton and not event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		# Check sticker knoppen
-		var btn = _find_btn_at(event.position)
+		# Check sticker knoppen via pixel-detectie
+		var btn = _find_btn_with_has_point(event.position)
 		if btn:
 			var scene = btn.get_meta("scene", null) as PackedScene
 			if scene:
@@ -372,12 +372,16 @@ func _input(event: InputEvent) -> void:
 			get_viewport().set_input_as_handled()
 
 
-func _find_btn_at(pos: Vector2) -> TextureButton:
-	## Vind de sticker-knop op de gegeven screen positie
+func _find_btn_with_has_point(pos: Vector2) -> TextureButton:
+	## Vind de sticker-knop via pixel-detectie (_has_point)
 	for btn in _grid.get_children():
 		if btn is TextureButton and btn.get_global_rect().has_point(pos):
-			return btn
+			var local = pos - btn.global_position
+			if btn._has_point(local):
+				return btn
 	return null
+
+
 
 
 func _on_sticker_pressed(scene: PackedScene, btn: TextureButton) -> void:

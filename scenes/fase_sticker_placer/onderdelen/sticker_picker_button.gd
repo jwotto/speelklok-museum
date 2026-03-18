@@ -3,19 +3,21 @@ class_name StickerPickerButton
 
 ## TextureButton met pixel-detectie en marge, zoals Sticker._hit_test()
 
-var hit_margin: float = 30.0
+var hit_margin: float = 2.0
 var _hit_image: Image = null
 
 
 func _has_point(point: Vector2) -> bool:
 	if texture_normal == null:
-		return Rect2(Vector2.ZERO, size).has_point(point)
+		return false
 
-	# Lazy load image
+	# Lazy load image (decompress nodig voor VRAM-compressed textures)
 	if _hit_image == null:
 		_hit_image = texture_normal.get_image()
-	if _hit_image == null:
-		return Rect2(Vector2.ZERO, size).has_point(point)
+		if _hit_image and not _hit_image.is_empty():
+			_hit_image.decompress()
+	if _hit_image == null or _hit_image.is_empty():
+		return false
 
 	# Bereken display rect (STRETCH_KEEP_ASPECT_CENTERED)
 	var tex_size = Vector2(texture_normal.get_size())
