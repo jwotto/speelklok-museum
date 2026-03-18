@@ -1,7 +1,8 @@
 [gd_scene format=3 uid="uid://fkakhh1eyesm"]
 
 [ext_resource type="Script" uid="uid://dtljsapwwt6dq" path="res://scenes/fase_sticker_placer/fase_sticker_placer.gd" id="1_script"]
-[ext_resource type="PackedScene" uid="uid://bbmr5lj67axwk" path="res://scenes/fase_sticker_placer/onderdelen/stickers/drums.tscn" id="4_drums"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/snaredrum.tscn" id="4_snaredrum"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/hihat.tscn" id="18_hihat"]
 [ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/bongo.tscn" id="5_bongo"]
 [ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/contrabas.tscn" id="6_contrabas"]
 [ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/gitaar.tscn" id="7_gitaar"]
@@ -73,7 +74,7 @@ texture = SubResource("GradientTexture2D_bg")
 layer = 10
 
 [node name="StickerPicker" parent="UILayer" unique_id=1920061030 instance=ExtResource("12_picker")]
-sticker_scenes = Array[PackedScene]([ExtResource("4_drums"), ExtResource("5_bongo"), ExtResource("6_contrabas"), ExtResource("7_gitaar"), ExtResource("8_orgelpijp"), ExtResource("9_viool"), ExtResource("10_xylofoon"), ExtResource("11_bellen"), ExtResource("16_trompet"), ExtResource("17_speelkam")])
+sticker_scenes = Array[PackedScene]([ExtResource("4_snaredrum"), ExtResource("18_hihat"), ExtResource("5_bongo"), ExtResource("6_contrabas"), ExtResource("7_gitaar"), ExtResource("8_orgelpijp"), ExtResource("9_viool"), ExtResource("10_xylofoon"), ExtResource("11_bellen"), ExtResource("16_trompet"), ExtResource("17_speelkam")])
 panel_gradient = SubResource("GradientTexture2D_picker")
 
 [node name="StickerSliders" type="HBoxContainer" parent="UILayer" unique_id=2086034980]

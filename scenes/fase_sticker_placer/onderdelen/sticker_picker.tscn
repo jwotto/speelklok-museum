@@ -33,24 +33,30 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 40.0
+offset_left = 70.0
 offset_top = 40.0
-offset_right = -40.0
+offset_right = -70.0
 offset_bottom = -40.0
 grow_horizontal = 2
 grow_vertical = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_2u7bs")
 
-[node name="CenterContainer" type="CenterContainer" parent="Panel" unique_id=1031966443]
+[node name="ScrollContainer" type="ScrollContainer" parent="Panel"]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 3
 
-[node name="GridContainer" type="GridContainer" parent="Panel/CenterContainer" unique_id=299417269]
+[node name="MarginContainer" type="MarginContainer" parent="Panel/ScrollContainer"]
 layout_mode = 2
+
+[node name="GridContainer" type="GridContainer" parent="Panel/ScrollContainer/MarginContainer" unique_id=299417269]
+layout_mode = 2
+size_flags_horizontal = 4
 theme_override_constants/h_separation = 25
 theme_override_constants/v_separation = 25
 columns = 3

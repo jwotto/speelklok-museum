@@ -39,13 +39,19 @@ signal closed
 # Scene node references
 @onready var _background: ColorRect = $Background
 @onready var _panel: Panel = $Panel
-@onready var _grid: GridContainer = $Panel/CenterContainer/GridContainer
+@onready var _scroll: ScrollContainer = $Panel/ScrollContainer
+@onready var _margin: MarginContainer = $Panel/ScrollContainer/MarginContainer
+@onready var _grid: GridContainer = $Panel/ScrollContainer/MarginContainer/GridContainer
 @onready var _close_button: Button = $Panel/CloseButton
 
 var _is_open: bool = false
 var _grid_populated: bool = false
 var _picker_btn_script = preload("res://scenes/fase_sticker_placer/onderdelen/sticker_picker_button.gd")
 var _outline_shader = preload("res://scenes/fase_sticker_placer/onderdelen/sticker_outline.gdshader")
+var _scroll_track: Panel
+var _scroll_thumb: Panel
+var _scrollbar_dragging: bool = false
+var _active_btn: TextureButton = null
 
 
 func _get_configuration_warnings() -> PackedStringArray:
@@ -121,6 +127,102 @@ func _ready() -> void:
 	hide()
 	get_tree().root.size_changed.connect(_update_layout)
 	_close_button.pressed.connect(close)
+	_style_scrollbar()
+
+
+func _style_scrollbar() -> void:
+	## Verberg ingebouwde scrollbar en maak overlay indicator
+	var vbar = _scroll.get_v_scroll_bar()
+	# Ingebouwde scrollbar onzichtbaar + 0 breedte (neemt geen ruimte in)
+	var empty = StyleBoxEmpty.new()
+	vbar.add_theme_stylebox_override("scroll", empty)
+	vbar.add_theme_stylebox_override("grabber", empty)
+	vbar.add_theme_stylebox_override("grabber_highlight", empty)
+	vbar.add_theme_stylebox_override("grabber_pressed", empty)
+	vbar.custom_minimum_size.x = 0
+
+	# Scrollbar naast het panel (child van root, niet panel — anders wordt het geclipt)
+	var bar_width := 48
+	var bar_gap := 8
+	var corner := bar_width / 2
+
+	_scroll_track = Panel.new()
+	_scroll_track.mouse_filter = Control.MOUSE_FILTER_STOP
+	# Positioneer rechts naast het panel, meeschalend via anchors
+	_scroll_track.anchor_left = 1.0
+	_scroll_track.anchor_right = 1.0
+	_scroll_track.anchor_top = 0.0
+	_scroll_track.anchor_bottom = 1.0
+	_scroll_track.offset_left = _panel.offset_right + bar_gap      # -70 + 8 = -62
+	_scroll_track.offset_right = _panel.offset_right + bar_gap + bar_width  # -70 + 8 + 48 = -14
+	_scroll_track.offset_top = _panel.offset_top        # 40
+	_scroll_track.offset_bottom = _panel.offset_bottom   # -40
+	var track_style = StyleBoxFlat.new()
+	track_style.bg_color = Color(1, 1, 1, 0.15)
+	track_style.corner_radius_top_left = corner
+	track_style.corner_radius_top_right = corner
+	track_style.corner_radius_bottom_left = corner
+	track_style.corner_radius_bottom_right = corner
+	_scroll_track.add_theme_stylebox_override("panel", track_style)
+	add_child(_scroll_track)
+
+	_scroll_thumb = Panel.new()
+	_scroll_thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var thumb_style = StyleBoxFlat.new()
+	thumb_style.bg_color = Color(1, 1, 1, 0.5)
+	thumb_style.corner_radius_top_left = corner
+	thumb_style.corner_radius_top_right = corner
+	thumb_style.corner_radius_bottom_left = corner
+	thumb_style.corner_radius_bottom_right = corner
+	_scroll_thumb.add_theme_stylebox_override("panel", thumb_style)
+	_scroll_track.add_child(_scroll_thumb)
+
+	vbar.value_changed.connect(_update_scroll_indicator)
+	vbar.value_changed.connect(_on_scroll_changed)
+	vbar.changed.connect(func(): _update_scroll_indicator(vbar.value))
+	_scroll.resized.connect(func(): _update_scroll_indicator(vbar.value))
+
+	# Scrollbar sleepbaar maken
+	_scroll_track.gui_input.connect(_on_scrollbar_input)
+
+
+func _on_scrollbar_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		_scrollbar_dragging = event.pressed
+		if event.pressed:
+			_scroll_to_track_pos(event.position.y)
+		_scroll_track.accept_event()
+	elif event is InputEventMouseMotion and _scrollbar_dragging:
+		_scroll_to_track_pos(event.position.y)
+		_scroll_track.accept_event()
+
+
+func _scroll_to_track_pos(y: float) -> void:
+	var vbar = _scroll.get_v_scroll_bar()
+	var max_scroll = vbar.max_value - vbar.page
+	if max_scroll <= 0:
+		return
+	var ratio = clampf(y / _scroll_track.size.y, 0.0, 1.0)
+	_scroll.scroll_vertical = int(ratio * max_scroll)
+
+
+func _update_scroll_indicator(value: float) -> void:
+	if _scroll_track == null:
+		return
+	var vbar = _scroll.get_v_scroll_bar()
+	var max_scroll = vbar.max_value - vbar.page
+	if max_scroll <= 0:
+		_scroll_track.hide()
+		return
+	_scroll_track.show()
+	_scroll_track.modulate.a = 1.0
+	var track_height = _scroll_track.size.y
+	var thumb_ratio = vbar.page / maxf(vbar.max_value, 1.0)
+	var thumb_height = maxf(track_height * thumb_ratio, 50.0)
+	var scroll_ratio = value / max_scroll
+	var thumb_y = scroll_ratio * (track_height - thumb_height)
+	_scroll_thumb.position = Vector2(0, thumb_y)
+	_scroll_thumb.size = Vector2(_scroll_track.size.x, thumb_height)
 
 
 func _populate_grid() -> void:
@@ -183,15 +285,9 @@ func _populate_grid() -> void:
 			# Vaste random hoek per knop
 			btn.set_meta("hover_angle", deg_to_rad(randf_range(-6.0, 6.0)))
 
-			# Hover via Godot's _has_point() pixel-detectie
-			btn.mouse_entered.connect(_on_btn_activate.bind(btn))
-			btn.mouse_exited.connect(_on_btn_deactivate.bind(btn))
+			# Touch: button_down = visuele feedback, _input release = selectie
 			btn.button_down.connect(_on_btn_activate.bind(btn))
-			btn.button_up.connect(func():
-				if not btn.is_hovered():
-					_on_btn_deactivate(btn)
-			)
-			# Geen btn.pressed - _input release handler regelt sticker selectie
+			btn.button_up.connect(_on_btn_deactivate.bind(btn))
 			btn.set_meta("scene", scene)
 
 		_grid.add_child(btn)
@@ -257,8 +353,9 @@ func _get_sprites_from_scene(scene: PackedScene) -> Array[Dictionary]:
 
 
 func _calculate_icon_size() -> Vector2:
+	## Bereken icon grootte op basis van breedte (hoogte scrollt)
 	var panel_size = _panel.size if _panel else Vector2(800, 600)
-	var available_size = panel_size - Vector2(grid_padding * 2, grid_padding * 2)
+	var available_width = panel_size.x - grid_padding * 2
 	var item_count = sticker_scenes.size()
 
 	if item_count == 0:
@@ -268,14 +365,8 @@ func _calculate_icon_size() -> Vector2:
 	var best_cols = min_columns
 
 	for cols in range(min_columns, max_columns + 1):
-		var rows = ceili(float(item_count) / cols)
 		var total_h_padding = (cols - 1) * grid_padding
-		var total_v_padding = (rows - 1) * grid_padding
-		var available_width = available_size.x - total_h_padding
-		var available_height = available_size.y - total_v_padding
-		var max_width = available_width / cols
-		var max_height = available_height / rows
-		var icon_dim = minf(max_width, max_height)
+		var icon_dim = (available_width - total_h_padding) / cols
 		icon_dim = clampf(icon_dim, min_icon_size, max_icon_size)
 
 		if icon_dim > best_size:
@@ -283,6 +374,14 @@ func _calculate_icon_size() -> Vector2:
 			best_cols = cols
 
 	_grid.columns = best_cols
+
+	# Centreer grid horizontaal via marges
+	var grid_width = best_cols * best_size + (best_cols - 1) * grid_padding
+	var available = _panel.size.x if _panel else 800.0
+	var margin = int(maxf((available - grid_width) / 2, 0))
+	_margin.add_theme_constant_override("margin_left", margin)
+	_margin.add_theme_constant_override("margin_right", margin)
+
 	return Vector2(best_size, best_size)
 
 
@@ -303,7 +402,16 @@ func _kill_btn_tween(btn: TextureButton) -> void:
 		old_tween.kill()
 
 
+func _on_scroll_changed(_value: float) -> void:
+	## Bij scrollen: actieve knop loslaten
+	if _active_btn:
+		_on_btn_deactivate(_active_btn)
+
+
 func _on_btn_activate(btn: TextureButton) -> void:
+	if _active_btn and _active_btn != btn:
+		_on_btn_deactivate(_active_btn)
+	_active_btn = btn
 	_kill_btn_tween(btn)
 	var visual = btn.get_meta("visual") as Control
 	_set_outline(visual, true)
@@ -315,6 +423,8 @@ func _on_btn_activate(btn: TextureButton) -> void:
 
 
 func _on_btn_deactivate(btn: TextureButton) -> void:
+	if _active_btn == btn:
+		_active_btn = null
 	_kill_btn_tween(btn)
 	var visual = btn.get_meta("visual") as Control
 	_set_outline(visual, false)
@@ -366,10 +476,6 @@ func _input(event: InputEvent) -> void:
 			close()
 			get_viewport().set_input_as_handled()
 			return
-		# Buiten panel = sluiten
-		if not _panel.get_global_rect().has_point(event.position):
-			close()
-			get_viewport().set_input_as_handled()
 
 
 func _find_btn_with_has_point(pos: Vector2) -> TextureButton:
@@ -396,10 +502,15 @@ func open() -> void:
 	_background.mouse_filter = Control.MOUSE_FILTER_STOP
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	if not _grid_populated:
-		_populate_grid()
+		await _populate_grid()
 		_grid_populated = true
+	_scroll.scroll_vertical = 0
 	show()
 	opened.emit()
+	# Wacht 2 frames zodat layout + scroll range berekend is
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_update_scroll_indicator(0)
 
 
 func close() -> void:
