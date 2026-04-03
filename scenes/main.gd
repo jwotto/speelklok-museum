@@ -27,7 +27,8 @@ func _ready() -> void:
 	Input.emulate_mouse_from_touch = true
 	# Overschrijf titel (verwijdert "(DEBUG)" label)
 	DisplayServer.window_set_title("Speelklok Museum")
-	# Exclusive fullscreen — blokkeert OS edge gestures (keyboard, notifications)
+	# Borderless + exclusive fullscreen — geen titelbalk, blokkeert OS edge gestures
+	DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
 	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN)
 
 	start_phase(start_phase_index)
