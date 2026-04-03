@@ -223,71 +223,92 @@ Calibration matrices per oriëntatie:
 - **Landscape 180°**: `-1 0 1 0 -1 1`
 - **Portrait 90° CCW**: `0 1 0 -1 0 1`
 
-### 11. Kiosk-modus (touch gestures uitschakelen)
-GNOME drie/vier-vinger gestures sluiten/onderbreken fullscreen apps. Uitschakelen:
+### 11. Kiosk-modus (complete setup per zuil-PC)
 
+Alle stappen om een zuil-PC in te richten voor kiosk gebruik. SSH naar de PC en voer blok voor blok uit.
+
+**Let op**: fish shell ondersteunt geen `<< 'EOF'` heredocs — gebruik altijd `printf`.
+
+#### Blok 1 — Git bijwerken
+```bash
+cd ~/Desktop/speelklok-museum
+git fetch origin
+git checkout master
+git reset --hard origin/master
+```
+
+#### Blok 2 — .NET SDK (voorkomt Godot error)
+```bash
+sudo apt install -y dotnet-sdk-8.0
+```
+
+#### Blok 3 — GNOME settings + dock + window manager
 ```bash
 export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
 
-# Hot corners en Super key uitschakelen
+# Hot corners, workspaces, notifications uit
 gsettings set org.gnome.desktop.interface enable-hot-corners false
 gsettings set org.gnome.mutter overlay-key ""
-
-# Slechts 1 workspace (swipe naar andere workspace doet niets)
 gsettings set org.gnome.mutter dynamic-workspaces false
 gsettings set org.gnome.desktop.wm.preferences num-workspaces 1
+gsettings set org.gnome.desktop.notifications show-banners false
+
+# Dock: autohide, links, verborgen in fullscreen
+gsettings set org.gnome.shell.extensions.dash-to-dock dock-fixed false
+gsettings set org.gnome.shell.extensions.dash-to-dock autohide true
+gsettings set org.gnome.shell.extensions.dash-to-dock autohide-in-fullscreen true
+gsettings set org.gnome.shell.extensions.dash-to-dock dock-position 'LEFT'
+gsettings set org.gnome.shell.extensions.dash-to-dock intellihide true
+
+# Blokkeer drag-to-minimize/unmaximize (voorkomt swipe-omlaag minimize)
+dconf write /org/gnome/mutter/edge-tiling false
+dconf write /org/gnome/mutter/draggable-border-width 0
+gsettings set org.gnome.desktop.wm.preferences action-double-click-titlebar 'none'
+gsettings set org.gnome.desktop.wm.preferences action-middle-click-titlebar 'none'
+gsettings set org.gnome.desktop.wm.preferences action-right-click-titlebar 'none'
+gsettings set org.gnome.desktop.wm.keybindings minimize '[]'
+gsettings set org.gnome.desktop.wm.keybindings unmaximize '[]'
 ```
 
-Custom GNOME Shell extensie om swipe gestures + top panel te blokkeren:
+#### Blok 4 — Extensies aanmaken
+
+**Disable Gestures** (blokkeert swipes, verbergt top panel):
 ```bash
 mkdir -p ~/.local/share/gnome-shell/extensions/disable-gestures@kiosk
-
 printf '{"uuid":"disable-gestures@kiosk","name":"Disable Gestures","description":"Disables touchscreen/touchpad gestures for kiosk mode","shell-version":["46"]}\n' > ~/.local/share/gnome-shell/extensions/disable-gestures@kiosk/metadata.json
-```
-
-**Let op**: gebruik `printf` in fish shell (geen heredocs). Dit blokkeert overview swipe, verbergt het top panel, en schakelt de message tray edge drag uit:
-```bash
 printf 'import {Extension} from "resource:///org/gnome/shell/extensions/extension.js";\nimport * as Main from "resource:///org/gnome/shell/ui/main.js";\n\nexport default class DisableGesturesExtension extends Extension {\n    enable() {\n        let st = Main.overview._swipeTracker;\n        if (st) { this._origSwipe = st.enabled; st.enabled = false; }\n        if (Main.panel) {\n            Main.panel.reactive = false;\n            Main.panel.track_hover = false;\n            Main.panel.hide();\n        }\n        if (Main.messageTray) {\n            if (Main.messageTray._edgeDragAction) Main.messageTray._edgeDragAction.enabled = false;\n        }\n    }\n    disable() {\n        let st = Main.overview._swipeTracker;\n        if (st && this._origSwipe !== undefined) st.enabled = this._origSwipe;\n        if (Main.panel) {\n            Main.panel.reactive = true;\n            Main.panel.track_hover = true;\n            Main.panel.show();\n        }\n        if (Main.messageTray && Main.messageTray._edgeDragAction) Main.messageTray._edgeDragAction.enabled = true;\n    }\n}\n' > ~/.local/share/gnome-shell/extensions/disable-gestures@kiosk/extension.js
 ```
 
-Na aanmaken: reboot nodig zodat GNOME de extensie vindt, dan activeren:
-```bash
-sudo reboot
-# Na reboot opnieuw SSH'en:
-export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
-gnome-extensions enable disable-gestures@kiosk
-gnome-extensions show disable-gestures@kiosk  # moet State: ACTIVE tonen
-```
-
-### 11b. On-screen keyboard blokkeren (touchscreen)
-GNOME toont een on-screen keyboard bij edge swipe van onderaf op touchscreens. Blokkeren met de "Block Caribou" extensie:
-
+**Block Caribou** (blokkeert on-screen keyboard):
 ```bash
 mkdir -p ~/.local/share/gnome-shell/extensions/block-caribou@nicong.nfet.al
-
 printf '{"uuid":"block-caribou@nicong.nfet.al","name":"Block Caribou","description":"Block caribou keyboard","shell-version":["46"]}\n' > ~/.local/share/gnome-shell/extensions/block-caribou@nicong.nfet.al/metadata.json
-
 printf 'import {Extension} from "resource:///org/gnome/shell/extensions/extension.js";\nimport * as Keyboard from "resource:///org/gnome/shell/ui/keyboard.js";\n\nlet _origLastDeviceIsTouchscreen;\n\nexport default class BlockCaribouExtension extends Extension {\n    enable() {\n        _origLastDeviceIsTouchscreen = Keyboard.KeyboardManager.prototype._lastDeviceIsTouchscreen;\n        Keyboard.KeyboardManager.prototype._lastDeviceIsTouchscreen = function() { return false; };\n    }\n    disable() {\n        Keyboard.KeyboardManager.prototype._lastDeviceIsTouchscreen = _origLastDeviceIsTouchscreen;\n    }\n}\n' > ~/.local/share/gnome-shell/extensions/block-caribou@nicong.nfet.al/extension.js
 ```
 
-Na aanmaken: reboot, dan activeren:
+#### Blok 5 — Eerste reboot
 ```bash
 sudo reboot
-# Na reboot opnieuw SSH'en:
-export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
-gnome-extensions enable block-caribou@nicong.nfet.al
-gnome-extensions show block-caribou@nicong.nfet.al  # moet State: ACTIVE tonen
 ```
 
-### 11c. Godot autostart bij boot (fullscreen)
-Godot automatisch fullscreen starten bij boot:
-
+#### Blok 6 — Na reboot: extensies activeren + autostart
 ```bash
+export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
+gnome-extensions enable disable-gestures@kiosk
+gnome-extensions enable block-caribou@nicong.nfet.al
+
 mkdir -p ~/.config/autostart
 printf '[Desktop Entry]\nType=Application\nName=Speelklok\nExec=/snap/godot-4/21/godot-4 --fullscreen --path /home/wotto/Desktop/speelklok-museum\nX-GNOME-Autostart-enabled=true\n' > ~/.config/autostart/speelklok.desktop
 ```
 
-**Let op**: pas het Godot pad aan als de snap versie verandert (`ls /snap/godot-4/`).
+**Let op**: pas het Godot pad aan als de snap versie anders is (`ls /snap/godot-4/`).
+
+#### Blok 7 — Laatste reboot
+```bash
+sudo reboot
+```
+
+Na deze reboot: Godot start fullscreen, geen keyboard, geen swipe gestures, geen top panel. Dock verschijnt alleen als je de app afsluit.
 
 ### 12. Reboot en test
 ```bash
