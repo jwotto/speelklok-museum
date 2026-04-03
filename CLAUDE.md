@@ -277,6 +277,36 @@ gnome-extensions enable disable-gestures@kiosk
 gnome-extensions show disable-gestures@kiosk  # moet State: ACTIVE tonen
 ```
 
+### 11b. On-screen keyboard blokkeren (touchscreen)
+GNOME toont een on-screen keyboard bij edge swipe van onderaf op touchscreens. Blokkeren met de "Block Caribou" extensie:
+
+```bash
+mkdir -p ~/.local/share/gnome-shell/extensions/block-caribou@nicong.nfet.al
+
+printf '{"uuid":"block-caribou@nicong.nfet.al","name":"Block Caribou","description":"Block caribou keyboard","shell-version":["46"]}\n' > ~/.local/share/gnome-shell/extensions/block-caribou@nicong.nfet.al/metadata.json
+
+printf 'import {Extension} from "resource:///org/gnome/shell/extensions/extension.js";\nimport * as Keyboard from "resource:///org/gnome/shell/ui/keyboard.js";\n\nlet _origLastDeviceIsTouchscreen;\n\nexport default class BlockCaribouExtension extends Extension {\n    enable() {\n        _origLastDeviceIsTouchscreen = Keyboard.KeyboardManager.prototype._lastDeviceIsTouchscreen;\n        Keyboard.KeyboardManager.prototype._lastDeviceIsTouchscreen = function() { return false; };\n    }\n    disable() {\n        Keyboard.KeyboardManager.prototype._lastDeviceIsTouchscreen = _origLastDeviceIsTouchscreen;\n    }\n}\n' > ~/.local/share/gnome-shell/extensions/block-caribou@nicong.nfet.al/extension.js
+```
+
+Na aanmaken: reboot, dan activeren:
+```bash
+sudo reboot
+# Na reboot opnieuw SSH'en:
+export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$(id -u)/bus
+gnome-extensions enable block-caribou@nicong.nfet.al
+gnome-extensions show block-caribou@nicong.nfet.al  # moet State: ACTIVE tonen
+```
+
+### 11c. Godot autostart bij boot (fullscreen)
+Godot automatisch fullscreen starten bij boot:
+
+```bash
+mkdir -p ~/.config/autostart
+printf '[Desktop Entry]\nType=Application\nName=Speelklok\nExec=/snap/godot-4/21/godot-4 --fullscreen --path /home/wotto/Desktop/speelklok-museum\nX-GNOME-Autostart-enabled=true\n' > ~/.config/autostart/speelklok.desktop
+```
+
+**Let op**: pas het Godot pad aan als de snap versie verandert (`ls /snap/godot-4/`).
+
 ### 12. Reboot en test
 ```bash
 sudo reboot
