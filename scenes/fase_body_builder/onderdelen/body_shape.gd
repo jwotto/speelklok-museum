@@ -27,7 +27,7 @@ class_name BodyShape
 			return
 		rok = v
 		_update_shape()
-## Kleur: hue waarde (0.0 - 1.0 over het kleurspectrum)
+## Kleur: hue shift (0.5 = origineel hout, links/rechts = kleurshift)
 @export_range(0.0, 1.0) var kleur: float = 0.5:
 	set(v):
 		kleur = v
@@ -108,6 +108,9 @@ class_name BodyShape
 
 
 func _ready() -> void:
+	# ShapeFill verbergen — zone-texturen in BodyDecoration bedekken alles
+	if _shape_fill:
+		_shape_fill.visible = false
 	_update_shape()
 	_update_color()
 

@@ -112,8 +112,14 @@ func _draw() -> void:
 		draw_line(Vector2(cx, top_y), Vector2(cx, bottom_y), track_color, track_width, true)
 		thumb_pos = Vector2(cx, lerpf(bottom_y, top_y, t))
 
-	# Thumb cirkel — kleur-slider thumb past mee met de hue
-	var draw_color = Color.from_hsv(value, 0.7, 0.95) if icon_type == IconType.KLEUR else thumb_color
+	# Thumb cirkel — kleur-slider: hout-hue (30°) + shift vanuit midden
+	var draw_color: Color
+	if icon_type == IconType.KLEUR:
+		var wood_hue: float = 30.0 / 360.0  # Bruin hout
+		var shifted_hue: float = fmod(wood_hue + (value - 0.5) + 1.0, 1.0)
+		draw_color = Color.from_hsv(shifted_hue, 0.7, 0.75)
+	else:
+		draw_color = thumb_color
 	draw_circle(thumb_pos, thumb_radius, draw_color)
 
 	# Icoon in de thumb (altijd rechtop, ongeacht oriëntatie)

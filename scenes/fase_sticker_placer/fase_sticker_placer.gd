@@ -152,32 +152,10 @@ func set_phase_data(data: Dictionary) -> void:
 	add_child(body_shape)
 	move_child(body_shape, _sticker_container.get_index())
 
-	# Gebruik BodyDecoration maar ZONDER versieringen - alleen basis hout texture
+	# BodyDecoration: zone-texturen van fase 1 blijven behouden
 	var decoration := body_shape.get_node_or_null("BodyDecoration")
 	if decoration:
 		decoration.visible = true
-		# Schakel ALLE decoraties uit - houd alleen de basis texture
-		decoration.pipe_count = 0  # Geen pijpen
-		decoration.panel_count = 0  # Geen panelen
-		decoration.molding_width = 0.0  # Geen lijstwerk
-		decoration.molding_accent_width = 0.0
-		decoration.gold_trim_width = 0.0  # Geen gouden rand
-		decoration.arch_line_width = 0.0
-		decoration.panel_frame_width = 0.0  # Geen paneel randen
-		decoration.panel_inner_width = 0.0
-		decoration.crown_arch_count = 0  # Geen kroonboogjes
-		decoration.pendant_radius = 0.0  # Geen bolletjes
-		decoration.neck_frame_inset = 0.0  # Geen nek-kader
-		decoration.neck_fill_color = Color(0, 0, 0, 0)  # Geen nek-vulling
-		decoration.rok_frame_inset = 0.0  # Geen rok-kader
-		decoration.rok_fill_color = Color(0, 0, 0, 0)  # Geen rok-vulling
-		decoration.uniform_zones = true  # Uniforme kleur (geen donkere/lichte zones)
-		# Maak texture opacity en blend uniform over alle zones
-		decoration.kop_texture_opacity = decoration.lichaam_texture_opacity
-		decoration.rok_texture_opacity = decoration.lichaam_texture_opacity
-		decoration.kop_color_blend = decoration.lichaam_color_blend
-		decoration.rok_color_blend = decoration.lichaam_color_blend
-		# Nu blijft alleen de basis kleur + hout texture over!
 
 	# ShapeFill blijft hidden (BodyDecoration tekent de vorm)
 	var shape_fill := body_shape.get_node_or_null("ShapeFill")
