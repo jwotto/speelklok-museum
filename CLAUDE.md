@@ -310,6 +310,25 @@ sudo reboot
 
 Na deze reboot: Godot start fullscreen, geen keyboard, geen swipe gestures, geen top panel. Dock verschijnt alleen als je de app afsluit.
 
+### Nieuwe versie laden (git pull met nieuwe assets)
+
+Na een `git pull` die nieuwe afbeeldingen of audio bevat, moet Godot de bestanden opnieuw importeren. De `.godot/imported/` cache wordt niet meegeleverd via git.
+
+```bash
+cd ~/Desktop/speelklok-museum
+git fetch origin
+git reset --hard origin/master
+
+# Verwijder import cache en laat Godot opnieuw importeren
+rm -rf .godot/imported/
+
+# Open Godot editor kort om imports te triggeren (sluit daarna weer)
+# Dit kan NIET headless — je moet via Remote Desktop de Godot editor openen,
+# wachten tot alle imports klaar zijn, en dan weer sluiten.
+```
+
+Daarna rebooten zodat de app met de nieuwe assets start.
+
 ### 12. Reboot en test
 ```bash
 sudo reboot
