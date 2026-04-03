@@ -340,18 +340,6 @@ func _deselect() -> void:
 		if child is Sprite2D:
 			child.material = null
 	selection_changed.emit(false)
-	# Bounce: korte "plop" als bevestiging van plaatsing
-	_play_deselect_bounce()
-
-
-func _play_deselect_bounce() -> void:
-	## Bounce: kleiner → terug naar normaal
-	var tween = create_tween()
-	var shrink_scale = _target_scale * 0.9
-	tween.tween_property(self, "scale", shrink_scale, 0.05) \
-		.set_ease(Tween.EASE_IN)
-	tween.tween_property(self, "scale", _target_scale, 0.12) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
 
 # === OUTLINE ===

@@ -35,6 +35,9 @@ var _organ_center: Vector2 = Vector2.ZERO
 var _audio_player: Node2D = null  ## AudioLayerPlayer
 var _drager_overlay: CanvasLayer = null  ## Muziekdrager selectie overlay
 var _drager_selecting: bool = false  ## Toon drager selectie
+var _draaiwiel: Control = null  ## Draaiwiel voor tempo controle
+var _draaiwiel_container: CanvasLayer = null
+var _stop_button: IconButton = null  ## Aparte stop knop links onder tijdens playback
 
 
 func _ready() -> void:
@@ -64,6 +67,12 @@ func _ready() -> void:
 	# Muziekdrager selectie overlay
 	_setup_drager_overlay()
 
+	# Draaiwiel voor tempo controle
+	_setup_draaiwiel()
+
+	# Stop knop links onder (alleen tijdens playback)
+	_setup_stop_button()
+
 
 func _on_add_pressed() -> void:
 	_picker.toggle()
@@ -91,13 +100,14 @@ func _update_button_visibility() -> void:
 	var has_stickers = _sticker_container.get_child_count() > 0
 
 	if _is_playing:
-		# Tijdens afspelen: alleen stop button tonen
-		_trash_button.visible = false
-		_add_button.visible = false
-		_play_button.visible = true
-		_rotate_slider.visible = false
-		_scale_slider.visible = false
+		# Tijdens afspelen: slider bar verbergen, stop knop links onder
+		_slider_container.visible = false
+		if _stop_button:
+			_stop_button.get_meta("container").visible = true
 		return
+	# Niet playing: stop knop verbergen
+	if _stop_button:
+		_stop_button.get_meta("container").visible = false
 
 	_trash_button.visible = _any_dragging
 	_add_button.visible = not _any_dragging
@@ -482,6 +492,87 @@ func _on_drager_selected(genre: String, btn: TextureButton) -> void:
 	)
 
 
+# === STOP KNOP ===
+
+func _setup_stop_button() -> void:
+	var StopBtnScene = preload("res://scenes/fase_sticker_placer/onderdelen/play_button.tscn")
+	_stop_button = StopBtnScene.instantiate()
+	_stop_button.icon_type = IconButton.IconType.STOP
+	_stop_button.button_size = 120
+
+	var container = Control.new()
+	container.anchor_left = 0.0
+	container.anchor_top = 1.0
+	container.anchor_right = 0.0
+	container.anchor_bottom = 1.0
+	container.offset_left = 30
+	container.offset_top = -150
+	container.offset_right = 150
+	container.offset_bottom = -30
+	container.add_child(_stop_button)
+
+	$UILayer.add_child(container)
+	container.visible = false
+	_stop_button.pressed.connect(_stop_playback)
+	_stop_button.set_meta("container", container)
+
+
+# === DRAAIWIEL ===
+
+func _setup_draaiwiel() -> void:
+	var DraaiwielScript = preload("res://scenes/fase_sticker_placer/onderdelen/draaiwiel.gd")
+
+	# CanvasLayer zodat het wiel boven alles zweeft
+	_draaiwiel_container = CanvasLayer.new()
+	_draaiwiel_container.layer = 15
+
+	# Draaiwiel Control — vaste positie gecentreerd onderaan
+	_draaiwiel = Control.new()
+	_draaiwiel.set_script(DraaiwielScript)
+
+	var wheel_size = 750.0
+	var viewport_w = 1080.0
+	var viewport_h = 1920.0
+	_draaiwiel.position = Vector2(
+		(viewport_w - wheel_size) / 2.0,
+		viewport_h - wheel_size - 50
+	)
+	_draaiwiel.size = Vector2(wheel_size, wheel_size)
+
+	_draaiwiel_container.add_child(_draaiwiel)
+	add_child(_draaiwiel_container)
+	_draaiwiel_container.visible = false
+
+
+func _connect_draaiwiel() -> void:
+	## Verbind het draaiwiel signal (aangeroepen na het zichtbaar maken)
+	if _draaiwiel and not _draaiwiel.speed_changed.is_connected(_on_wheel_speed_changed):
+		_draaiwiel.speed_changed.connect(_on_wheel_speed_changed)
+
+
+func _on_wheel_speed_changed(speed_factor: float) -> void:
+	if not _is_playing:
+		return
+
+	if speed_factor < 0.05:
+		# Wiel staat stil — demp muziek
+		for instrument_id in _audio_player._players:
+			_audio_player._players[instrument_id].volume_db = -80.0
+		return
+
+	# Tempo: map speed_factor naar 0.5 - 1.0 (nooit sneller dan normaal)
+	var tempo = clampf(speed_factor, 0.5, 1.0)
+	_audio_player.set_playback_speed(tempo)
+
+	# Volume: snel vol bij enige draaiing
+	var vol = clampf(speed_factor / 0.3, 0.0, 1.0)
+	for instrument_id in _audio_player._players:
+		if _audio_player._active_instruments.has(instrument_id):
+			_audio_player._players[instrument_id].volume_db = linear_to_db(vol)
+		else:
+			_audio_player._players[instrument_id].volume_db = -80.0
+
+
 # === AUDIO PLAYBACK ===
 
 func _on_play_pressed() -> void:
@@ -500,7 +591,15 @@ func _start_playback() -> void:
 	_set_stickers_input(false)
 	if Sticker._selected_sticker:
 		Sticker._selected_sticker._deselect()
+	# Start muziek gedempt — het wiel bepaalt het volume
 	_audio_player.play_layers(active)
+	for instrument_id in _audio_player._players:
+		var player: AudioStreamPlayer = _audio_player._players[instrument_id]
+		player.volume_db = -80.0
+	# Toon draaiwiel
+	_draaiwiel_container.visible = true
+	_draaiwiel.reset()
+	_connect_draaiwiel()
 	_update_button_visibility()
 
 
@@ -508,6 +607,9 @@ func _stop_playback() -> void:
 	_is_playing = false
 	_play_button.icon_type = IconButton.IconType.PLAY
 	_audio_player.stop_playback()
+	# Verberg draaiwiel
+	_draaiwiel_container.visible = false
+	_draaiwiel.reset()
 	for sticker in _sticker_container.get_children():
 		if sticker is Sticker:
 			sticker.reset_audio_pulse()

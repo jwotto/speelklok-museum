@@ -137,6 +137,17 @@ func is_playing() -> bool:
 	return _is_playing
 
 
+func set_playback_speed(speed: float) -> void:
+	## Pas afspeelsnelheid aan via pitch_scale.
+	## Binnen 0.5-1.0 is het pitch verschil acceptabel.
+	if not _is_playing or speed < 0.01:
+		return
+	var clamped = clampf(speed, 0.5, 1.0)
+	for instrument_id in _players:
+		var player: AudioStreamPlayer = _players[instrument_id]
+		player.pitch_scale = clamped
+
+
 func get_magnitude(instrument_id: String) -> float:
 	return _magnitudes.get(instrument_id, 0.0)
 
