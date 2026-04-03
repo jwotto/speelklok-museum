@@ -238,34 +238,16 @@ gsettings set org.gnome.mutter dynamic-workspaces false
 gsettings set org.gnome.desktop.wm.preferences num-workspaces 1
 ```
 
-Custom GNOME Shell extensie om drie-vinger swipe (Activities overview) te blokkeren:
+Custom GNOME Shell extensie om swipe gestures + top panel te blokkeren:
 ```bash
 mkdir -p ~/.local/share/gnome-shell/extensions/disable-gestures@kiosk
 
-cat > ~/.local/share/gnome-shell/extensions/disable-gestures@kiosk/metadata.json << 'EOF'
-{
-  "uuid": "disable-gestures@kiosk",
-  "name": "Disable Gestures",
-  "description": "Disables touchscreen/touchpad gestures for kiosk mode",
-  "shell-version": ["46"]
-}
-EOF
+printf '{"uuid":"disable-gestures@kiosk","name":"Disable Gestures","description":"Disables touchscreen/touchpad gestures for kiosk mode","shell-version":["46"]}\n' > ~/.local/share/gnome-shell/extensions/disable-gestures@kiosk/metadata.json
 ```
 
-**Let op**: het extension.js bestand raakt garbled via heredoc in sommige terminals. Gebruik `echo` of maak het bestand via een editor:
+**Let op**: gebruik `printf` in fish shell (geen heredocs). Dit blokkeert overview swipe, verbergt het top panel, en schakelt de message tray edge drag uit:
 ```bash
-echo 'import {Extension} from "resource:///org/gnome/shell/extensions/extension.js";
-import * as Main from "resource:///org/gnome/shell/ui/main.js";
-export default class DisableGesturesExtension extends Extension {
-    enable() {
-        let st = Main.overview._swipeTracker;
-        if (st) { this._orig = st.enabled; st.enabled = false; }
-    }
-    disable() {
-        let st = Main.overview._swipeTracker;
-        if (st && this._orig !== undefined) { st.enabled = this._orig; }
-    }
-}' > ~/.local/share/gnome-shell/extensions/disable-gestures@kiosk/extension.js
+printf 'import {Extension} from "resource:///org/gnome/shell/extensions/extension.js";\nimport * as Main from "resource:///org/gnome/shell/ui/main.js";\n\nexport default class DisableGesturesExtension extends Extension {\n    enable() {\n        let st = Main.overview._swipeTracker;\n        if (st) { this._origSwipe = st.enabled; st.enabled = false; }\n        if (Main.panel) {\n            Main.panel.reactive = false;\n            Main.panel.track_hover = false;\n            Main.panel.hide();\n        }\n        if (Main.messageTray) {\n            if (Main.messageTray._edgeDragAction) Main.messageTray._edgeDragAction.enabled = false;\n        }\n    }\n    disable() {\n        let st = Main.overview._swipeTracker;\n        if (st && this._origSwipe !== undefined) st.enabled = this._origSwipe;\n        if (Main.panel) {\n            Main.panel.reactive = true;\n            Main.panel.track_hover = true;\n            Main.panel.show();\n        }\n        if (Main.messageTray && Main.messageTray._edgeDragAction) Main.messageTray._edgeDragAction.enabled = true;\n    }\n}\n' > ~/.local/share/gnome-shell/extensions/disable-gestures@kiosk/extension.js
 ```
 
 Na aanmaken: reboot nodig zodat GNOME de extensie vindt, dan activeren:
