@@ -80,6 +80,10 @@ var _shadow_opacity: float = 0.0
 var _shadow_node: Node2D = null
 var _shadow_last_scale: float = 0.0
 
+# Stuck touch watchdog
+var _last_touch_time: float = 0.0
+const TOUCH_TIMEOUT: float = 3.0  # Na 3 sec zonder beweging = stuck
+
 # Outline shader
 var _outline_shader = preload("res://scenes/fase_sticker_placer/onderdelen/sticker_outline.gdshader")
 var _cached_outline_width: float = -1.0
@@ -105,6 +109,11 @@ func _process(delta: float) -> void:
 	_process_smooth_scale(delta)
 	_process_shadow(delta)
 	_process_outline()
+	# Stuck touch watchdog: als er te lang geen beweging is, release automatisch
+	if dragging:
+		_last_touch_time += delta
+		if _last_touch_time > TOUCH_TIMEOUT:
+			_force_release()
 	# Schakel process uit als alles idle is
 	if not dragging and not _scale_smoothing_active \
 			and _shadow_node == null and not selected:
@@ -128,8 +137,16 @@ func _on_touch(event: InputEventScreenTouch) -> void:
 		_handle_touch_released(event)
 
 
+func _force_release() -> void:
+	## Noodstop: release een vastzittende touch
+	touches.clear()
+	touch_local_points.clear()
+	_end_drag()
+
+
 func _handle_touch_pressed(event: InputEventScreenTouch) -> void:
 	## Verwerkt een nieuwe touch (vinger naar beneden)
+	_last_touch_time = 0.0
 	if touches.size() == 0:
 		if _hit_test(event.position):
 			# Check of er al een andere sticker wordt gedragged
@@ -175,6 +192,7 @@ func _handle_touch_released(event: InputEventScreenTouch) -> void:
 
 func _on_drag(event: InputEventScreenDrag) -> void:
 	## Verwerkt touch drag beweging
+	_last_touch_time = 0.0  # Reset watchdog bij elke beweging
 	if not touches.has(event.index):
 		return
 
