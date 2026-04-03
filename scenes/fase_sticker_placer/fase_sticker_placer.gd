@@ -229,13 +229,13 @@ func _on_sticker_selected(scene: PackedScene, from_position: Vector2) -> void:
 	tween.tween_property(sticker, "modulate:a", 1.0, 0.15).set_trans(Tween.TRANS_LINEAR)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 	_check_trash_zone()
 	_update_sliders()
 	if _is_playing:
-		_update_sticker_pulse()
+		_update_sticker_pulse(delta)
 
 
 func _input(event: InputEvent) -> void:
@@ -371,7 +371,7 @@ func _scan_active_instruments() -> Dictionary:
 	return result
 
 
-func _update_sticker_pulse() -> void:
+func _update_sticker_pulse(delta: float) -> void:
 	## Pas sticker schaal aan op basis van hun instrument's audio amplitude
 	var magnitudes = _audio_player.get_all_magnitudes()
 	for sticker in _sticker_container.get_children():
@@ -379,7 +379,7 @@ func _update_sticker_pulse() -> void:
 			continue
 		var instrument_id = sticker.scene_file_path.get_file().get_basename()
 		var mag = magnitudes.get(instrument_id, 0.0)
-		sticker.set_audio_pulse(mag)
+		sticker.set_audio_pulse(mag, delta)
 
 
 # === SLIDERS ===

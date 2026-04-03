@@ -16,7 +16,7 @@ signal selection_changed(is_selected: bool)
 ## Minimale schaal als multiplier van de start-grootte (0.3 = 30% van origineel)
 @export var min_scale: float = 0.3
 ## Maximale schaal als multiplier van de start-grootte (2.0 = 2x zo groot)
-@export var max_scale: float = 2.0
+@export var max_scale: float = 1.5
 
 @export_group("Smoothing")
 ## Hoe snel de schaal interpoleert naar target (0-1, hoger = sneller)
@@ -569,23 +569,28 @@ func _check_pixel_alpha(x: int, y: int, size: Vector2) -> bool:
 # === AUDIO PULSE ===
 
 var _audio_pulsing: bool = false
+var _wobble_phase: float = 0.0
 
-func set_audio_pulse(magnitude: float) -> void:
-	## Pas schaal aan op basis van audio amplitude van dit instrument
-	## Squash & stretch: bij hoge magnitude wordt sticker breder+korter, dan terug
+func set_audio_pulse(magnitude: float, delta: float) -> void:
+	## Pas schaal + rotatie aan op basis van audio amplitude
 	if dragging:
 		return
 	if not _audio_pulsing:
-		# Eerste frame van pulse: sla huidige rotatie op als basis
 		_target_rotation = rotation
+		_wobble_phase = randf() * TAU  # Random startfase per sticker
 	_audio_pulsing = true
 	_scale_smoothing_active = false
-	var pulse_amount = magnitude * 0.30  # Max 30%
-	var squash_x = 1.0 + pulse_amount  # Breder
-	var squash_y = 1.0 - pulse_amount * 0.4  # Iets korter (40% van de breedte-toename)
+
+	# Scale pulse: max 30% groter
+	var pulse_amount = magnitude * 0.30
+	var squash_x = 1.0 + pulse_amount
+	var squash_y = 1.0 - pulse_amount * 0.4
 	scale = Vector2(_target_scale.x * squash_x, _target_scale.y * squash_y)
-	# Rotatie wobble: bovenop de ingestelde rotatie
-	rotation = _target_rotation + sin(Time.get_ticks_msec() * 0.012) * magnitude * 0.15
+
+	# Wobble: snelheid gekoppeld aan magnitude (zacht=langzaam, hard=snel)
+	var wobble_speed = 3.0 + magnitude * 15.0  # 3-18 rad/s
+	_wobble_phase += wobble_speed * delta
+	rotation = _target_rotation + sin(_wobble_phase) * magnitude * 0.15
 
 
 func reset_audio_pulse() -> void:
