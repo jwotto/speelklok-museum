@@ -3,11 +3,13 @@ extends Node2D
 class_name AudioLayerPlayer
 
 ## Speelt gelaagde audio tracks af — 1 per instrument, gesynchroniseerd.
-## Niet-geplaatste instrumenten worden gedempt (niet gestopt) voor perfecte sync.
+## Ondersteunt genre-switching: tracks worden herladen uit een genre-submap.
 ## Elke track heeft een eigen AudioBus met SpectrumAnalyzer voor amplitude detectie.
 
+signal genre_changed(genre: String)
+
 @export_group("Audio")
-@export var tracks_path: String = "res://audio/tracks/"
+@export var tracks_base_path: String = "res://audio/tracks/"
 
 @export_group("Pulse")
 ## Onder deze drempel = geen bounce (filtert stille passages)
@@ -24,6 +26,7 @@ var _analyzers: Dictionary = {}  ## instrument_id → AudioEffectSpectrumAnalyze
 var _magnitudes: Dictionary = {}  ## instrument_id → float (0.0-1.0, smoothed)
 var _is_playing: bool = false
 var _active_instruments: Dictionary = {}  ## instrument_id → volume (0.0-1.0)
+var _current_genre: String = "groove"
 
 
 func _ready() -> void:
@@ -40,17 +43,37 @@ func _process(_delta: float) -> void:
 	_update_magnitudes()
 
 
+## Wissel van genre — herlaadt alle tracks uit de nieuwe submap
+func set_genre(genre: String) -> void:
+	if genre == _current_genre and not _players.is_empty():
+		return
+	var was_playing = _is_playing
+	var active = _active_instruments.duplicate()
+	stop_playback()
+	_cleanup_tracks()
+	_current_genre = genre
+	_load_tracks()
+	genre_changed.emit(genre)
+	if was_playing and not active.is_empty():
+		play_layers(active)
+
+
+func get_genre() -> String:
+	return _current_genre
+
+
 func _load_tracks() -> void:
-	var dir = DirAccess.open(tracks_path)
+	var path = tracks_base_path + _current_genre + "/"
+	var dir = DirAccess.open(path)
 	if not dir:
-		push_warning("AudioLayerPlayer: kan tracks map niet openen: " + tracks_path)
+		push_warning("AudioLayerPlayer: kan tracks map niet openen: " + path)
 		return
 	dir.list_dir_begin()
 	var file_name = dir.get_next()
 	while file_name != "":
 		if not dir.current_is_dir() and file_name.get_extension() == "wav":
 			var instrument_id = file_name.get_basename()
-			var stream = load(tracks_path + file_name) as AudioStream
+			var stream = load(path + file_name) as AudioStream
 			if stream:
 				_create_instrument_bus(instrument_id, stream)
 		file_name = dir.get_next()
@@ -58,20 +81,17 @@ func _load_tracks() -> void:
 
 
 func _create_instrument_bus(instrument_id: String, stream: AudioStream) -> void:
-	## Maak een AudioBus + SpectrumAnalyzer + AudioStreamPlayer per instrument
 	var bus_name = "inst_" + instrument_id
 	var bus_idx = AudioServer.bus_count
 	AudioServer.add_bus(bus_idx)
 	AudioServer.set_bus_name(bus_idx, bus_name)
 	AudioServer.set_bus_send(bus_idx, "Master")
 
-	# Voeg SpectrumAnalyzer effect toe aan de bus
 	var analyzer = AudioEffectSpectrumAnalyzer.new()
-	analyzer.buffer_length = 0.05  # 50ms buffer voor snelle respons
+	analyzer.buffer_length = 0.05
 	analyzer.fft_size = AudioEffectSpectrumAnalyzer.FFT_SIZE_512
 	AudioServer.add_bus_effect(bus_idx, analyzer)
 
-	# Maak AudioStreamPlayer op deze bus
 	var player = AudioStreamPlayer.new()
 	player.stream = stream
 	player.volume_db = -80.0
@@ -82,8 +102,6 @@ func _create_instrument_bus(instrument_id: String, stream: AudioStream) -> void:
 	_magnitudes[instrument_id] = 0.0
 
 
-## Start afspelen met opgegeven actieve instrumenten.
-## active_instruments: Dictionary[String, float] — instrument_id → volume (0.0-1.0)
 func play_layers(active_instruments: Dictionary) -> void:
 	_active_instruments = active_instruments
 	_is_playing = true
@@ -96,12 +114,10 @@ func play_layers(active_instruments: Dictionary) -> void:
 		else:
 			player.volume_db = -80.0
 
-	## Start alle players in dezelfde frame voor perfecte sync
 	for instrument_id in _players:
 		var player: AudioStreamPlayer = _players[instrument_id]
 		player.play(0.0)
 
-	## Loop detectie: verbind finished signal voor herstart
 	var first_player: AudioStreamPlayer = _players.values()[0] if _players.size() > 0 else null
 	if first_player and not first_player.finished.is_connected(_on_track_finished):
 		first_player.finished.connect(_on_track_finished)
@@ -113,7 +129,6 @@ func stop_playback() -> void:
 	for instrument_id in _players:
 		var player: AudioStreamPlayer = _players[instrument_id]
 		player.stop()
-	# Reset magnitudes
 	for instrument_id in _magnitudes:
 		_magnitudes[instrument_id] = 0.0
 
@@ -122,18 +137,34 @@ func is_playing() -> bool:
 	return _is_playing
 
 
-## Haal de huidige amplitude op voor een instrument (0.0-1.0)
 func get_magnitude(instrument_id: String) -> float:
 	return _magnitudes.get(instrument_id, 0.0)
 
 
-## Haal alle huidige amplitudes op
 func get_all_magnitudes() -> Dictionary:
 	return _magnitudes
 
 
+func _cleanup_tracks() -> void:
+	## Verwijder alle players, analyzers en audio buses
+	for instrument_id in _players:
+		var player: AudioStreamPlayer = _players[instrument_id]
+		if player.finished.is_connected(_on_track_finished):
+			player.finished.disconnect(_on_track_finished)
+		player.stop()
+		remove_child(player)
+		player.queue_free()
+	_players.clear()
+	_analyzers.clear()
+	_magnitudes.clear()
+	# Verwijder inst_ buses
+	for i in range(AudioServer.bus_count - 1, 0, -1):
+		var bus_name = AudioServer.get_bus_name(i)
+		if bus_name.begins_with("inst_"):
+			AudioServer.remove_bus(i)
+
+
 func _ensure_analyzers() -> void:
-	## Lazy init: haal analyzer instances op via bus naam (stabiel na bus herordening)
 	if not _analyzers.is_empty():
 		return
 	for instrument_id in _players:
@@ -147,7 +178,6 @@ func _ensure_analyzers() -> void:
 
 
 func _update_magnitudes() -> void:
-	## Lees spectrum data en pas threshold + smoothing toe
 	_ensure_analyzers()
 	for instrument_id in _players:
 		if not _active_instruments.has(instrument_id):
@@ -156,18 +186,15 @@ func _update_magnitudes() -> void:
 		var analyzer = _analyzers.get(instrument_id)
 		if not analyzer:
 			continue
-		# Haal magnitude op over breed frequentiebereik
 		var mag: Vector2 = analyzer.get_magnitude_for_frequency_range(20.0, 8000.0)
 		var avg = (mag.x + mag.y) / 2.0
 
-		# Threshold gate: onder drempel = 0, erboven = remap naar 0-1
 		var gated: float
 		if avg < noise_threshold:
 			gated = 0.0
 		else:
 			gated = clampf((avg - noise_threshold) / (magnitude_ceiling - noise_threshold), 0.0, 1.0)
 
-		# Smooth attack/release voor vloeiende animatie
 		var prev = _magnitudes.get(instrument_id, 0.0)
 		var smooth: float
 		if gated > prev:
@@ -180,7 +207,6 @@ func _update_magnitudes() -> void:
 func _on_track_finished() -> void:
 	if not _is_playing:
 		return
-	## Loop: herstart alle tracks
 	for instrument_id in _players:
 		var player: AudioStreamPlayer = _players[instrument_id]
 		player.play(0.0)
@@ -189,8 +215,4 @@ func _on_track_finished() -> void:
 func _exit_tree() -> void:
 	if Engine.is_editor_hint():
 		return
-	## Verwijder aangemaakte audio buses
-	for i in range(AudioServer.bus_count - 1, 0, -1):
-		var bus_name = AudioServer.get_bus_name(i)
-		if bus_name.begins_with("inst_"):
-			AudioServer.remove_bus(i)
+	_cleanup_tracks()

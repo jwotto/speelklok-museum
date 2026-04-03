@@ -90,6 +90,8 @@ var _cached_outline_width: float = -1.0
 
 # Selectie systeem
 var selected: bool = false
+var _select_timer: float = 0.0  ## Tijd sinds selectie (voor pulse)
+var input_locked: bool = false  ## Blokkeert alle input (tijdens playback)
 
 # Boundary tracking
 var _outside_boundary: bool = false
@@ -123,6 +125,8 @@ func _process(delta: float) -> void:
 # === INPUT HANDLING ===
 
 func _unhandled_input(event: InputEvent) -> void:
+	if input_locked:
+		return
 	# Alleen touch events - _unhandled_input zodat UI knoppen voorrang krijgen
 	if event is InputEventScreenTouch:
 		_on_touch(event)
@@ -314,6 +318,7 @@ func _select() -> void:
 		_selected_sticker._deselect()
 	_selected_sticker = self
 	selected = true
+	_select_timer = 0.0
 	set_process(true)
 	if material == null:
 		_setup_outline()
@@ -322,10 +327,11 @@ func _select() -> void:
 
 
 func _deselect() -> void:
-	## Deselecteer deze sticker - verberg outline
+	## Deselecteer deze sticker - verberg outline + bounce animatie
 	if not selected:
 		return
 	selected = false
+	_select_timer = 0.0
 	if _selected_sticker == self:
 		_selected_sticker = null
 	_set_outline(false)
@@ -334,18 +340,42 @@ func _deselect() -> void:
 		if child is Sprite2D:
 			child.material = null
 	selection_changed.emit(false)
+	# Bounce: korte "plop" als bevestiging van plaatsing
+	_play_deselect_bounce()
+
+
+func _play_deselect_bounce() -> void:
+	## Bounce: kleiner → terug naar normaal
+	var tween = create_tween()
+	var shrink_scale = _target_scale * 0.9
+	tween.tween_property(self, "scale", shrink_scale, 0.05) \
+		.set_ease(Tween.EASE_IN)
+	tween.tween_property(self, "scale", _target_scale, 0.12) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 
 
 # === OUTLINE ===
 
 func _process_outline() -> void:
-	## Compenseer outline dikte voor schaal (alleen als geselecteerd)
 	if not selected:
 		return
-	var width = outline_screen_width / scale.x
-	if absf(width - _cached_outline_width) < 0.05:
-		return
+
+	_select_timer += get_process_delta_time()
+
+	## Reset timer bij interactie (drag/pinch)
+	if dragging:
+		_select_timer = 0.0
+
+	## Pulserende outline zolang geselecteerd
+	var base_width: float = outline_screen_width / scale.x
+	var pulse = sin(_select_timer * PI * 2.5) * 0.35 + 1.0  # 0.65 - 1.35
+	var width: float = base_width * pulse
+
 	_cached_outline_width = width
+	_set_outline_width(width)
+
+
+func _set_outline_width(width: float) -> void:
 	if material is ShaderMaterial:
 		material.set_shader_parameter("outline_width", width)
 	for child in get_children():
