@@ -312,6 +312,8 @@ static func deselect_current() -> void:
 
 func _select() -> void:
 	## Selecteer deze sticker - toon outline
+	if input_locked:
+		return
 	if _selected_sticker == self:
 		return
 	if _selected_sticker != null:

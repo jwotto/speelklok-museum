@@ -13,7 +13,7 @@ signal speed_changed(speed_factor: float)
 ## Maximale snelheidsfactor (1.0 = normaal tempo)
 @export var max_speed: float = 1.0  ## Max 1.0 = normaal tempo, nooit sneller
 ## Hoe gevoelig de draaibeweging is
-@export var sensitivity: float = 1.5
+@export var sensitivity: float = 4.0
 
 var _wheel_sprite: TextureRect
 var _current_rotation: float = 0.0  ## Huidige hoek van het wiel (radialen)
