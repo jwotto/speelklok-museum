@@ -74,9 +74,9 @@ stretch_mode = 6
 [node name="LeftArrow" type="TextureButton" parent="UILayer" unique_id=1642937314]
 custom_minimum_size = Vector2(120, 120)
 offset_left = 110.0
-offset_top = 1265.0
+offset_top = 1165.0
 offset_right = 230.0
-offset_bottom = 1385.0
+offset_bottom = 1285.0
 texture_normal = SubResource("ImageTexture_t3h1w")
 script = ExtResource("2_icon_btn")
 icon_type = 5
@@ -87,9 +87,9 @@ icon_color = Color(1, 1, 1, 0)
 [node name="RightArrow" type="TextureButton" parent="UILayer" unique_id=133592210]
 custom_minimum_size = Vector2(120, 120)
 offset_left = 850.0
-offset_top = 1265.0
+offset_top = 1165.0
 offset_right = 970.0
-offset_bottom = 1385.0
+offset_bottom = 1285.0
 texture_normal = SubResource("ImageTexture_rjlkn")
 script = ExtResource("2_icon_btn")
 icon_type = 5

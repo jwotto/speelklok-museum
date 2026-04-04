@@ -78,11 +78,23 @@ func _on_done_pressed() -> void:
 	var body_duplicate = _body_shape.duplicate()
 
 	_shape_data = {
-		"body_node": body_duplicate,  # De complete node zelf!
+		"body_node": body_duplicate,
 		"zoom_scale": target_scale_f,
-		"polygon": polygon,  # Voor constraining
+		"polygon": polygon,
 	}
+
+	# Foto van de voorkant: UI weg, 1 frame, klaar
+	$UILayer.visible = false
+	_background.visible = false
+	get_viewport().transparent_bg = true
+	await RenderingServer.frame_post_draw
+	_shape_data["front_render"] = get_viewport().get_texture().get_image()
+	get_viewport().transparent_bg = false
+	_background.visible = true
+	$UILayer.visible = true
+
 	_animate_transition()
+
 
 
 func get_phase_data() -> Dictionary:

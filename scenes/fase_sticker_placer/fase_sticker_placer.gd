@@ -36,7 +36,8 @@ var _audio_player: Node2D = null  ## AudioLayerPlayer
 var _drager_overlay: Node = null  ## Muziekdrager selectie overlay
 @onready var _playback_layer: CanvasLayer = $PlaybackLayer
 @onready var _draaiwiel: Control = $PlaybackLayer/Draaiwiel
-@onready var _stop_button: IconButton = $PlaybackLayer/StopButton
+@onready var _back_button: IconButton = $PlaybackLayer/BackButton
+@onready var _save_button: IconButton = $PlaybackLayer/SaveButton
 
 
 func _ready() -> void:
@@ -64,7 +65,8 @@ func _ready() -> void:
 	add_child(_audio_player)
 
 	# Playback UI (draaiwiel + stop knop)
-	_stop_button.pressed.connect(_stop_playback)
+	_back_button.pressed.connect(_stop_playback)
+	_save_button.pressed.connect(_on_save_pressed)
 	_draaiwiel.speed_changed.connect(_on_wheel_speed_changed)
 
 	# Muziekdrager selectie overlay (voor als drager verwijderd wordt)
@@ -159,6 +161,10 @@ func set_phase_data(data: Dictionary) -> void:
 	add_child(body_shape)
 	move_child(body_shape, _sticker_container.get_index())
 
+	# Ontvang originele decoratie waardes (opgeslagen in fase 2)
+	if data.has("original_decoration"):
+		_original_decoration = data["original_decoration"]
+
 	# Gebruik BodyDecoration maar ZONDER versieringen - alleen basis hout texture
 	var decoration := body_shape.get_node_or_null("BodyDecoration")
 	if decoration:
@@ -211,6 +217,13 @@ func set_phase_data(data: Dictionary) -> void:
 
 	# Zet constraint callable op Sticker class
 	Sticker._constrain_position = _constrain_to_organ
+
+	# Ontvang voorkant render van fase 1 (via fase 2)
+	if data.has("front_render") and data["front_render"] != null:
+		_front_render = data["front_render"]
+		print("Voorkant render ontvangen: ", _front_render.get_width(), "x", _front_render.get_height())
+	else:
+		print("GEEN voorkant render ontvangen!")
 
 	# Plaats de gekozen muziekdrager als sticker in de kast
 	if data.has("drager_texture"):
@@ -395,7 +408,131 @@ func _show_drager_selection() -> void:
 	)
 
 
-# === STOP KNOP ===
+# === EINDSCHERM ===
+
+var _end_screen_image: Image = null  ## Opgeslagen render voor eindscherm
+var _front_render: Image = null  ## Voorkant render (van fase 2)
+var _original_decoration: Dictionary = {}  ## Originele decoratie waardes voor voorkant render
+
+func _show_end_screen() -> void:
+	## Toon eindscherm: binnenkant render als draaiende sprite die uitfadet
+	_audio_player.stop_playback()
+	_draaiwiel.reset()
+	_playback_layer.visible = false
+	$UILayer.visible = false
+
+	# Fallback: als er geen render is, maak er nu een
+	if not _end_screen_image:
+		_background.visible = false
+		get_viewport().transparent_bg = true
+		await get_tree().process_frame
+		await get_tree().process_frame
+		_end_screen_image = get_viewport().get_texture().get_image()
+		get_viewport().transparent_bg = false
+		_background.visible = true
+
+	# Verberg de echte kast + stickers
+	var body = get_node_or_null("OrganContour")
+	if body:
+		body.visible = false
+	_sticker_container.visible = false
+
+	# Maak een sprite van de opgeslagen render
+	var tex = ImageTexture.create_from_image(_end_screen_image)
+	var sprite = Sprite2D.new()
+	sprite.texture = tex
+	sprite.position = Vector2(540, 960)
+	sprite.scale = Vector2(0.8, 0.8)
+	add_child(sprite)
+
+	# Animatie: langzaam draaien + krimpen + uitfaden
+	var tween = create_tween().set_parallel()
+	tween.tween_property(sprite, "rotation", TAU * 0.5, 4.0) \
+		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_QUAD)
+	tween.tween_property(sprite, "scale", Vector2(0.3, 0.3), 4.0) \
+		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_QUAD)
+	tween.tween_property(sprite, "modulate:a", 0.0, 3.5).set_delay(0.5)
+
+	# Na 4.5 seconden: reset naar fase 1
+	await get_tree().create_timer(4.5).timeout
+	var main = get_parent().get_parent()
+	if main.has_method("start_phase"):
+		main.start_phase(0)
+
+
+# === OPSLAAN ===
+
+var _confirm_mode: bool = false  ## Bevestigingsmodus actief
+
+func _on_save_pressed() -> void:
+	if _confirm_mode:
+		return
+	# Wissel naar bevestigingsmodus: camera → vinkje + kruisje
+	_confirm_mode = true
+	_save_button.icon_type = IconButton.IconType.CHECKMARK
+	_save_button.color = Color(0.2, 0.65, 0.3, 0.9)
+	_back_button.icon_type = IconButton.IconType.CLOSE
+	_back_button.color = Color(0.8, 0.2, 0.2, 0.9)
+	# Vinkje = opslaan, kruisje = annuleer
+	_save_button.pressed.disconnect(_on_save_pressed)
+	_back_button.pressed.disconnect(_stop_playback)
+	_save_button.pressed.connect(_on_confirm_save)
+	_back_button.pressed.connect(_on_cancel_save)
+
+
+func _on_confirm_save() -> void:
+	## Screenshot opslaan en eindscherm tonen
+	_reset_save_buttons()
+	_save_screenshot()
+	_show_end_screen()
+
+
+func _on_cancel_save() -> void:
+	## Annuleer opslaan, terug naar normaal
+	_reset_save_buttons()
+
+
+func _reset_save_buttons() -> void:
+	_confirm_mode = false
+	# Herstel knoppen
+	_save_button.icon_type = IconButton.IconType.SAVE
+	_save_button.color = Color(0.2, 0.65, 0.3, 0.9)
+	_back_button.icon_type = IconButton.IconType.BACK
+	_back_button.color = Color(1, 1, 1, 1)
+	# Herstel signal verbindingen
+	if _save_button.pressed.is_connected(_on_confirm_save):
+		_save_button.pressed.disconnect(_on_confirm_save)
+	if _back_button.pressed.is_connected(_on_cancel_save):
+		_back_button.pressed.disconnect(_on_cancel_save)
+	if not _save_button.pressed.is_connected(_on_save_pressed):
+		_save_button.pressed.connect(_on_save_pressed)
+	if not _back_button.pressed.is_connected(_stop_playback):
+		_back_button.pressed.connect(_stop_playback)
+
+
+
+func _save_screenshot() -> void:
+	## Combineer voorkant (fase 1) + binnenkant (bij play) — geen render nodig
+	if not _end_screen_image:
+		print("Geen binnenkant render — skip opslaan")
+		return
+
+	var w = _end_screen_image.get_width()
+	var h = _end_screen_image.get_height()
+	var combined = Image.create(w * 2, h, true, Image.FORMAT_RGBA8)
+	if _front_render:
+		combined.blit_rect(_front_render, Rect2i(0, 0, _front_render.get_width(), _front_render.get_height()), Vector2i(0, 0))
+	combined.blit_rect(_end_screen_image, Rect2i(0, 0, w, h), Vector2i(w, 0))
+
+	var datetime = Time.get_datetime_dict_from_system()
+	var filename = "speelklok_%04d%02d%02d_%02d%02d%02d.png" % [
+		datetime["year"], datetime["month"], datetime["day"],
+		datetime["hour"], datetime["minute"], datetime["second"]
+	]
+	var desktop_path = OS.get_system_dir(OS.SYSTEM_DIR_DESKTOP)
+	var full_path = desktop_path + "/" + filename
+	combined.save_png(full_path)
+	print("Screenshot opgeslagen: ", full_path)
 
 
 func _on_wheel_speed_changed(speed_factor: float) -> void:
@@ -427,6 +564,15 @@ func _on_play_pressed() -> void:
 	if _is_playing:
 		_stop_playback()
 	else:
+		# Foto van binnenkant maken (1 frame) voordat draaiwiel verschijnt
+		$UILayer.visible = false
+		_background.visible = false
+		get_viewport().transparent_bg = true
+		await RenderingServer.frame_post_draw
+		_end_screen_image = get_viewport().get_texture().get_image()
+		get_viewport().transparent_bg = false
+		_background.visible = true
+		$UILayer.visible = true
 		_start_playback()
 
 

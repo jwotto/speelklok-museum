@@ -83,8 +83,28 @@ func set_phase_data(data: Dictionary) -> void:
 	move_child(body_shape, 1)  # Na Background
 	_body_shape = body_shape
 
-	# Gebruik BodyDecoration maar ZONDER versieringen - alleen basis hout texture
+	# Sla originele decoratie waardes op VOORDAT we ze op 0 zetten
 	var decoration := body_shape.get_node_or_null("BodyDecoration")
+	if decoration:
+		_phase_data["original_decoration"] = {
+			"pipe_count": decoration.pipe_count,
+			"panel_count": decoration.panel_count,
+			"molding_width": decoration.molding_width,
+			"molding_accent_width": decoration.molding_accent_width,
+			"gold_trim_width": decoration.gold_trim_width,
+			"arch_line_width": decoration.arch_line_width,
+			"panel_frame_width": decoration.panel_frame_width,
+			"panel_inner_width": decoration.panel_inner_width,
+			"crown_arch_count": decoration.crown_arch_count,
+			"pendant_radius": decoration.pendant_radius,
+			"neck_frame_inset": decoration.neck_frame_inset,
+			"neck_fill_color": decoration.neck_fill_color,
+			"rok_frame_inset": decoration.rok_frame_inset,
+			"rok_fill_color": decoration.rok_fill_color,
+			"uniform_zones": decoration.uniform_zones,
+		}
+
+	# Gebruik BodyDecoration maar ZONDER versieringen - alleen basis hout texture
 	if decoration:
 		decoration.visible = true
 		decoration.pipe_count = 0
@@ -121,6 +141,9 @@ func get_phase_data() -> Dictionary:
 	result["body_node"] = body_dup
 	result["genre"] = DRAGERS[_current_index]["id"]
 	result["drager_texture"] = DRAGERS[_current_index]["texture"]
+	# Voorkant render doorsturen van fase 1
+	if _phase_data.has("front_render"):
+		result["front_render"] = _phase_data["front_render"]
 	return result
 
 
@@ -168,6 +191,7 @@ func _switch_drager(direction: int) -> void:
 func _on_done_pressed() -> void:
 	if _transitioning:
 		return
+	_transitioning = true
 
 	# Zet pivot op midden van de sprite zodat schaal vanuit het midden gaat
 	_drager_sprite.pivot_offset = _drager_sprite.size / 2.0

@@ -4,7 +4,7 @@ class_name IconButton
 
 ## Configureerbare button met kleur, afgeronde hoeken en icoon
 
-enum IconType { NONE, ADD, TRASH, CHECKMARK, CLOSE, PLAY, STOP }
+enum IconType { NONE, ADD, TRASH, CHECKMARK, CLOSE, PLAY, STOP, BACK, SAVE }
 
 @export var icon_type: IconType = IconType.NONE:
 	set(value):
@@ -63,6 +63,10 @@ func _regenerate() -> void:
 			_draw_play_icon(img)
 		IconType.STOP:
 			_draw_stop_icon(img)
+		IconType.BACK:
+			_draw_back_icon(img)
+		IconType.SAVE:
+			_draw_save_icon(img)
 	texture_normal = ImageTexture.create_from_image(img)
 	custom_minimum_size = Vector2(button_size, button_size)
 
@@ -182,6 +186,52 @@ func _draw_stop_icon(img: Image) -> void:
 	var y1 = int((1.0 - margin) * s)
 	for x in range(x0, x1):
 		for y in range(y0, y1):
+			if _is_in_rounded_rect(x, y, s, s, corner_radius):
+				img.set_pixel(x, y, icon_color)
+
+
+func _draw_back_icon(img: Image) -> void:
+	var s = button_size
+	var sc: float = s / 120.0
+	var thick = int(7 * sc)
+	## Pijl naar links: < vorm + horizontale lijn
+	var p0 = Vector2(0.60 * s, 0.25 * s)  # Rechts boven
+	var p1 = Vector2(0.30 * s, 0.50 * s)  # Punt links
+	var p2 = Vector2(0.60 * s, 0.75 * s)  # Rechts onder
+	_draw_thick_line(img, p0, p1, thick)
+	_draw_thick_line(img, p1, p2, thick)
+
+
+func _draw_save_icon(img: Image) -> void:
+	var s = button_size
+	var sc: float = s / 120.0
+	var thick = int(5 * sc)
+	## Floppy disk: buitenrand
+	var bx0 = int(0.22 * s)
+	var by0 = int(0.22 * s)
+	var bx1 = int(0.78 * s)
+	var by1 = int(0.78 * s)
+	for x in range(bx0, bx1):
+		for y in range(by0, by1):
+			if x < bx0 + thick or x >= bx1 - thick or y < by0 + thick or y >= by1 - thick:
+				if _is_in_rounded_rect(x, y, s, s, corner_radius):
+					img.set_pixel(x, y, icon_color)
+	## Label onderaan (schrijfgebied)
+	var lx0 = int(0.32 * s)
+	var ly0 = int(0.55 * s)
+	var lx1 = int(0.68 * s)
+	var ly1 = int(0.78 * s)
+	for x in range(lx0, lx1):
+		for y in range(ly0, ly1):
+			if _is_in_rounded_rect(x, y, s, s, corner_radius):
+				img.set_pixel(x, y, icon_color)
+	## Metalen slider bovenin
+	var mx0 = int(0.38 * s)
+	var my0 = int(0.22 * s)
+	var mx1 = int(0.62 * s)
+	var my1 = int(0.42 * s)
+	for x in range(mx0, mx1):
+		for y in range(my0, my1):
 			if _is_in_rounded_rect(x, y, s, s, corner_radius):
 				img.set_pixel(x, y, icon_color)
 
