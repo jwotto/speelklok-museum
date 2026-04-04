@@ -18,7 +18,7 @@ const DRAGERS = [
 ## Swipe threshold in pixels voor wisselen
 @export var swipe_threshold: float = 100.0
 ## Animatie duur bij wisselen
-@export var transition_duration: float = 0.3
+@export var transition_duration: float = 0.2
 
 # Scene node references
 @onready var _background: TextureRect = $Background
@@ -202,20 +202,18 @@ func _on_done_pressed() -> void:
 	var move_to = _drager_sprite.position
 	move_to.x += screen_center_x - sprite_center_x
 
+	# Snelle overgang (0.3s): alles faded uit, achtergrond blijft
 	var tween = create_tween().set_parallel()
-	tween.tween_property(_drager_sprite, "scale", Vector2(0.3, 0.3), 0.5) \
+	tween.tween_property(_drager_sprite, "scale", Vector2(0.2, 0.2), 0.3) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tween.tween_property(_drager_sprite, "position", move_to, 0.5) \
+	tween.tween_property(_drager_sprite, "position", move_to, 0.3) \
 		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tween.tween_property(_drager_sprite, "modulate:a", 0.0, 0.4)
-	tween.tween_property(_left_arrow, "modulate:a", 0.0, 0.3)
-	tween.tween_property(_right_arrow, "modulate:a", 0.0, 0.3)
-	tween.tween_property(_done_button, "modulate:a", 0.0, 0.3)
-	if _background:
-		tween.tween_property(_background, "modulate:a", 0.0, 0.5).set_delay(0.2)
-
+	tween.tween_property(_drager_sprite, "modulate:a", 0.0, 0.2)
+	tween.tween_property(_left_arrow, "modulate:a", 0.0, 0.2)
+	tween.tween_property(_right_arrow, "modulate:a", 0.0, 0.2)
+	tween.tween_property(_done_button, "modulate:a", 0.0, 0.2)
+	# Achtergrond en kast NIET faden — gradient blijft zichtbaar
 	tween.chain().tween_callback(func():
-		# Plaats de drager als kleine sprite in de kast
 		_place_drager_in_kast()
 		phase_completed.emit()
 	)

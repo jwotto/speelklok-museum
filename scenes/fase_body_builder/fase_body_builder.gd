@@ -82,17 +82,6 @@ func _on_done_pressed() -> void:
 		"zoom_scale": target_scale_f,
 		"polygon": polygon,
 	}
-
-	# Foto van de voorkant: UI weg, 1 frame, klaar
-	$UILayer.visible = false
-	_background.visible = false
-	get_viewport().transparent_bg = true
-	await RenderingServer.frame_post_draw
-	_shape_data["front_render"] = get_viewport().get_texture().get_image()
-	get_viewport().transparent_bg = false
-	_background.visible = true
-	$UILayer.visible = true
-
 	_animate_transition()
 
 
@@ -104,28 +93,28 @@ func get_phase_data() -> Dictionary:
 func _animate_transition() -> void:
 	var target_scale_f: float = _shape_data["zoom_scale"]
 
-	var tween := create_tween()
-	tween.set_parallel()
+	# Stap 1: UI direct weg, foto maken (1 frame)
+	_slider_container.visible = false
+	_background.visible = false
+	get_viewport().transparent_bg = true
+	await RenderingServer.frame_post_draw
+	_shape_data["front_render"] = get_viewport().get_texture().get_image()
+	get_viewport().transparent_bg = false
+	_background.visible = true
 
-	# Fade out UI
-	tween.tween_property(_slider_container, "modulate:a", 0.0, 0.3)
-
-	# Fade out decoraties en outline
-	var decoration := _body_shape.get_node_or_null("BodyDecoration")
-	var outline := _body_shape.get_node_or_null("ShapeOutline")
-	if decoration:
-		tween.tween_property(decoration, "modulate:a", 0.0, 0.4).set_delay(0.15)
-	if outline:
-		tween.tween_property(outline, "modulate:a", 0.0, 0.4).set_delay(0.15)
-
-	# Zoom (alleen scale, GEEN position verandering!)
-	tween.tween_property(_body_shape, "scale", Vector2(target_scale_f, target_scale_f), 0.8) \
+	# Stap 2: snelle overgang (0.3s)
+	var tween := create_tween().set_parallel()
+	# Kast schaalt naar target + decoraties faden
+	tween.tween_property(_body_shape, "scale", Vector2(target_scale_f, target_scale_f), 0.3) \
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+	var decoration := _body_shape.get_node_or_null("BodyDecoration")
+	if decoration:
+		tween.tween_property(decoration, "modulate:a", 0.0, 0.2)
+	var outline := _body_shape.get_node_or_null("ShapeOutline")
+	if outline:
+		tween.tween_property(outline, "modulate:a", 0.0, 0.2)
+	# Achtergrond NIET faden — gradient blijft mooi zichtbaar
 
-	# Fade achtergrond
-	tween.tween_property(_background, "modulate:a", 0.0, 0.5).set_delay(0.3)
-
-	# Na animatie: volgende fase
 	tween.chain().tween_callback(phase_completed.emit)
 
 

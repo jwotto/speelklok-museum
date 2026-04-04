@@ -385,7 +385,10 @@ func _show_drager_selection() -> void:
 	var fase_scene = preload("res://scenes/fase_muziekdrager/fase_muziekdrager.tscn")
 	_drager_overlay = fase_scene.instantiate()
 	add_child(_drager_overlay)
+	# Verberg sticker UI en blokkeer sticker input
 	_slider_container.visible = false
+	$UILayer.visible = false
+	_set_stickers_input(false)
 	# Verberg de achtergrond zodat de kast van fase 3 zichtbaar blijft
 	var bg = _drager_overlay.get_node_or_null("Background")
 	if bg:
@@ -403,7 +406,10 @@ func _show_drager_selection() -> void:
 		_audio_player.set_genre(genre)
 		if tex:
 			_place_drager_sticker(tex)
+		# Herstel sticker UI en input
+		$UILayer.visible = true
 		_slider_container.visible = true
+		_set_stickers_input(true)
 		_update_button_visibility()
 	)
 
@@ -445,16 +451,16 @@ func _show_end_screen() -> void:
 	sprite.scale = Vector2(0.8, 0.8)
 	add_child(sprite)
 
-	# Animatie: langzaam draaien + krimpen + uitfaden
+	# Animatie: draaien + krimpen + uitfaden (snappier)
 	var tween = create_tween().set_parallel()
-	tween.tween_property(sprite, "rotation", TAU * 0.5, 4.0) \
+	tween.tween_property(sprite, "rotation", TAU * 0.4, 2.5) \
 		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_QUAD)
-	tween.tween_property(sprite, "scale", Vector2(0.3, 0.3), 4.0) \
-		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_QUAD)
-	tween.tween_property(sprite, "modulate:a", 0.0, 3.5).set_delay(0.5)
+	tween.tween_property(sprite, "scale", Vector2(0.2, 0.2), 2.5) \
+		.set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tween.tween_property(sprite, "modulate:a", 0.0, 2.0).set_delay(0.3)
 
-	# Na 4.5 seconden: reset naar fase 1
-	await get_tree().create_timer(4.5).timeout
+	# Na 3 seconden: reset naar fase 1
+	await get_tree().create_timer(3.0).timeout
 	var main = get_parent().get_parent()
 	if main.has_method("start_phase"):
 		main.start_phase(0)
@@ -564,6 +570,9 @@ func _on_play_pressed() -> void:
 	if _is_playing:
 		_stop_playback()
 	else:
+		# Deselecteer alle stickers (geen witte rand in de foto)
+		if Sticker._selected_sticker:
+			Sticker._selected_sticker._deselect()
 		# Foto van binnenkant maken (1 frame) voordat draaiwiel verschijnt
 		$UILayer.visible = false
 		_background.visible = false
@@ -581,10 +590,27 @@ func _start_playback() -> void:
 	if active.is_empty():
 		return
 	_is_playing = true
-	_play_button.icon_type = IconButton.IconType.STOP
 	_set_stickers_input(false)
 	if Sticker._selected_sticker:
 		Sticker._selected_sticker._deselect()
+
+	# Animatie: slider bar faded uit, playback UI faded in
+	_slider_container.visible = true
+	_playback_layer.visible = true
+	_playback_layer.get_node("Draaiwiel").modulate.a = 0.0
+	_playback_layer.get_node("BackButton").modulate.a = 0.0
+	_playback_layer.get_node("SaveButton").modulate.a = 0.0
+
+	var tween = create_tween().set_parallel()
+	tween.tween_property(_slider_container, "modulate:a", 0.0, 0.2)
+	tween.tween_property(_playback_layer.get_node("Draaiwiel"), "modulate:a", 1.0, 0.3).set_delay(0.1)
+	tween.tween_property(_playback_layer.get_node("BackButton"), "modulate:a", 1.0, 0.2).set_delay(0.1)
+	tween.tween_property(_playback_layer.get_node("SaveButton"), "modulate:a", 1.0, 0.2).set_delay(0.1)
+	tween.chain().tween_callback(func():
+		_slider_container.visible = false
+		_slider_container.modulate.a = 1.0
+	)
+
 	# Start muziek gedempt — het wiel bepaalt het volume
 	_audio_player.play_layers(active)
 	for instrument_id in _audio_player._players:
@@ -603,7 +629,19 @@ func _stop_playback() -> void:
 		if sticker is Sticker:
 			sticker.reset_audio_pulse()
 	_set_stickers_input(true)
-	_update_button_visibility()
+
+	# Animatie: playback UI faded uit, sliders faden in
+	_slider_container.visible = true
+	_slider_container.modulate.a = 0.0
+	var tween = create_tween().set_parallel()
+	tween.tween_property(_playback_layer.get_node("Draaiwiel"), "modulate:a", 0.0, 0.2)
+	tween.tween_property(_playback_layer.get_node("BackButton"), "modulate:a", 0.0, 0.15)
+	tween.tween_property(_playback_layer.get_node("SaveButton"), "modulate:a", 0.0, 0.15)
+	tween.tween_property(_slider_container, "modulate:a", 1.0, 0.2).set_delay(0.1)
+	tween.chain().tween_callback(func():
+		_playback_layer.visible = false
+		_update_button_visibility()
+	)
 
 
 func _scan_active_instruments() -> Dictionary:
