@@ -49,16 +49,11 @@ func _process(delta: float) -> void:
 		_angular_velocity *= (1.0 - friction)
 		if absf(_angular_velocity) < 0.05:
 			_angular_velocity = 0.0
+		# Alleen bij frictie het wiel laten draaien (bij touch doet _gui_input dit)
+		_current_rotation += _angular_velocity * delta
+		_wheel_sprite.rotation = _current_rotation
 
-	# Clamp angular velocity zodat het wiel niet sneller draait dan max tempo
-	var max_angular = PI * 2.0 * max_speed / sensitivity
-	_angular_velocity = clampf(_angular_velocity, -max_angular, max_angular)
-
-	# Update rotatie op basis van velocity
-	_current_rotation += _angular_velocity * delta
-	_wheel_sprite.rotation = _current_rotation
-
-	# Bereken speed factor van angular velocity
+	# Bereken speed factor — clamp alleen de output, niet het wiel
 	var new_speed = clampf(absf(_angular_velocity) / (PI * 2.0) * sensitivity, 0.0, max_speed)
 
 	# Smooth de speed factor

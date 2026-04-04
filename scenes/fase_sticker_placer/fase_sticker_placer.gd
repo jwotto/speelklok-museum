@@ -33,11 +33,9 @@ var _updating_sliders: bool = false
 var _organ_polygon_world: PackedVector2Array = PackedVector2Array()
 var _organ_center: Vector2 = Vector2.ZERO
 var _audio_player: Node2D = null  ## AudioLayerPlayer
-var _drager_overlay: CanvasLayer = null  ## Muziekdrager selectie overlay
-var _drager_selecting: bool = false  ## Toon drager selectie
-var _draaiwiel: Control = null  ## Draaiwiel voor tempo controle
-var _draaiwiel_container: CanvasLayer = null
-var _stop_button: IconButton = null  ## Aparte stop knop links onder tijdens playback
+@onready var _playback_layer: CanvasLayer = $PlaybackLayer
+@onready var _draaiwiel: Control = $PlaybackLayer/Draaiwiel
+@onready var _stop_button: IconButton = $PlaybackLayer/StopButton
 
 
 func _ready() -> void:
@@ -64,14 +62,9 @@ func _ready() -> void:
 	_audio_player = AudioLayerPlayerScript.new()
 	add_child(_audio_player)
 
-	# Muziekdrager selectie overlay
-	_setup_drager_overlay()
-
-	# Draaiwiel voor tempo controle
-	_setup_draaiwiel()
-
-	# Stop knop links onder (alleen tijdens playback)
-	_setup_stop_button()
+	# Playback UI (draaiwiel + stop knop)
+	_stop_button.pressed.connect(_stop_playback)
+	_draaiwiel.speed_changed.connect(_on_wheel_speed_changed)
 
 
 func _on_add_pressed() -> void:
@@ -93,21 +86,18 @@ func _on_picker_closed() -> void:
 
 
 func _update_button_visibility() -> void:
-	if _picker_open or _drager_selecting:
+	if _picker_open:
 		_slider_container.visible = false
 		return
 	_slider_container.visible = true
 	var has_stickers = _sticker_container.get_child_count() > 0
 
 	if _is_playing:
-		# Tijdens afspelen: slider bar verbergen, stop knop links onder
+		# Tijdens afspelen: slider bar verborgen, playback UI zichtbaar
 		_slider_container.visible = false
-		if _stop_button:
-			_stop_button.get_meta("container").visible = true
+		_playback_layer.visible = true
 		return
-	# Niet playing: stop knop verbergen
-	if _stop_button:
-		_stop_button.get_meta("container").visible = false
+	_playback_layer.visible = false
 
 	_trash_button.visible = _any_dragging
 	_add_button.visible = not _any_dragging
@@ -153,11 +143,10 @@ func _set_stickers_process(enabled: bool) -> void:
 
 
 func set_phase_data(data: Dictionary) -> void:
-	## Ontvang de geduplicate body node van de body builder fase
+	## Ontvang data van fase 2 (muziekdrager) — body node + genre
 	if not data.has("body_node") or not data.has("polygon"):
 		return
 
-	# Gebruik de GEDUPLICATE node uit fase 1 - EXACT dezelfde properties!
 	var body_shape: Node2D = data["body_node"]
 	var polygon: PackedVector2Array = data["polygon"]
 	var target_scale_f: float = data["zoom_scale"]
@@ -170,33 +159,32 @@ func set_phase_data(data: Dictionary) -> void:
 	var decoration := body_shape.get_node_or_null("BodyDecoration")
 	if decoration:
 		decoration.visible = true
-		# Schakel ALLE decoraties uit - houd alleen de basis texture
-		decoration.pipe_count = 0  # Geen pijpen
-		decoration.panel_count = 0  # Geen panelen
-		decoration.molding_width = 0.0  # Geen lijstwerk
+		decoration.pipe_count = 0
+		decoration.panel_count = 0
+		decoration.molding_width = 0.0
 		decoration.molding_accent_width = 0.0
-		decoration.gold_trim_width = 0.0  # Geen gouden rand
+		decoration.gold_trim_width = 0.0
 		decoration.arch_line_width = 0.0
-		decoration.panel_frame_width = 0.0  # Geen paneel randen
+		decoration.panel_frame_width = 0.0
 		decoration.panel_inner_width = 0.0
-		decoration.crown_arch_count = 0  # Geen kroonboogjes
-		decoration.pendant_radius = 0.0  # Geen bolletjes
-		decoration.neck_frame_inset = 0.0  # Geen nek-kader
-		decoration.neck_fill_color = Color(0, 0, 0, 0)  # Geen nek-vulling
-		decoration.rok_frame_inset = 0.0  # Geen rok-kader
-		decoration.rok_fill_color = Color(0, 0, 0, 0)  # Geen rok-vulling
-		decoration.uniform_zones = true  # Uniforme kleur (geen donkere/lichte zones)
-		# Maak texture opacity en blend uniform over alle zones
+		decoration.crown_arch_count = 0
+		decoration.pendant_radius = 0.0
+		decoration.neck_frame_inset = 0.0
+		decoration.neck_fill_color = Color(0, 0, 0, 0)
+		decoration.rok_frame_inset = 0.0
+		decoration.rok_fill_color = Color(0, 0, 0, 0)
+		decoration.uniform_zones = true
 		decoration.kop_texture_opacity = decoration.lichaam_texture_opacity
 		decoration.rok_texture_opacity = decoration.lichaam_texture_opacity
 		decoration.kop_color_blend = decoration.lichaam_color_blend
 		decoration.rok_color_blend = decoration.lichaam_color_blend
-		# Nu blijft alleen de basis kleur + hout texture over!
-
-	# ShapeFill blijft hidden (BodyDecoration tekent de vorm)
 	var shape_fill := body_shape.get_node_or_null("ShapeFill")
 	if shape_fill:
 		shape_fill.visible = false
+
+	# Genre instellen vanuit fase 2
+	if data.has("genre"):
+		_audio_player.set_genre(data["genre"])
 
 	# Scale is al gezet door de animatie in fase 1, dus laten we die
 	# (position en scale zijn al exact zoals ze moeten zijn!)
@@ -336,218 +324,7 @@ func _delete_sticker(sticker: Sticker, trash_center: Vector2) -> void:
 	tween.chain().tween_callback(sticker.queue_free)
 
 
-# === MUZIEKDRAGER SELECTIE ===
-
-const DRAGERS = [
-	{"id": "groove", "texture": "res://assets/muziekdragers/speelplaat.png"},
-	{"id": "klassiek", "texture": "res://assets/muziekdragers/cilinder.png"},
-	{"id": "klezmer", "texture": "res://assets/muziekdragers/orgelboek.png"},
-	{"id": "pop", "texture": "res://assets/muziekdragers/papierrol.png"},
-]
-
-
-
-func _setup_drager_overlay() -> void:
-	## Muziekdrager picker — zelfde visuele stijl als sticker picker
-	_drager_overlay = CanvasLayer.new()
-	_drager_overlay.layer = 20
-
-	# Overlay achtergrond (klikbaar om te sluiten)
-	var overlay = ColorRect.new()
-	overlay.color = Color(0, 0, 0, 0.5)
-	overlay.anchor_right = 1.0
-	overlay.anchor_bottom = 1.0
-	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
-	overlay.gui_input.connect(_on_drager_overlay_input)
-	_drager_overlay.add_child(overlay)
-
-	# Donker paneel — zelfde stijl als sticker picker
-	var panel = Panel.new()
-	panel.anchor_left = 0.0
-	panel.anchor_top = 0.0
-	panel.anchor_right = 1.0
-	panel.anchor_bottom = 1.0
-	panel.offset_left = 70
-	panel.offset_top = 40
-	panel.offset_right = -70
-	panel.offset_bottom = -240
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color.WHITE  # Witte achtergrond als clip mask
-	style.corner_radius_top_left = 30
-	style.corner_radius_top_right = 30
-	style.corner_radius_bottom_left = 30
-	style.corner_radius_bottom_right = 30
-	panel.clip_children = CanvasItem.CLIP_CHILDREN_AND_DRAW
-	panel.add_theme_stylebox_override("panel", style)
-	_drager_overlay.add_child(panel)
-
-	# Gebruik dezelfde gradient als de sticker picker
-	var grad_rect = TextureRect.new()
-	grad_rect.name = "GradientBG"
-	grad_rect.texture = _picker.panel_gradient
-	grad_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	grad_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	grad_rect.stretch_mode = TextureRect.STRETCH_SCALE
-	grad_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	panel.add_child(grad_rect)
-	panel.move_child(grad_rect, 0)  # Gradient achter alles
-
-	# Grid met 2x2 dragers, gecentreerd, vullend in het paneel
-	var grid = GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 25)
-	grid.add_theme_constant_override("v_separation", 25)
-	grid.anchor_left = 0.5
-	grid.anchor_top = 0.5
-	grid.anchor_right = 0.5
-	grid.anchor_bottom = 0.5
-	grid.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	grid.grow_vertical = Control.GROW_DIRECTION_BOTH
-	panel.add_child(grid)
-
-	# Bereken icon grootte: vul het paneel zo veel mogelijk
-	var icon_size = 420
-
-	for drager in DRAGERS:
-		var btn = TextureButton.new()
-		var tex = load(drager["texture"]) as Texture2D
-		if tex:
-			btn.texture_normal = tex
-		btn.ignore_texture_size = true
-		btn.stretch_mode = TextureButton.STRETCH_KEEP_ASPECT_CENTERED
-		btn.custom_minimum_size = Vector2(icon_size, icon_size)
-		btn.pivot_offset = Vector2(icon_size / 2.0, icon_size / 2.0)
-		btn.pressed.connect(_on_drager_selected.bind(drager["id"], btn))
-		# Hover animatie
-		btn.button_down.connect(_on_drager_hover.bind(btn, true))
-		btn.button_up.connect(_on_drager_hover.bind(btn, false))
-		grid.add_child(btn)
-
-	# Sluit knop onderaan
-	var close_btn_scene = preload("res://scenes/fase_sticker_placer/onderdelen/play_button.tscn")
-	var close_btn: IconButton = close_btn_scene.instantiate()
-	close_btn.icon_type = IconButton.IconType.CLOSE
-	close_btn.button_size = 120
-	close_btn.anchor_left = 0.5
-	close_btn.anchor_right = 0.5
-	close_btn.anchor_bottom = 1.0
-	close_btn.offset_left = -60
-	close_btn.offset_right = 60
-	close_btn.offset_top = -190
-	close_btn.pressed.connect(_hide_drager_selection)
-	_drager_overlay.add_child(close_btn)
-
-	add_child(_drager_overlay)
-	_drager_overlay.visible = false
-
-
-func _on_drager_hover(btn: TextureButton, pressed: bool) -> void:
-	## Hover animatie: groter + lichte rotatie bij indrukken
-	var tween = btn.get_meta("tween", null) as Tween
-	if tween and tween.is_valid():
-		tween.kill()
-	tween = create_tween().set_parallel()
-	btn.set_meta("tween", tween)
-	if pressed:
-		var angle = randf_range(-0.08, 0.08)
-		tween.tween_property(btn, "scale", Vector2(1.08, 1.08), 0.2) \
-			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-		tween.tween_property(btn, "rotation", angle, 0.2) \
-			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	else:
-		tween.tween_property(btn, "scale", Vector2.ONE, 0.4) \
-			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
-		tween.tween_property(btn, "rotation", 0.0, 0.4) \
-			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_ELASTIC)
-
-
-func _on_drager_overlay_input(event: InputEvent) -> void:
-	if event is InputEventScreenTouch and event.pressed:
-		_hide_drager_selection()
-
-
-func _show_drager_selection() -> void:
-	_drager_selecting = true
-	_drager_overlay.visible = true
-	_slider_container.visible = false
-	_play_button.visible = false
-
-
-func _hide_drager_selection() -> void:
-	_drager_selecting = false
-	_drager_overlay.visible = false
-	_update_button_visibility()
-
-
-func _on_drager_selected(genre: String, btn: TextureButton) -> void:
-	## Korte selectie-animatie, dan muziek starten
-	var tween = create_tween()
-	tween.tween_property(btn, "scale", Vector2(1.2, 1.2), 0.15) \
-		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
-	tween.tween_property(btn, "scale", Vector2.ONE, 0.1)
-	tween.tween_callback(func():
-		_hide_drager_selection()
-		_audio_player.set_genre(genre)
-		_start_playback()
-	)
-
-
 # === STOP KNOP ===
-
-func _setup_stop_button() -> void:
-	var StopBtnScene = preload("res://scenes/fase_sticker_placer/onderdelen/play_button.tscn")
-	_stop_button = StopBtnScene.instantiate()
-	_stop_button.icon_type = IconButton.IconType.STOP
-	_stop_button.button_size = 120
-
-	var container = Control.new()
-	container.anchor_left = 0.0
-	container.anchor_top = 1.0
-	container.anchor_right = 0.0
-	container.anchor_bottom = 1.0
-	container.offset_left = 30
-	container.offset_top = -150
-	container.offset_right = 150
-	container.offset_bottom = -30
-	container.add_child(_stop_button)
-
-	$UILayer.add_child(container)
-	container.visible = false
-	_stop_button.pressed.connect(_stop_playback)
-	_stop_button.set_meta("container", container)
-
-
-# === DRAAIWIEL ===
-
-func _setup_draaiwiel() -> void:
-	var DraaiwielScript = preload("res://scenes/fase_sticker_placer/onderdelen/draaiwiel.gd")
-
-	# CanvasLayer zodat het wiel boven alles zweeft
-	_draaiwiel_container = CanvasLayer.new()
-	_draaiwiel_container.layer = 15
-
-	# Draaiwiel Control — vaste positie gecentreerd onderaan
-	_draaiwiel = Control.new()
-	_draaiwiel.set_script(DraaiwielScript)
-
-	var wheel_size = 750.0
-	var viewport_w = 1080.0
-	var viewport_h = 1920.0
-	_draaiwiel.position = Vector2(
-		(viewport_w - wheel_size) / 2.0,
-		viewport_h - wheel_size - 50
-	)
-	_draaiwiel.size = Vector2(wheel_size, wheel_size)
-
-	_draaiwiel_container.add_child(_draaiwiel)
-	add_child(_draaiwiel_container)
-	_draaiwiel_container.visible = false
-
-
-func _connect_draaiwiel() -> void:
-	## Verbind het draaiwiel signal (aangeroepen na het zichtbaar maken)
-	if _draaiwiel and not _draaiwiel.speed_changed.is_connected(_on_wheel_speed_changed):
-		_draaiwiel.speed_changed.connect(_on_wheel_speed_changed)
 
 
 func _on_wheel_speed_changed(speed_factor: float) -> void:
@@ -579,7 +356,7 @@ func _on_play_pressed() -> void:
 	if _is_playing:
 		_stop_playback()
 	else:
-		_show_drager_selection()
+		_start_playback()
 
 
 func _start_playback() -> void:
@@ -596,10 +373,7 @@ func _start_playback() -> void:
 	for instrument_id in _audio_player._players:
 		var player: AudioStreamPlayer = _audio_player._players[instrument_id]
 		player.volume_db = -80.0
-	# Toon draaiwiel
-	_draaiwiel_container.visible = true
 	_draaiwiel.reset()
-	_connect_draaiwiel()
 	_update_button_visibility()
 
 
@@ -607,8 +381,6 @@ func _stop_playback() -> void:
 	_is_playing = false
 	_play_button.icon_type = IconButton.IconType.PLAY
 	_audio_player.stop_playback()
-	# Verberg draaiwiel
-	_draaiwiel_container.visible = false
 	_draaiwiel.reset()
 	for sticker in _sticker_container.get_children():
 		if sticker is Sticker:

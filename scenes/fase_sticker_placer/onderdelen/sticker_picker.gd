@@ -154,6 +154,7 @@ func _style_scrollbar() -> void:
 	# Scrollbar naast het panel (child van root, niet panel — anders wordt het geclipt)
 	var bar_width := 48
 	var bar_gap := 8
+	@warning_ignore("integer_division")
 	var corner := bar_width / 2
 
 	_scroll_track = Panel.new()

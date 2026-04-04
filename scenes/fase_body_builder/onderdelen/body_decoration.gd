@@ -478,6 +478,7 @@ func _draw() -> void:
 	if _polygon.size() < 3:
 		return
 	_ensure_zone_cache()
+
 	# Gebruik de zone posities die door body_shape zijn berekend
 	var neck_y: float = _neck_y
 	var shoulder_y: float = _shoulder_y
@@ -493,6 +494,7 @@ func _draw() -> void:
 	_draw_rok_decoration(hip_y, base_y)
 	_draw_gold_trim()
 	_draw_3d_edge()
+
 
 
 # ── Zone textures ────────────────────────────────────────────────────
