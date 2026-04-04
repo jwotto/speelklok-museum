@@ -111,11 +111,16 @@ func set_phase_data(data: Dictionary) -> void:
 		shape_fill.visible = false
 
 
+func _place_drager_in_kast() -> void:
+	pass  # Drager wordt als sticker geplaatst in fase 3
+
+
 func get_phase_data() -> Dictionary:
 	var body_dup = _body_shape.duplicate() if _body_shape else null
 	var result = _phase_data.duplicate()
 	result["body_node"] = body_dup
 	result["genre"] = DRAGERS[_current_index]["id"]
+	result["drager_texture"] = DRAGERS[_current_index]["texture"]
 	return result
 
 
@@ -186,6 +191,8 @@ func _on_done_pressed() -> void:
 		tween.tween_property(_background, "modulate:a", 0.0, 0.5).set_delay(0.2)
 
 	tween.chain().tween_callback(func():
+		# Plaats de drager als kleine sprite in de kast
+		_place_drager_in_kast()
 		phase_completed.emit()
 	)
 

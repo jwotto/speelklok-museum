@@ -208,6 +208,26 @@ func set_phase_data(data: Dictionary) -> void:
 	# Zet constraint callable op Sticker class
 	Sticker._constrain_position = _constrain_to_organ
 
+	# Plaats de gekozen muziekdrager als sticker in de kast
+	if data.has("drager_texture"):
+		_place_drager_sticker(data["drager_texture"])
+
+
+func _place_drager_sticker(tex: Texture2D) -> void:
+	## Plaats de muziekdrager als een echte sticker in het midden van de kast
+	var base_scene = preload("res://scenes/fase_sticker_placer/onderdelen/sticker.tscn")
+	var sticker = base_scene.instantiate()
+	sticker.texture = tex
+	sticker.scale = Vector2(0.25, 0.25)
+	sticker.position = _organ_center
+	# Markeer als muziekdrager zodat die op master audio reageert
+	sticker.set_meta("is_drager", true)
+	_sticker_container.add_child(sticker)
+	sticker.selection_changed.connect(_on_sticker_selection_changed.bind(sticker))
+	Sticker._top_z_index += 1
+	sticker.z_index = Sticker._top_z_index
+	_update_button_visibility()
+
 
 func _on_sticker_selected(scene: PackedScene, from_position: Vector2) -> void:
 	var target = _organ_center if _organ_polygon_world.size() > 0 else get_viewport_rect().size / 2
@@ -405,12 +425,26 @@ func _scan_active_instruments() -> Dictionary:
 func _update_sticker_pulse(delta: float) -> void:
 	## Pas sticker schaal aan op basis van hun instrument's audio amplitude
 	var magnitudes = _audio_player.get_all_magnitudes()
+
+	# Bereken gemiddelde magnitude voor de muziekdrager sticker
+	var total_mag: float = 0.0
+	var active_count: int = 0
+	for mag_val in magnitudes.values():
+		if mag_val > 0.001:
+			total_mag += mag_val
+			active_count += 1
+	var avg_mag: float = total_mag / float(maxi(active_count, 1))
+
 	for sticker in _sticker_container.get_children():
 		if not sticker is Sticker:
 			continue
-		var instrument_id = sticker.scene_file_path.get_file().get_basename()
-		var mag = magnitudes.get(instrument_id, 0.0)
-		sticker.set_audio_pulse(mag, delta)
+		if sticker.has_meta("is_drager"):
+			# Muziekdrager reageert op gemiddelde van alle instrumenten
+			sticker.set_audio_pulse(avg_mag, delta)
+		else:
+			var instrument_id = sticker.scene_file_path.get_file().get_basename()
+			var mag = magnitudes.get(instrument_id, 0.0)
+			sticker.set_audio_pulse(mag, delta)
 
 
 # === SLIDERS ===
