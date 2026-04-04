@@ -33,6 +33,7 @@ var _updating_sliders: bool = false
 var _organ_polygon_world: PackedVector2Array = PackedVector2Array()
 var _organ_center: Vector2 = Vector2.ZERO
 var _audio_player: Node2D = null  ## AudioLayerPlayer
+var _drager_overlay: Node = null  ## Muziekdrager selectie overlay
 @onready var _playback_layer: CanvasLayer = $PlaybackLayer
 @onready var _draaiwiel: Control = $PlaybackLayer/Draaiwiel
 @onready var _stop_button: IconButton = $PlaybackLayer/StopButton
@@ -65,6 +66,9 @@ func _ready() -> void:
 	# Playback UI (draaiwiel + stop knop)
 	_stop_button.pressed.connect(_stop_playback)
 	_draaiwiel.speed_changed.connect(_on_wheel_speed_changed)
+
+	# Muziekdrager selectie overlay (voor als drager verwijderd wordt)
+	_setup_drager_overlay()
 
 
 func _on_add_pressed() -> void:
@@ -331,17 +335,64 @@ func _check_trash_zone() -> void:
 
 func _delete_sticker(sticker: Sticker, trash_center: Vector2) -> void:
 	## Animeer sticker naar prullenbak en verwijder
+	var is_drager = sticker.has_meta("is_drager")
 	sticker._deselect()
 	sticker.set_process_unhandled_input(false)
-	sticker.set_process(false)  # Voorkomt ook snap-back via _check_snap_back
+	sticker.set_process(false)
 	sticker._outside_boundary = false
-	sticker.modulate = Color.WHITE  # Reset rode tint voor delete-animatie
+	sticker.modulate = Color.WHITE
 	var tween = create_tween().set_parallel()
 	tween.tween_property(sticker, "position", trash_center, 0.25).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tween.tween_property(sticker, "scale", Vector2.ZERO, 0.25).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tween.tween_property(sticker, "rotation", sticker.rotation + TAU, 0.25).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tween.tween_property(sticker, "modulate:a", 0.0, 0.2).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tween.chain().tween_callback(sticker.queue_free)
+	tween.chain().tween_callback(func():
+		sticker.queue_free()
+		if is_drager:
+			_show_drager_selection()
+	)
+
+
+# === MUZIEKDRAGER SELECTIE (bij verwijderen drager sticker) ===
+
+const DRAGERS = [
+	{"id": "groove", "texture": preload("res://assets/muziekdragers/speelplaat.png")},
+	{"id": "klassiek", "texture": preload("res://assets/muziekdragers/cilinder.png")},
+	{"id": "klezmer", "texture": preload("res://assets/muziekdragers/orgelboek.png")},
+	{"id": "pop", "texture": preload("res://assets/muziekdragers/papierrol.png")},
+]
+
+
+func _setup_drager_overlay() -> void:
+	pass  # Overlay wordt on-demand aangemaakt vanuit fase_muziekdrager scene
+
+
+func _show_drager_selection() -> void:
+	## Instantieer fase_muziekdrager als overlay over fase 3
+	var fase_scene = preload("res://scenes/fase_muziekdrager/fase_muziekdrager.tscn")
+	_drager_overlay = fase_scene.instantiate()
+	add_child(_drager_overlay)
+	_slider_container.visible = false
+	# Verberg de achtergrond zodat de kast van fase 3 zichtbaar blijft
+	var bg = _drager_overlay.get_node_or_null("Background")
+	if bg:
+		bg.visible = false
+
+	# Verbind het phase_completed signal — als drager gekozen is
+	_drager_overlay.phase_completed.connect(func():
+		var data = _drager_overlay.get_phase_data()
+		var genre: String = data.get("genre", "groove")
+		var tex: Texture2D = data.get("drager_texture")
+
+		_drager_overlay.queue_free()
+		_drager_overlay = null
+
+		_audio_player.set_genre(genre)
+		if tex:
+			_place_drager_sticker(tex)
+		_slider_container.visible = true
+		_update_button_visibility()
+	)
 
 
 # === STOP KNOP ===
