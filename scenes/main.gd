@@ -44,13 +44,15 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
-	# Inactiviteit: terug naar start na timeout (niet in fase 0 = startscherm)
-	if _current_phase_index > 0:
+	# Inactiviteit: terug naar start na timeout
+	# Niet tijdens demo mode (fase 0 met _demo_mode aan)
+	var in_demo = _current_phase_index == 0 and _current_phase and _current_phase.get("_demo_mode")
+	if not in_demo:
 		_inactivity_timer += delta
 		if _inactivity_timer >= inactivity_timeout:
 			_inactivity_timer = 0.0
 			_phase_data = {"start_delay": start_delay}
-			_current_phase_index = -1  # Force reload
+			_current_phase_index = -1
 			start_phase(0)
 
 
