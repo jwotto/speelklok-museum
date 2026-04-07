@@ -10,13 +10,20 @@ signal phase_completed(phase_index: int)
 ## Array van phase scenes in volgorde
 @export var phase_scenes: Array[PackedScene] = []
 ## Welke fase start bij opstarten (0-indexed)
-@export var start_phase_index: int = 1
+@export var start_phase_index: int = 0
+
+@export_group("Inactiviteit")
+## Seconden zonder input voordat de app terug naar start gaat
+@export var inactivity_timeout: float = 20.0
+## Seconden wachten na reset voordat de START knop verschijnt
+@export var start_delay: float = 4.0
 
 @onready var _phase_container: Node2D = $PhaseContainer
 
 var _current_phase_index: int = -1
 var _current_phase: Node = null
 var _phase_data: Dictionary = {}
+var _inactivity_timer: float = 0.0
 
 
 func _ready() -> void:
@@ -34,9 +41,25 @@ func _ready() -> void:
 	start_phase(start_phase_index)
 
 
+func _process(delta: float) -> void:
+	if Engine.is_editor_hint():
+		return
+	# Inactiviteit: terug naar start na timeout (niet in fase 0 = startscherm)
+	if _current_phase_index > 0:
+		_inactivity_timer += delta
+		if _inactivity_timer >= inactivity_timeout:
+			_inactivity_timer = 0.0
+			_phase_data = {"start_delay": start_delay}
+			_current_phase_index = -1  # Force reload
+			start_phase(0)
+
+
 func _input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
 		return
+	# Reset inactiviteit timer bij elke input
+	if event is InputEventScreenTouch or event is InputEventScreenDrag or event is InputEventMouseButton:
+		_inactivity_timer = 0.0
 	# ESC = afsluiten
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_ESCAPE:
@@ -59,7 +82,7 @@ func start_phase(index: int) -> void:
 	## Laad en activeer een fase
 	if index < 0 or index >= phase_scenes.size():
 		return
-	if index == _current_phase_index:
+	if index == _current_phase_index and _current_phase != null:
 		return
 	# Verwijder huidige fase
 	if _current_phase != null:
@@ -69,7 +92,9 @@ func start_phase(index: int) -> void:
 	_current_phase_index = index
 	_current_phase = phase_scenes[index].instantiate()
 	_phase_container.add_child(_current_phase)
-	# Geef data van vorige fase door
+	# Geef data door — bij terugkeer naar start, stuur start_delay mee
+	if index == 0 and _phase_data.is_empty():
+		_phase_data = {"start_delay": start_delay}
 	if _current_phase.has_method("set_phase_data") and _phase_data.size() > 0:
 		_current_phase.set_phase_data(_phase_data)
 	# Verbind phase_completed signal als de fase dat heeft

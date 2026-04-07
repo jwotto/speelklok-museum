@@ -19,6 +19,7 @@ var _shape_data: Dictionary = {}
 var _demo_mode: bool = true
 var _demo_time: float = 0.0
 var _start_button: Control = null
+var _start_delay: float = 0.0  ## Vertraging voordat START knop verschijnt
 var _floating_container: Node2D = null
 var _spawn_timer: float = 0.0
 
@@ -57,6 +58,12 @@ func _ready() -> void:
 	_start_demo()
 
 
+func set_phase_data(data: Dictionary) -> void:
+	# Ontvang start_delay van main.gd
+	if data.has("start_delay"):
+		_start_delay = data["start_delay"]
+
+
 func _start_demo() -> void:
 	_demo_mode = true
 	_demo_time = 0.0
@@ -64,22 +71,25 @@ func _start_demo() -> void:
 	# Container voor zwevende stickers (achter de kast)
 	_floating_container = Node2D.new()
 	add_child(_floating_container)
-	move_child(_floating_container, 1)  # Na Background, voor BodyShape
+	move_child(_floating_container, 1)
 
 	# Spawn een flinke groep stickers direct
 	for i in 10:
-		_spawn_floating_sticker(true)
+		_spawn_floating_sticker()
 
-	# Maak start knop
-	_create_start_button()
+	# Maak start knop (met delay als die ingesteld is)
+	if _start_delay > 0:
+		get_tree().create_timer(_start_delay).timeout.connect(_create_start_button)
+	else:
+		_create_start_button()
 
 
 func _create_start_button() -> void:
 	## Grote pulserende play knop onderaan het scherm
 	# START knop: wit vlak met uitgesneden tekst (knockout effect)
-	var btn_w = 300
-	var btn_h = 120
-	var corner_r = 30
+	var btn_w = 450
+	var btn_h = 180
+	var corner_r = 45
 
 	# Render de knop als image: wit met afgeronde hoeken, tekst als gaten
 	var img = Image.create(btn_w, btn_h, true, Image.FORMAT_RGBA8)
@@ -102,7 +112,7 @@ func _create_start_button() -> void:
 
 	# Render "START" tekst op een apart image
 	var font = ThemeDB.fallback_font
-	var font_size = 48
+	var font_size = 72
 	var text_size = font.get_string_size("START", HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
 	var text_x = int((btn_w - text_size.x) / 2.0)
 	var text_y = int((btn_h + text_size.y) / 2.0) - int(font.get_descent(font_size))
