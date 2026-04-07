@@ -8,6 +8,8 @@ signal speed_changed(speed_factor: float)
 
 @export var wheel_texture: Texture2D = preload("res://assets/muziekdragers/draaiwiel.png")
 @export var wheel_size: float = 750.0  ## Diameter van het wiel in pixels
+## Extra pixels rondom het wiel die ook touch detecteren
+@export var touch_margin: float = 100.0
 ## Hoe snel het wiel vertraagt zonder input (0 = nooit, 1 = instant)
 @export_range(0.0, 1.0) var friction: float = 0.03
 ## Maximale snelheidsfactor (1.0 = normaal tempo)
