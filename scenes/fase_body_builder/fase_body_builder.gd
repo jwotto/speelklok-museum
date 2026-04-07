@@ -18,8 +18,9 @@ signal phase_completed
 var _shape_data: Dictionary = {}
 var _demo_mode: bool = true
 var _demo_time: float = 0.0
-var _start_button: Control = null
-var _start_delay: float = 0.0  ## Vertraging voordat START knop verschijnt
+@onready var _start_button: TextureButton = $UILayer/StartButton
+var _start_delay: float = 4.0  ## Vertraging voordat START knop verschijnt (altijd 4s)
+var _start_button_ready: bool = false  ## Pulse pas na pop-in animatie
 var _floating_container: Node2D = null
 var _spawn_timer: float = 0.0
 
@@ -85,20 +86,17 @@ func _start_demo() -> void:
 
 
 func _create_start_button() -> void:
-	## Grote pulserende play knop onderaan het scherm
-	# START knop: wit vlak met uitgesneden tekst (knockout effect)
-	var btn_w = 450
-	var btn_h = 180
+	## Render knockout tekst op de start button node uit de tscn
+	var btn_w = int(_start_button.size.x)
+	var btn_h = int(_start_button.size.y)
 	var corner_r = 45
 
-	# Render de knop als image: wit met afgeronde hoeken, tekst als gaten
 	var img = Image.create(btn_w, btn_h, true, Image.FORMAT_RGBA8)
 
 	# Vul met wit (afgeronde hoeken)
 	for x in btn_w:
 		for y in btn_h:
 			var in_rect = true
-			# Check hoeken
 			if x < corner_r and y < corner_r:
 				in_rect = Vector2(x - corner_r, y - corner_r).length() <= corner_r
 			elif x >= btn_w - corner_r and y < corner_r:
@@ -110,14 +108,8 @@ func _create_start_button() -> void:
 			if in_rect:
 				img.set_pixel(x, y, Color.WHITE)
 
-	# Render "START" tekst op een apart image
-	var font = ThemeDB.fallback_font
+	# Render tekst via SubViewport
 	var font_size = 72
-	var text_size = font.get_string_size("START", HORIZONTAL_ALIGNMENT_CENTER, -1, font_size)
-	var text_x = int((btn_w - text_size.x) / 2.0)
-	var text_y = int((btn_h + text_size.y) / 2.0) - int(font.get_descent(font_size))
-
-	# Render tekst naar een SubViewport
 	var sv = SubViewport.new()
 	sv.size = Vector2i(btn_w, btn_h)
 	sv.transparent_bg = true
@@ -132,32 +124,31 @@ func _create_start_button() -> void:
 	sv.add_child(label)
 	add_child(sv)
 
-	# Wacht een frame zodat de SubViewport rendert
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	# Knip de tekst uit de witte achtergrond
+	# Knip tekst uit
 	var text_img = sv.get_texture().get_image()
 	for x in btn_w:
 		for y in btn_h:
-			var text_pixel = text_img.get_pixel(x, y)
-			if text_pixel.a > 0.3:
-				img.set_pixel(x, y, Color(0, 0, 0, 0))  # Gat
-
+			if text_img.get_pixel(x, y).a > 0.3:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
 	sv.queue_free()
 
-	# Maak TextureButton
-	var tex = ImageTexture.create_from_image(img)
-	var btn = TextureButton.new()
-	btn.texture_normal = tex
-	btn.custom_minimum_size = Vector2(btn_w, btn_h)
-	btn.pressed.connect(_on_start_pressed)
+	_start_button.texture_normal = ImageTexture.create_from_image(img)
+	_start_button.pivot_offset = Vector2(btn_w / 2.0, btn_h / 2.0)
+	_start_button.pressed.connect(_on_start_pressed)
+	_start_button.visible = true
 
-	_start_button = btn
-	_start_button.position = Vector2(540 - btn_w / 2, 1920 - 230 + 10)
-	_start_button.pivot_offset = Vector2(btn_w / 2, btn_h / 2)
-
-	$UILayer.add_child(_start_button)
+	# Pop-in animatie
+	_start_button_ready = false
+	_start_button.scale = Vector2(0.0, 0.0)
+	_start_button.modulate.a = 0.0
+	var tween = create_tween().set_parallel()
+	tween.tween_property(_start_button, "scale", Vector2(1.0, 1.0), 0.4) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	tween.tween_property(_start_button, "modulate:a", 1.0, 0.3)
+	tween.chain().tween_callback(func(): _start_button_ready = true)
 
 
 func _process(delta: float) -> void:
@@ -174,8 +165,8 @@ func _process(delta: float) -> void:
 	_body_shape.rok = (sin(_demo_time * 0.257 + 3.0) + 1.0) * 0.49 + 0.01
 	_body_shape.kleur = fmod(_demo_time * 0.04, 0.98) + 0.01
 
-	# Start knop: ademend pulse
-	if _start_button:
+	# Start knop: ademend pulse (alleen na pop-in animatie)
+	if _start_button and _start_button_ready:
 		var pulse = 1.0 + sin(_demo_time * 2.5) * 0.08
 		_start_button.scale = Vector2(pulse, pulse)
 
@@ -245,8 +236,7 @@ func _on_start_pressed() -> void:
 			.set_ease(Tween.EASE_OUT)
 		tween.tween_property(_start_button, "modulate:a", 0.0, 0.3)
 		tween.chain().tween_callback(func():
-			_start_button.queue_free()
-			_start_button = null
+			_start_button.visible = false
 		)
 
 	# Verwijder zwevende stickers

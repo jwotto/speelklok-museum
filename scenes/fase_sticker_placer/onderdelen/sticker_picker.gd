@@ -591,6 +591,7 @@ func _on_sticker_pressed(scene: PackedScene, btn: TextureButton) -> void:
 	close()
 
 
+
 func open() -> void:
 	_is_open = true
 	mouse_filter = Control.MOUSE_FILTER_STOP

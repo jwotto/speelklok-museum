@@ -11,6 +11,10 @@ signal phase_completed
 ## Hoe dicht (in pixels) de vinger bij de prullenbak moet zijn om een sticker te verwijderen bij loslaten
 @export var trash_zone_radius: float = 210.0
 
+@export_group("Sticker Limiet")
+## Maximaal aantal stickers dat geplaatst mag worden
+@export var max_stickers: int = 30
+
 @export_group("Opslaan")
 ## Extra pad om foto's naartoe te kopiëren (bijv. /mnt/fotos of Z:\fotos)
 @export var remote_fotos_path: String = ""
@@ -77,7 +81,17 @@ func _ready() -> void:
 	_setup_drager_overlay()
 
 
+func _get_sticker_count() -> int:
+	var count = 0
+	for child in _sticker_container.get_children():
+		if child is Sticker:
+			count += 1
+	return count
+
+
 func _on_add_pressed() -> void:
+	if _get_sticker_count() >= max_stickers:
+		return
 	_picker.toggle()
 
 
@@ -109,9 +123,18 @@ func _update_button_visibility() -> void:
 		return
 	_playback_layer.visible = false
 
+	var sticker_count = _get_sticker_count()
+	var at_limit = sticker_count >= max_stickers
+	# Tel alleen instrumenten (niet de muziekdrager) voor play knop
+	var has_instruments = false
+	for child in _sticker_container.get_children():
+		if child is Sticker and not child.has_meta("is_drager"):
+			has_instruments = true
+			break
+
 	_trash_button.visible = _any_dragging
-	_add_button.visible = not _any_dragging
-	_play_button.visible = has_stickers and not _any_dragging
+	_add_button.visible = not _any_dragging and not at_limit
+	_play_button.visible = has_instruments and not _any_dragging
 	var show_sliders := _tracked_sticker != null
 	_rotate_slider.visible = show_sliders
 	_scale_slider.visible = show_sliders
@@ -270,6 +293,10 @@ func _on_sticker_selected(scene: PackedScene, from_position: Vector2) -> void:
 	tween.tween_property(sticker, "position", target, 0.4)
 	tween.tween_property(sticker, "scale", start_scale / 0.3, 0.4)
 	tween.tween_property(sticker, "modulate:a", 1.0, 0.15).set_trans(Tween.TRANS_LINEAR)
+
+	# Sluit picker als limiet bereikt
+	if _get_sticker_count() >= max_stickers:
+		_picker.close()
 
 
 func _process(delta: float) -> void:
@@ -505,7 +532,7 @@ func _on_cancel_save() -> void:
 func _reset_save_buttons() -> void:
 	_confirm_mode = false
 	# Herstel knoppen
-	_save_button.icon_type = IconButton.IconType.SAVE
+	_save_button.icon_type = IconButton.IconType.UPLOAD
 	_save_button.color = Color(0.2, 0.65, 0.3, 0.9)
 	_back_button.icon_type = IconButton.IconType.BACK
 	_back_button.color = Color(1, 1, 1, 1)

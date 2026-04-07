@@ -4,7 +4,7 @@ class_name IconButton
 
 ## Configureerbare button met kleur, afgeronde hoeken en icoon
 
-enum IconType { NONE, ADD, TRASH, CHECKMARK, CLOSE, PLAY, STOP, BACK, SAVE }
+enum IconType { NONE, ADD, TRASH, CHECKMARK, CLOSE, PLAY, STOP, BACK, SAVE, UPLOAD }
 
 @export var icon_type: IconType = IconType.NONE:
 	set(value):
@@ -67,6 +67,8 @@ func _regenerate() -> void:
 			_draw_back_icon(img)
 		IconType.SAVE:
 			_draw_save_icon(img)
+		IconType.UPLOAD:
+			_draw_upload_icon(img)
 	texture_normal = ImageTexture.create_from_image(img)
 	custom_minimum_size = Vector2(button_size, button_size)
 
@@ -205,35 +207,83 @@ func _draw_back_icon(img: Image) -> void:
 func _draw_save_icon(img: Image) -> void:
 	var s = button_size
 	var sc: float = s / 120.0
-	var thick = int(5 * sc)
-	## Floppy disk: buitenrand
-	var bx0 = int(0.22 * s)
-	var by0 = int(0.22 * s)
-	var bx1 = int(0.78 * s)
-	var by1 = int(0.78 * s)
+	var thick = int(8 * sc)
+	var cx = int(0.50 * s)
+	## Dikke pijl omhoog
+	# Verticale stam
+	var stem_half = int(7 * sc)
+	var stem_top = int(0.28 * s)
+	var stem_bottom = int(0.62 * s)
+	for x in range(cx - stem_half, cx + stem_half):
+		for y in range(stem_top, stem_bottom):
+			if _is_in_rounded_rect(x, y, s, s, corner_radius):
+				img.set_pixel(x, y, icon_color)
+	# Pijlpunt (driehoek)
+	var p0 = Vector2(0.50 * s, 0.18 * s)  # Punt boven
+	var p1 = Vector2(0.30 * s, 0.38 * s)  # Links onder
+	var p2 = Vector2(0.70 * s, 0.38 * s)  # Rechts onder
+	_fill_triangle(img, p0, p1, p2)
+	## Bakje onderaan (U-vorm)
+	var bx0 = int(0.25 * s)
+	var bx1 = int(0.75 * s)
+	var by_top = int(0.65 * s)
+	var by_bottom = int(0.82 * s)
+	# Linker kant
+	for x in range(bx0, bx0 + thick):
+		for y in range(by_top, by_bottom):
+			if _is_in_rounded_rect(x, y, s, s, corner_radius):
+				img.set_pixel(x, y, icon_color)
+	# Rechter kant
+	for x in range(bx1 - thick, bx1):
+		for y in range(by_top, by_bottom):
+			if _is_in_rounded_rect(x, y, s, s, corner_radius):
+				img.set_pixel(x, y, icon_color)
+	# Onderkant
 	for x in range(bx0, bx1):
-		for y in range(by0, by1):
-			if x < bx0 + thick or x >= bx1 - thick or y < by0 + thick or y >= by1 - thick:
-				if _is_in_rounded_rect(x, y, s, s, corner_radius):
-					img.set_pixel(x, y, icon_color)
-	## Label onderaan (schrijfgebied)
-	var lx0 = int(0.32 * s)
-	var ly0 = int(0.55 * s)
-	var lx1 = int(0.68 * s)
-	var ly1 = int(0.78 * s)
-	for x in range(lx0, lx1):
-		for y in range(ly0, ly1):
+		for y in range(by_bottom - thick, by_bottom):
 			if _is_in_rounded_rect(x, y, s, s, corner_radius):
 				img.set_pixel(x, y, icon_color)
-	## Metalen slider bovenin
-	var mx0 = int(0.38 * s)
-	var my0 = int(0.22 * s)
-	var mx1 = int(0.62 * s)
-	var my1 = int(0.42 * s)
-	for x in range(mx0, mx1):
-		for y in range(my0, my1):
+
+
+func _draw_upload_icon(img: Image) -> void:
+	var s = button_size
+	var sc: float = s / 120.0
+	var thick = int(5 * sc)
+	## Bakje: U-vorm onderaan
+	var bx0 = int(0.25 * s)
+	var by_mid = int(0.60 * s)
+	var bx1 = int(0.75 * s)
+	var by1 = int(0.78 * s)
+	# Linker kant bakje
+	for y in range(by_mid, by1):
+		for x in range(bx0, bx0 + thick):
 			if _is_in_rounded_rect(x, y, s, s, corner_radius):
 				img.set_pixel(x, y, icon_color)
+	# Rechter kant bakje
+	for y in range(by_mid, by1):
+		for x in range(bx1 - thick, bx1):
+			if _is_in_rounded_rect(x, y, s, s, corner_radius):
+				img.set_pixel(x, y, icon_color)
+	# Onderkant bakje
+	for x in range(bx0, bx1):
+		for y in range(by1 - thick, by1):
+			if _is_in_rounded_rect(x, y, s, s, corner_radius):
+				img.set_pixel(x, y, icon_color)
+	## Pijl omhoog: verticale lijn + driehoek bovenaan
+	var cx = int(0.50 * s)
+	var arrow_top = int(0.22 * s)
+	var arrow_bottom = int(0.62 * s)
+	# Verticale lijn
+	for y in range(arrow_top + int(10 * sc), arrow_bottom):
+		for x in range(cx - thick, cx + thick):
+			if _is_in_rounded_rect(x, y, s, s, corner_radius):
+				img.set_pixel(x, y, icon_color)
+	# Driehoek punt (pijlpunt omhoog)
+	var p0 = Vector2(0.50 * s, arrow_top)
+	var p1 = Vector2(0.35 * s, arrow_top + 15 * sc)
+	var p2 = Vector2(0.65 * s, arrow_top + 15 * sc)
+	_draw_thick_line(img, p0, p1, thick)
+	_draw_thick_line(img, p0, p2, thick)
 
 
 func _fill_triangle(img: Image, a: Vector2, b: Vector2, c: Vector2) -> void:
