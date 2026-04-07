@@ -225,21 +225,34 @@ func _end_drag() -> void:
 	first_touch_index = -1
 	_active_sticker = null
 
-	# Als buiten contour: wacht kort (trash detectie) en snap dan terug
-	if _outside_boundary and _constrain_position.is_valid():
-		get_tree().create_timer(0.05).timeout.connect(_check_snap_back)
-		return
+	# Na loslaten: check contour + schermranden
+	get_tree().create_timer(0.05).timeout.connect(_check_snap_back)
 
 
 func _check_snap_back() -> void:
-	## Na korte vertraging: snap terug naar contour als sticker niet verwijderd is
+	## Na korte vertraging: snap terug naar contour en/of schermranden
 	if not is_inside_tree() or not is_processing():
-		return  # Verwijderd of bezig met delete-animatie
-	if not _constrain_position.is_valid():
 		return
-	var constrained = _constrain_position.call(global_position)
-	if constrained.distance_squared_to(global_position) > 1.0:
-		_snap_back_to(constrained)
+
+	var target = global_position
+
+	# Eerst: constraint naar kast-contour
+	if _constrain_position.is_valid() and _outside_boundary:
+		var constrained = _constrain_position.call(target)
+		if constrained.distance_squared_to(target) > 1.0:
+			target = constrained
+
+	# Dan: beperk tot schermranden (rekening houdend met sticker grootte)
+	var viewport_size = get_viewport_rect().size
+	var tex = texture
+	if tex:
+		var half_w = tex.get_width() * absf(scale.x) * 0.5
+		var half_h = tex.get_height() * absf(scale.y) * 0.5
+		target.x = clampf(target.x, half_w, viewport_size.x - half_w)
+		target.y = clampf(target.y, half_h, viewport_size.y - half_h)
+
+	if target.distance_squared_to(global_position) > 1.0:
+		_snap_back_to(target)
 	else:
 		_set_outside_tint(false)
 
