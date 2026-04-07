@@ -11,6 +11,10 @@ signal phase_completed
 ## Hoe dicht (in pixels) de vinger bij de prullenbak moet zijn om een sticker te verwijderen bij loslaten
 @export var trash_zone_radius: float = 210.0
 
+@export_group("Opslaan")
+## Extra pad om foto's naartoe te kopiëren (bijv. /mnt/fotos of Z:\fotos)
+@export var remote_fotos_path: String = ""
+
 # Scene node references
 @onready var _background: TextureRect = $Background
 @onready var _sticker_container: Node2D = $Stickers
@@ -531,14 +535,30 @@ func _save_screenshot() -> void:
 	combined.blit_rect(_end_screen_image, Rect2i(0, 0, w, h), Vector2i(w, 0))
 
 	var datetime = Time.get_datetime_dict_from_system()
-	var filename = "speelklok_%04d%02d%02d_%02d%02d%02d.png" % [
+	# Lees hostname uit /etc/hostname (uniek per PC, bijv. wotto-1)
+	var pc_name = "unknown"
+	var f = FileAccess.open("/etc/hostname", FileAccess.READ)
+	if f:
+		pc_name = f.get_as_text().strip_edges()
+		f.close()
+	if pc_name.is_empty():
+		pc_name = str(randi() & 0xFFFF)
+	var filename = "speelklok_%s_%04d%02d%02d_%02d%02d%02d.png" % [
+		pc_name,
 		datetime["year"], datetime["month"], datetime["day"],
 		datetime["hour"], datetime["minute"], datetime["second"]
 	]
-	var desktop_path = OS.get_system_dir(OS.SYSTEM_DIR_DESKTOP)
-	var full_path = desktop_path + "/" + filename
-	combined.save_png(full_path)
-	print("Screenshot opgeslagen: ", full_path)
+	if not remote_fotos_path.is_empty():
+		# Sla op naar galerij PC (Samba share)
+		var full_path = remote_fotos_path + "/" + filename
+		combined.save_png(full_path)
+		print("Screenshot opgeslagen: ", full_path)
+	else:
+		# Fallback: lokaal op desktop
+		var desktop_path = OS.get_system_dir(OS.SYSTEM_DIR_DESKTOP)
+		var full_path = desktop_path + "/" + filename
+		combined.save_png(full_path)
+		print("Screenshot opgeslagen: ", full_path)
 
 
 func _on_wheel_speed_changed(speed_factor: float) -> void:

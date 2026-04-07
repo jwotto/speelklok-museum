@@ -329,6 +329,48 @@ rm -rf .godot/imported/
 
 Daarna rebooten zodat de app met de nieuwe assets start.
 
+### Foto's doorsturen naar galerij PC (wotto-5)
+
+Foto's van de zuil-PC's worden doorgestuurd naar PC5 via een Samba share.
+
+**Op PC5 (eenmalig):**
+- Samba is al geïnstalleerd, share `fotos` staat op `/home/wotto/Desktop/fotos/`
+- Galerij app (`speelklok-galerij`) scant deze map elke 3 seconden
+
+**Op elke zuil-PC (eenmalig):**
+```bash
+# Mount de Samba share
+sudo mkdir -p /mnt/fotos
+sudo mount -t cifs //192.168.0.15/fotos /mnt/fotos -o guest,uid=wotto,gid=wotto
+```
+
+Permanent mounten (overleeft reboot):
+```bash
+# Voeg toe aan /etc/fstab:
+//192.168.0.15/fotos /mnt/fotos cifs guest,uid=wotto,gid=wotto,_netdev 0 0
+```
+
+**In Godot (Inspector):**
+- Open `fase_sticker_placer.tscn`
+- Stel `remote_fotos_path` in op `/mnt/fotos`
+- Of stel in via de .tscn: `remote_fotos_path = "/mnt/fotos"`
+
+Na het opslaan wordt de foto zowel lokaal (desktop) als op PC5 (galerij) opgeslagen.
+
+**TODO: Later de lokale desktop kopie verwijderen** — als alles stabiel draait hoeft de foto niet meer op de desktop van de zuil-PC opgeslagen te worden. Alleen naar `/mnt/fotos` is genoeg.
+
+### Nog te doen op locatie
+
+1. **Router**: PC5 vast IP instellen op 192.168.0.15
+2. **PC5**: Samba share controleren (`/home/wotto/Desktop/fotos/`)
+3. **PC5**: `git pull` voor galerij app
+4. **Zuil-PC's** (wotto-1 t/m 4):
+   - `git pull` + Godot editor openen voor imports
+   - Samba share mounten: `sudo mount -t cifs //192.168.0.15/fotos /mnt/fotos -o guest,uid=wotto,gid=wotto`
+   - Permanent mounten via `/etc/fstab`
+5. **Test**: maak een creatie op een zuil → check of foto op PC5 galerij verschijnt
+6. **Alles rebooten** en controleren dat autostart + foto sync werkt
+
 ### 12. Reboot en test
 ```bash
 sudo reboot
