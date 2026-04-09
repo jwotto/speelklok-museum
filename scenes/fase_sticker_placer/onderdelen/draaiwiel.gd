@@ -18,12 +18,14 @@ signal speed_changed(speed_factor: float)
 @export var sensitivity: float = 4.0
 
 var _wheel_sprite: TextureRect
-var _current_rotation: float = 0.0  ## Huidige hoek van het wiel (radialen)
-var _angular_velocity: float = 0.0  ## Hoeksnelheid (radialen per seconde)
+var _current_rotation: float = 0.0
+var _angular_velocity: float = 0.0
 var _touch_active: bool = false
 var _touch_index: int = -1
 var _prev_angle: float = 0.0
-var _speed_factor: float = 0.0  ## 0.0 - max_speed
+var _speed_factor: float = 0.0
+var _hint_arrows: Node2D = null  ## Draaiende pijlen hint
+var _hint_time: float = 0.0
 
 
 func _ready() -> void:
@@ -41,6 +43,9 @@ func _ready() -> void:
 	custom_minimum_size = Vector2(wheel_size, wheel_size)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 
+	# Hint pijlen rondom het wiel
+	_create_hint_arrows()
+
 
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
@@ -54,6 +59,9 @@ func _process(delta: float) -> void:
 		# Alleen bij frictie het wiel laten draaien (bij touch doet _gui_input dit)
 		_current_rotation += _angular_velocity * delta
 		_wheel_sprite.rotation = _current_rotation
+
+	# Hint pijlen updaten
+	_update_hint_arrows(delta)
 
 	# Bereken speed factor — clamp alleen de output, niet het wiel
 	var new_speed = clampf(absf(_angular_velocity) / (PI * 2.0) * sensitivity, 0.0, max_speed)
@@ -95,6 +103,64 @@ func _gui_input(event: InputEvent) -> void:
 		accept_event()
 
 
+func _create_hint_arrows() -> void:
+	## Maak 4 gebogen pijlen rondom het wiel die de draairichting aangeven
+	_hint_arrows = Node2D.new()
+	_hint_arrows.position = Vector2(wheel_size / 2.0, wheel_size / 2.0)
+	add_child(_hint_arrows)
+
+	var arrow_radius = wheel_size * 0.46
+	var arrow_size = 30.0
+
+	for i in 4:
+		var angle = i * TAU / 4.0
+		var arrow = _create_arrow_sprite(arrow_size)
+		arrow.position = Vector2(cos(angle), sin(angle)) * arrow_radius
+		arrow.rotation = angle + PI  # Wijst in draairichting (met de klok mee)
+		_hint_arrows.add_child(arrow)
+
+
+func _create_arrow_sprite(arrow_size: float) -> Node2D:
+	var arrow = Node2D.new()
+
+	# Staart lijn achter de pijl
+	var line = Line2D.new()
+	line.points = PackedVector2Array([
+		Vector2(0, arrow_size * 0.3),
+		Vector2(0, arrow_size * 1.2),
+	])
+	line.width = 4.0
+	line.default_color = Color.WHITE
+	arrow.add_child(line)
+
+	# Pijlpunt (driehoek, wijst omhoog/in draairichting)
+	var poly = Polygon2D.new()
+	poly.polygon = PackedVector2Array([
+		Vector2(0, -arrow_size * 0.5),
+		Vector2(-arrow_size * 0.4, arrow_size * 0.3),
+		Vector2(arrow_size * 0.4, arrow_size * 0.3),
+	])
+	poly.color = Color.WHITE
+	arrow.add_child(poly)
+
+	return arrow
+
+
+func _update_hint_arrows(delta: float) -> void:
+	if not _hint_arrows:
+		return
+
+	_hint_time += delta
+
+	# Verberg als het wiel draait, toon als het stilstaat
+	var target_alpha = 0.0 if _touch_active or absf(_angular_velocity) > 0.5 else 1.0
+	_hint_arrows.modulate.a = lerpf(_hint_arrows.modulate.a, target_alpha, 0.1)
+
+	# Langzaam draaien als hint
+	if _hint_arrows.modulate.a > 0.01:
+		_hint_arrows.rotation = _hint_time * 0.5  # Langzaam met de klok mee
+
+
 func _get_touch_angle(touch_pos: Vector2) -> float:
 	## Bereken de hoek van de touch positie t.o.v. het midden van het wiel
 	var center = size / 2.0
@@ -112,5 +178,9 @@ func reset() -> void:
 	_current_rotation = 0.0
 	_touch_active = false
 	_touch_index = -1
+	_hint_time = 0.0
 	if _wheel_sprite:
 		_wheel_sprite.rotation = 0.0
+	if _hint_arrows:
+		_hint_arrows.modulate.a = 1.0
+		_hint_arrows.rotation = 0.0
