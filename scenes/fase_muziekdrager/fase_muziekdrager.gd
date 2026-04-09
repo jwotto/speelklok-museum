@@ -219,6 +219,12 @@ func _on_done_pressed() -> void:
 	)
 
 
+func _is_touch_on_drager(pos: Vector2) -> bool:
+	## Check of de touch positie op de drager sprite zit
+	var rect = Rect2(_drager_sprite.global_position, _drager_sprite.size)
+	return rect.has_point(pos)
+
+
 # === SWIPE INPUT ===
 
 func _input(event: InputEvent) -> void:
@@ -237,6 +243,9 @@ func _input(event: InputEvent) -> void:
 				var delta_x = event.position.x - _touch_start_x
 				if absf(delta_x) > swipe_threshold:
 					_switch_drager(-1 if delta_x > 0 else 1)
+			elif _is_touch_on_drager(event.position):
+				# Tik op de drager = bevestigen
+				_on_done_pressed()
 			_touch_active = false
 			_swiping = false
 
