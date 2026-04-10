@@ -41,6 +41,8 @@ var _updating_sliders: bool = false
 var _organ_polygon_world: PackedVector2Array = PackedVector2Array()
 var _organ_center: Vector2 = Vector2.ZERO
 var _audio_player: Node2D = null  ## AudioLayerPlayer
+var _oneshot_player: AudioStreamPlayer = null  ## Instrument one-shot geluiden
+var _current_genre: String = "groove"  ## Huidig genre voor preview geluid
 var _drager_overlay: Node = null  ## Muziekdrager selectie overlay
 @onready var _playback_layer: CanvasLayer = $PlaybackLayer
 @onready var _draaiwiel: Control = $PlaybackLayer/Draaiwiel
@@ -72,6 +74,10 @@ func _ready() -> void:
 	_audio_player = AudioLayerPlayerScript.new()
 	add_child(_audio_player)
 
+	# One-shot player voor instrument geluiden
+	_oneshot_player = AudioStreamPlayer.new()
+	add_child(_oneshot_player)
+
 	# Playback UI (draaiwiel + stop knop)
 	_back_button.pressed.connect(_stop_playback)
 	_save_button.pressed.connect(_on_save_pressed)
@@ -97,6 +103,9 @@ func _on_add_pressed() -> void:
 
 func _on_picker_opened() -> void:
 	_picker_open = true
+	# Deselecteer huidige sticker
+	if Sticker._selected_sticker:
+		Sticker._selected_sticker._deselect()
 	_update_button_visibility()
 	_set_stickers_input(false)
 	_set_stickers_process(false)
@@ -105,8 +114,10 @@ func _on_picker_opened() -> void:
 func _on_picker_closed() -> void:
 	_picker_open = false
 	_update_button_visibility()
-	_set_stickers_input(true)
-	# Process wordt per sticker weer aangezet bij interactie
+	# Delay voordat sticker input weer aan gaat (voorkomt dat touch doorsijpelt)
+	get_tree().create_timer(0.1).timeout.connect(func():
+		_set_stickers_input(true)
+	)
 
 
 func _update_button_visibility() -> void:
@@ -221,6 +232,7 @@ func set_phase_data(data: Dictionary) -> void:
 
 	# Genre instellen vanuit fase 2
 	if data.has("genre"):
+		_current_genre = data["genre"]
 		_audio_player.set_genre(data["genre"])
 
 	# Scale is al gezet door de animatie in fase 1, dus laten we die
@@ -273,6 +285,15 @@ func _place_drager_sticker(tex: Texture2D) -> void:
 	_update_button_visibility()
 
 
+func _play_oneshot(instrument_id: String) -> void:
+	## Speel het one-shot geluid van een instrument
+	var path = "res://audio/oneshots/" + instrument_id + ".wav"
+	var stream = load(path)
+	if stream and _oneshot_player:
+		_oneshot_player.stream = stream
+		_oneshot_player.play()
+
+
 func _on_sticker_selected(scene: PackedScene, from_position: Vector2) -> void:
 	var target = _organ_center if _organ_polygon_world.size() > 0 else get_viewport_rect().size / 2
 	var sticker = scene.instantiate()
@@ -293,6 +314,10 @@ func _on_sticker_selected(scene: PackedScene, from_position: Vector2) -> void:
 	tween.tween_property(sticker, "position", target, 0.4)
 	tween.tween_property(sticker, "scale", start_scale / 0.3, 0.4)
 	tween.tween_property(sticker, "modulate:a", 1.0, 0.15).set_trans(Tween.TRANS_LINEAR)
+
+	# Speel instrument geluid + cooldown zodat selectie niet ook speelt
+	var instrument_id = sticker.scene_file_path.get_file().get_basename()
+	_play_oneshot(instrument_id)
 
 	# Sluit picker als limiet bereikt
 	if _get_sticker_count() >= max_stickers:
@@ -735,6 +760,19 @@ func _on_sticker_selection_changed(is_selected: bool, sticker: Sticker) -> void:
 	if is_selected:
 		_tracked_sticker = sticker
 		_update_slider_values(sticker)
+		# Speel instrument geluid (niet als picker open of net geplaatst)
+		if not _picker_open:
+			if sticker.has_meta("is_drager"):
+				# Muziekdrager: speel genre preview
+				var preview_path = "res://audio/previews/" + _current_genre + ".wav"
+				var stream = load(preview_path)
+				if stream and _oneshot_player:
+					_oneshot_player.stream = stream
+					_oneshot_player.play()
+			else:
+				var instrument_id = sticker.scene_file_path.get_file().get_basename()
+				if not instrument_id.is_empty():
+					_play_oneshot(instrument_id)
 	elif _tracked_sticker == sticker:
 		_tracked_sticker = null
 	_update_button_visibility()

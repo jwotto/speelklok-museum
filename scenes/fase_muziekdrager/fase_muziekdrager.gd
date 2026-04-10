@@ -8,10 +8,10 @@ extends Node2D
 signal phase_completed
 
 const DRAGERS = [
-	{"id": "groove", "texture": preload("res://assets/muziekdragers/speelplaat.png"), "naam": "Speelplaat"},
-	{"id": "klassiek", "texture": preload("res://assets/muziekdragers/cilinder.png"), "naam": "Cilinder"},
-	{"id": "klezmer", "texture": preload("res://assets/muziekdragers/orgelboek.png"), "naam": "Orgelboek"},
-	{"id": "pop", "texture": preload("res://assets/muziekdragers/papierrol.png"), "naam": "Papierrol"},
+	{"id": "groove", "texture": preload("res://assets/muziekdragers/speelplaat.png"), "preview": preload("res://audio/previews/groove.wav")},
+	{"id": "klassiek", "texture": preload("res://assets/muziekdragers/cilinder.png"), "preview": preload("res://audio/previews/klassiek.wav")},
+	{"id": "klezmer", "texture": preload("res://assets/muziekdragers/orgelboek.png"), "preview": preload("res://audio/previews/klezmer.wav")},
+	{"id": "pop", "texture": preload("res://assets/muziekdragers/papierrol.png"), "preview": preload("res://audio/previews/pop.wav")},
 ]
 
 @export_group("Carousel")
@@ -32,6 +32,9 @@ var _phase_data: Dictionary = {}
 var _body_shape: Node2D = null
 
 # Swipe tracking
+var _preview_player: AudioStreamPlayer = null
+
+# Swipe tracking
 var _touch_start_x: float = 0.0
 var _touch_active: bool = false
 var _swiping: bool = false
@@ -44,6 +47,11 @@ func _ready() -> void:
 	if Engine.is_editor_hint():
 		return
 	get_tree().root.size_changed.connect(_resize_background)
+
+	# Audio player voor genre previews (80% volume)
+	_preview_player = AudioStreamPlayer.new()
+	_preview_player.volume_db = linear_to_db(0.8)
+	add_child(_preview_player)
 
 	_left_arrow.pressed.connect(_on_prev)
 	_right_arrow.pressed.connect(_on_next)
@@ -150,6 +158,10 @@ func get_phase_data() -> Dictionary:
 func _update_drager_display() -> void:
 	if _drager_sprite and _current_index >= 0 and _current_index < DRAGERS.size():
 		_drager_sprite.texture = DRAGERS[_current_index]["texture"]
+		# Speel genre preview
+		if _preview_player and DRAGERS[_current_index].has("preview"):
+			_preview_player.stream = DRAGERS[_current_index]["preview"]
+			_preview_player.play()
 
 
 func _on_prev() -> void:
@@ -191,6 +203,8 @@ func _switch_drager(direction: int) -> void:
 func _on_done_pressed() -> void:
 	if _transitioning:
 		return
+	if _preview_player:
+		_preview_player.stop()
 	_transitioning = true
 
 	# Zet pivot op midden van de sprite zodat schaal vanuit het midden gaat

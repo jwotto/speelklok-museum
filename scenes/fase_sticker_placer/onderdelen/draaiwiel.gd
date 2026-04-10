@@ -112,8 +112,8 @@ func _create_hint_arrows() -> void:
 	var arrow_radius = wheel_size * 0.46
 	var arrow_size = 30.0
 
-	for i in 4:
-		var angle = i * TAU / 4.0
+	for i in 2:
+		var angle = i * TAU / 2.0
 		var arrow = _create_arrow_sprite(arrow_size)
 		arrow.position = Vector2(cos(angle), sin(angle)) * arrow_radius
 		arrow.rotation = angle + PI  # Wijst in draairichting (met de klok mee)

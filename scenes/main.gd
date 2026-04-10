@@ -14,7 +14,7 @@ signal phase_completed(phase_index: int)
 
 @export_group("Inactiviteit")
 ## Seconden zonder input voordat de app terug naar start gaat
-@export var inactivity_timeout: float = 20.0
+@export var inactivity_timeout: float = 60.0
 ## Seconden wachten na reset voordat de START knop verschijnt
 @export var start_delay: float = 4.0
 
