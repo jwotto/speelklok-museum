@@ -58,6 +58,10 @@ func _ready() -> void:
 	get_tree().root.size_changed.connect(_resize_background)
 	Sticker.reset_statics()
 
+	# Warm de Samba connectie op (voorkomt dat eerste foto mislukt)
+	if not remote_fotos_path.is_empty():
+		_warmup_remote_path()
+
 	# Runtime setup
 	_trash_button.visible = false
 	_play_button.visible = false
@@ -571,6 +575,19 @@ func _reset_save_buttons() -> void:
 	if not _back_button.pressed.is_connected(_stop_playback):
 		_back_button.pressed.connect(_stop_playback)
 
+
+
+func _warmup_remote_path() -> void:
+	## Test-schrijf naar de remote map om de Samba connectie te activeren
+	var test_path = remote_fotos_path + "/.warmup"
+	var test_file = FileAccess.open(test_path, FileAccess.WRITE)
+	if test_file:
+		test_file.store_string("ok")
+		test_file.close()
+		DirAccess.remove_absolute(test_path)
+		print("Remote pad warmup OK: ", remote_fotos_path)
+	else:
+		print("Remote pad warmup MISLUKT: ", remote_fotos_path)
 
 
 func _save_screenshot() -> void:
