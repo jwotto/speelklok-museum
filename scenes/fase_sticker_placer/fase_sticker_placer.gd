@@ -44,6 +44,9 @@ var _audio_player: Node2D = null  ## AudioLayerPlayer
 var _oneshot_player: AudioStreamPlayer = null  ## Instrument one-shot geluiden
 var _current_genre: String = "groove"  ## Huidig genre voor preview geluid
 var _drager_overlay: Node = null  ## Muziekdrager selectie overlay
+var _pending_photo: Dictionary = {}  ## {data: PackedByteArray, path: String}
+var _photo_mutex: Mutex = Mutex.new()
+var _save_thread: Thread = null
 @onready var _playback_layer: CanvasLayer = $PlaybackLayer
 @onready var _draaiwiel: Control = $PlaybackLayer/Draaiwiel
 @onready var _back_button: IconButton = $PlaybackLayer/BackButton
@@ -57,10 +60,6 @@ func _ready() -> void:
 
 	get_tree().root.size_changed.connect(_resize_background)
 	Sticker.reset_statics()
-
-	# Warm de Samba connectie op (voorkomt dat eerste foto mislukt)
-	if not remote_fotos_path.is_empty():
-		_warmup_remote_path()
 
 	# Runtime setup
 	_trash_button.visible = false
@@ -577,23 +576,13 @@ func _reset_save_buttons() -> void:
 
 
 
-func _warmup_remote_path() -> void:
-	## Test-schrijf naar de remote map om de Samba connectie te activeren
-	var test_path = remote_fotos_path + "/.warmup"
-	var test_file = FileAccess.open(test_path, FileAccess.WRITE)
-	if test_file:
-		test_file.store_string("ok")
-		test_file.close()
-		DirAccess.remove_absolute(test_path)
-		print("Remote pad warmup OK: ", remote_fotos_path)
-	else:
-		print("Remote pad warmup MISLUKT: ", remote_fotos_path)
-
-
 func _save_screenshot() -> void:
-	## Combineer voorkant (fase 1) + binnenkant (bij play) — geen render nodig
+	## Combineer voorkant + binnenkant en sla op naar remote pad (async)
 	if not _end_screen_image:
 		print("Geen binnenkant render — skip opslaan")
+		return
+	if remote_fotos_path.is_empty():
+		print("Geen remote pad ingesteld — skip opslaan")
 		return
 
 	var w = _end_screen_image.get_width()
@@ -604,7 +593,6 @@ func _save_screenshot() -> void:
 	combined.blit_rect(_end_screen_image, Rect2i(0, 0, w, h), Vector2i(w, 0))
 
 	var datetime = Time.get_datetime_dict_from_system()
-	# Lees hostname uit /etc/hostname (uniek per PC, bijv. wotto-1)
 	var pc_name = "unknown"
 	var f = FileAccess.open("/etc/hostname", FileAccess.READ)
 	if f:
@@ -617,17 +605,54 @@ func _save_screenshot() -> void:
 		datetime["year"], datetime["month"], datetime["day"],
 		datetime["hour"], datetime["minute"], datetime["second"]
 	]
-	if not remote_fotos_path.is_empty():
-		# Sla op naar galerij PC (Samba share)
-		var full_path = remote_fotos_path + "/" + filename
-		combined.save_png(full_path)
-		print("Screenshot opgeslagen: ", full_path)
-	else:
-		# Fallback: lokaal op desktop
-		var desktop_path = OS.get_system_dir(OS.SYSTEM_DIR_DESKTOP)
-		var full_path = desktop_path + "/" + filename
-		combined.save_png(full_path)
-		print("Screenshot opgeslagen: ", full_path)
+
+	## Bewaar alleen de laatste foto — overschrijft eerdere onverzonden foto's
+	var png_data = combined.save_png_to_buffer()
+	_photo_mutex.lock()
+	_pending_photo = {"data": png_data, "path": remote_fotos_path + "/" + filename}
+	_photo_mutex.unlock()
+
+	## Start save-thread als die nog niet draait
+	if not _save_thread:
+		_save_thread = Thread.new()
+		_save_thread.start(_photo_save_loop)
+
+
+func _photo_save_loop() -> void:
+	## Achtergrond-thread: wacht op connectie, sla laatste foto op, stop als alles verzonden
+	while true:
+		_photo_mutex.lock()
+		var photo = _pending_photo.duplicate()
+		_photo_mutex.unlock()
+
+		if photo.is_empty():
+			break  # Niks meer te doen
+
+		if DirAccess.dir_exists_absolute(remote_fotos_path):
+			var file = FileAccess.open(photo["path"], FileAccess.WRITE)
+			if file:
+				file.store_buffer(photo["data"])
+				file.close()
+				print("Screenshot opgeslagen: ", photo["path"])
+				_photo_mutex.lock()
+				if _pending_photo.get("path") == photo["path"]:
+					_pending_photo = {}  # Alleen wissen als niet inmiddels vervangen
+				_photo_mutex.unlock()
+				continue  # Check meteen of er een nieuwere foto is
+			else:
+				print("Foto schrijven mislukt: ", photo["path"])
+		else:
+			print("Wacht op remote pad: ", remote_fotos_path)
+
+		OS.delay_msec(5000)
+
+	call_deferred("_on_save_thread_done")
+
+
+func _on_save_thread_done() -> void:
+	if _save_thread:
+		_save_thread.wait_to_finish()
+		_save_thread = null
 
 
 func _on_wheel_speed_changed(speed_factor: float) -> void:
