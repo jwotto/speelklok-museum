@@ -72,12 +72,70 @@ scenes/
 
 ## Bouwfasen
 
-1. **fase_body_builder** - Lichaamsvorm (5 vragen bepalen contour) *placeholder*
-2. **fase_sticker_placer** - Muziekinstrumenten (10 items plaatsen) *werkend*
-3. Muziekdrager (1 uit 5) *nog te maken*
-4. Techniek (automatisch) *nog te maken*
-5. Aandrijving (1 uit 5) *nog te maken*
-6. Slot (8 sec muziek + transport) *nog te maken*
+De app heeft drie fases, in deze volgorde in `main.tscn`:
+
+1. **fase_body_builder** — startscherm (demo-kast + zwevende instrumenten,
+   START-knop) en daarna de kastvorm met 4 sliders: dak, buik, rok, kleur
+2. **fase_muziekdrager** — carousel met 4 muziekdragers, elk gekoppeld aan een
+   genre: speelplaat/groove, cilinder/klassiek, orgelboek/klezmer,
+   papierrol/pop. Swipen, pijltjes of tikken om te kiezen
+3. **fase_sticker_placer** — instrumenten plaatsen (max 30), slepen, draaien en
+   schalen. De gekozen muziekdrager staat als sticker in het midden; weggooien
+   opent fase 2 als overlay. Afspelen gaat via het draaiwiel, daarna opslaan
+
+Nog niet gebouwd: de achterkant/binnenkant van de kast en de omdraaifunctie
+(besluit uit de museum-meeting van 12 feb 2026).
+
+## Hint-systeem (uitleg zonder tekst)
+
+Bezoekers snapten niet wat ze moesten doen. Omdat er géén tekst in de app mag,
+doet een handje het voor. Overal hetzelfde gebaar, zodat het één taal wordt.
+
+**`DragHint`** (`fase_sticker_placer/onderdelen/drag_hint.gd`) is het component.
+Je hangt hem als node in een `UILayer` en rijgt bewegingen aaneen op een eigen,
+**sequentiële** tween:
+
+- `append_drag(tween, van, naar, duur, on_progress, bounce)` — sleepbeweging.
+  `on_progress` krijgt de voortgang, zodat de aanroeper het gesleepte element
+  mee laat bewegen. Met `bounce` gaat hij heen én terug (0 → 1 → 0), waarmee je
+  iets voordoet zonder het echt te veranderen.
+- `append_tap(tween, positie, duur)` — tik op een knop.
+- `show_for(node)` / `show_at(pos)` — lus met boogje, blijft staan tot
+  `hide_hint()`. Wordt op dit moment nergens gebruikt.
+- `hide_hint()` fadet uit, `hide_now()` verbergt direct (nodig vóór een
+  schermafdruk, anders staat het handje op de foto).
+
+**Twee dingen om te onthouden bij het uitbreiden:**
+
+1. Zet **geen callback in een tween met `set_loops()`** — die vuurt bij elke
+   ronde, zet je tween-referentie op null en laat het ding verweesd doorlopen.
+   Herhalen doe je door de stappen los achter elkaar te zetten.
+2. Elke demo moet zijn element **exact terugzetten**, ook als de bezoeker er
+   middenin op tikt. Bewaar daarvoor de stand van het *object* (sticker,
+   drager), niet de sliderwaarde — die dwaalt af door het animeren.
+
+**Per fase:**
+
+| fase | wat het handje doet |
+|------|---------------------|
+| 1 | tikt op START (blijft herhalen); na START de 4 sliders langs, dan de done-knop |
+| 2 | veegt naar de volgende drager en weer terug, dan de bevestigknop |
+| 3 | bij binnenkomst naar de **+**; na het plaatsen verschuiven/vergroten/draaien (alleen de eerste 3 stickers), daarna + en play met opstijgende nootjes |
+| draaiwiel | zit op de kruk en draait mee tijdens het voordoen, daarna weg |
+
+**Herinneringen**: blijft het stil, dan speelt de fase-animatie opnieuw. Elke
+fase heeft een eigen `reminder_delay` (10s; 3s voor het eerste +/play-duwtje na
+de plaats-demo). De teller reset bij elke aanraking en loopt niet tijdens een
+animatie. Na 60s zonder input reset `main.gd` alles naar het startscherm.
+
+**Afspelen**: het wiel draait 5s vanzelf met een opstart-zwengel (`start_auto_spin`),
+loopt daarna via frictie langzaam uit. De upload-knop verschijnt pas na 3s
+**zelf** draaien — `has_user_spun()` zorgt dat het voordoen niet meetelt.
+
+**Iconen**: Phosphor (MIT), in `assets/icons/`. Ze zijn opgebouwd als wit
+gevuld silhouet met de zwarte lijnvariant eroverheen, plus een witte rand via
+`sticker_outline.gdshader`. `OutlinedIcon.create()` doet die opbouw — gebruik
+die en niet een eigen kopie.
 
 ## Hardware
 
@@ -310,24 +368,62 @@ sudo reboot
 
 Na deze reboot: Godot start fullscreen, geen keyboard, geen swipe gestures, geen top panel. Dock verschijnt alleen als je de app afsluit.
 
-### Nieuwe versie laden (git pull met nieuwe assets)
+### Nieuwe versie uitrollen (volledig vanaf je laptop)
 
-Na een `git pull` die nieuwe afbeeldingen of audio bevat, moet Godot de bestanden opnieuw importeren. De `.godot/imported/` cache wordt niet meegeleverd via git.
+Na een pull met nieuwe afbeeldingen, audio of iconen moet Godot de bestanden
+opnieuw importeren — `.godot/imported/` zit niet in git. Dit kan **volledig
+headless via SSH**, je hoeft niet in te loggen via Remote Desktop.
+
+Per zuil-PC, in deze volgorde:
 
 ```bash
+# 1. App stoppen. De bracket-truc in het patroon voorkomt dat pkill je eigen
+#    SSH-commando raakt (dat bevat de zoekterm namelijk ook)
+pkill -f "run-speelklok[.]sh"     # eerst de wrapper, anders herstart hij Godot
+sleep 1
+pkill -f "godot-4 --fullscree[n]"
+
+# 2. Code bijwerken
 cd ~/Desktop/speelklok-museum
 git fetch origin
 git reset --hard origin/master
 
-# Verwijder import cache en laat Godot opnieuw importeren
-rm -rf .godot/imported/
+# 3. Opnieuw importeren — gebruik DEZELFDE snap-versie als de wrapper draait
+rm -rf .godot/imported
+/snap/godot-4/21/godot-4 --headless --import --path .
 
-# Open Godot editor kort om imports te triggeren (sluit daarna weer)
-# Dit kan NIET headless — je moet via Remote Desktop de Godot editor openen,
-# wachten tot alle imports klaar zijn, en dan weer sluiten.
+# 4. App weer starten (detached, anders stopt hij als je SSH-sessie sluit)
+setsid nohup /home/wotto/Desktop/run-speelklok.sh &> /dev/null &
 ```
 
-Daarna rebooten zodat de app met de nieuwe assets start.
+Rebooten mag ook in plaats van stap 4 — de autostart pakt het dan op:
+`ssh wotto@<IP> "sudo -n systemctl reboot"`.
+
+**Controleren of het gelukt is** (draai dit na de import, vóór het starten):
+
+```bash
+# verify.gd lokaal maken en overzetten via stdin — scp werkt niet, zie hieronder
+ssh wotto@<IP> "cat > /tmp/verify.gd" < verify.gd
+ssh wotto@<IP> "cd ~/Desktop/speelklok-museum; /snap/godot-4/21/godot-4 --headless --script /tmp/verify.gd --path ."
+```
+
+Een `verify.gd` die de iconen en alle fase-scenes laadt is genoeg: als een
+import mislukt is, geeft `load()` daar `null` terug.
+
+**Valkuilen bij SSH naar deze machines:**
+- De shell is **fish**. In dubbele quotes is `$` variabele-expansie, dus een
+  patroon als `"^$|..."` geeft een parse-error — schrijf `"^\$|..."`.
+  Heredocs (`<< EOF`) bestaan niet in fish; gebruik `printf` of stuur een
+  bestand via `ssh ... "cat > /pad"` met stdin.
+- De fish-config print een fastfetch-banner. Daardoor **werkt `scp` niet**
+  ("Received message too long"). Zet bestanden over met `cat >` via stdin.
+- Filter de banner uit je output met een marker, bijv.
+  `ssh ... 'echo "===M==="; <commando>' | sed -n '/===M===/,$p'`.
+
+**Let op de Godot-versie**: de wrapper pint `/snap/godot-4/21/godot-4`, terwijl
+`/snap/godot-4/current` inmiddels naar 29 wijst. Importeer met dezelfde versie
+als waarmee de app draait, anders klopt de cache niet. Als snap versie 21 ooit
+opruimt, start de app niet meer — dan het pad in `run-speelklok.sh` bijwerken.
 
 ### Foto's doorsturen naar galerij PC (wotto-5)
 
@@ -408,7 +504,7 @@ Start met `sudo radeontop`. Toont UNKNOWN_CHIP voor de 780M maar data klopt wel.
 
 ### Troubleshooting
 - **RDP verbinding mislukt**: `gnome-remote-desktop` service staat standaard niet aan. Fix: `systemctl --user enable gnome-remote-desktop && systemctl --user start gnome-remote-desktop`
-- **sudo via SSH werkt niet**: Commando's met `sudo` werken niet via niet-interactieve SSH (`ssh user@ip "sudo ..."`) — je moet eerst interactief inloggen (`ssh user@ip`) en dan sudo uitvoeren
+- **sudo via SSH**: werkt wél op alle 5 de museum-PC's — daar staat sudo zonder wachtwoord ingesteld. Test met `ssh wotto@<IP> "sudo -n true"`. Op een verse PC waar dat nog niet geregeld is moet je eerst interactief inloggen
 - **Git niet gevonden**: Staat niet standaard op Ubuntu, installeer met `sudo apt install -y git`
 - **Godot wget 404**: GitHub release URL's veranderen per versie — installeer Godot via Ubuntu App Center
 - **Keyring popup bij RDP setup**: Bij `grdctl rdp set-credentials` verschijnt er een keyring-wachtwoord prompt op de PC — laat het wachtwoord leeg
