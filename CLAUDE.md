@@ -335,49 +335,55 @@ Foto's van de zuil-PC's worden doorgestuurd naar PC5 via een Samba share.
 
 **Op PC5 (eenmalig):**
 - Samba is al geïnstalleerd, share `fotos` staat op `/home/wotto/Desktop/fotos/`
+- PC5 heeft vast IP `192.168.0.15` op ethernet (`enp1s0`)
 - Galerij app (`speelklok-galerij`) scant deze map elke 3 seconden
 
 **Op elke zuil-PC (eenmalig):**
 ```bash
-# Mount de Samba share
+# Maak mount point
 sudo mkdir -p /mnt/fotos
-sudo mount -t cifs //192.168.0.15/fotos /mnt/fotos -o guest,uid=wotto,gid=wotto
+
+# Voeg toe aan /etc/fstab (automount: mount pas bij eerste toegang)
+//192.168.0.15/fotos /mnt/fotos cifs guest,uid=wotto,gid=wotto,_netdev,nofail,x-systemd.automount,x-systemd.mount-timeout=30 0 0
 ```
 
-Permanent mounten (overleeft reboot):
+**Let op fstab opties:**
+- `x-systemd.automount` — mount pas bij eerste toegang (niet bij boot), zodat de router mag later opstarten
+- `nofail` — boot niet blokkeren als mount faalt
+- `_netdev` — wacht op netwerk voor mount
+- **NIET** `retry=N` gebruiken — wordt niet herkend door `mount.cifs` via systemd en veroorzaakt "bad option" error
+
+**Foto-opslag in Godot (async):**
+- `remote_fotos_path = "/mnt/fotos"` in `fase_sticker_placer.tscn`
+- Foto's worden **async** opgeslagen in een achtergrond-thread (app hangt nooit)
+- Als de Samba share niet bereikbaar is: thread retry't elke 5 sec tot de map online is
+- Alleen de **laatste foto** wordt bewaard in geheugen — geen pile-up bij meerdere bezoekers zonder connectie
+- Geen lokale fallback — foto gaat alleen naar de galerij PC
+
+### 12. Auto-herstart na crash/ESC
+
+Alle PC's hebben een wrapper script dat Godot automatisch herstart na een crash of ESC:
+- **Zuilen** (wotto-1 t/m 4): `~/Desktop/run-speelklok.sh`
+- **Galerij** (wotto-5): `~/Desktop/run-galerij.sh`
+
+Het script draait Godot in een `while true` loop — als Godot stopt, herstart het na 3 seconden.
+
+**Tijdelijk uitschakelen** (bijv. om op de desktop te werken):
 ```bash
-# Voeg toe aan /etc/fstab:
-//192.168.0.15/fotos /mnt/fotos cifs guest,uid=wotto,gid=wotto,_netdev 0 0
+pkill -f run-speelklok.sh   # zuilen (wotto-1 t/m 4)
+pkill -f run-galerij.sh     # galerij (wotto-5)
 ```
+Daarna ESC om Godot af te sluiten — het komt niet meer terug. Na een reboot pakt de autostart het weer op.
 
-**In Godot (Inspector):**
-- Open `fase_sticker_placer.tscn`
-- Stel `remote_fotos_path` in op `/mnt/fotos`
-- Of stel in via de .tscn: `remote_fotos_path = "/mnt/fotos"`
+**Exclusive fullscreen** (`mode=4` in project.godot): Godot neemt het scherm direct over, ongeacht hoe het gestart wordt. Dit voorkomt dat Godot in windowed mode herstart.
 
-Na het opslaan wordt de foto zowel lokaal (desktop) als op PC5 (galerij) opgeslagen.
-
-**TODO: Later de lokale desktop kopie verwijderen** — als alles stabiel draait hoeft de foto niet meer op de desktop van de zuil-PC opgeslagen te worden. Alleen naar `/mnt/fotos` is genoeg.
-
-### Nog te doen op locatie
-
-1. **Router**: PC5 vast IP instellen op 192.168.0.15
-2. **PC5**: Samba share controleren (`/home/wotto/Desktop/fotos/`)
-3. **PC5**: `git pull` voor galerij app
-4. **Zuil-PC's** (wotto-1 t/m 4):
-   - `git pull` + Godot editor openen voor imports
-   - Samba share mounten: `sudo mount -t cifs //192.168.0.15/fotos /mnt/fotos -o guest,uid=wotto,gid=wotto`
-   - Permanent mounten via `/etc/fstab`
-5. **Test**: maak een creatie op een zuil → check of foto op PC5 galerij verschijnt
-6. **Alles rebooten** en controleren dat autostart + foto sync werkt
-
-### 12. Reboot en test
+### 13. Reboot en test
 ```bash
 sudo reboot
 ```
 Verbind daarna via Windows Remote Desktop Connection (mstsc) op het Tailscale IP.
 
-### 13. Fish shell + btop (terminal tools)
+### 14. Fish shell + btop (terminal tools)
 
 **Fish** — interactieve shell met autosuggestions en syntax highlighting:
 ```bash
