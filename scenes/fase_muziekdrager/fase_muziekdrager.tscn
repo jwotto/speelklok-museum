@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://dbvdsaqsyfi1i" path="res://scenes/fase_muziekdrager/fase_muziekdrager.gd" id="1_script"]
 [ext_resource type="Script" uid="uid://86ayw0mchtn0" path="res://scenes/fase_sticker_placer/onderdelen/icon_button.gd" id="2_icon_btn"]
 [ext_resource type="Texture2D" uid="uid://vjk5i6uq06fo" path="res://assets/muziekdragers/speelplaat.png" id="3_speelplaat"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/drag_hint.tscn" id="4_drag_hint"]
 
 [sub_resource type="Gradient" id="Gradient_bg"]
 offsets = PackedFloat32Array(0, 0.5, 1)
@@ -108,3 +109,7 @@ script = ExtResource("2_icon_btn")
 icon_type = 3
 button_size = 120
 color = Color(0.2, 0.65, 0.3, 0.9)
+
+[node name="DragHint" parent="UILayer" instance=ExtResource("4_drag_hint")]
+visible = false
+z_index = 60

@@ -7,6 +7,8 @@ extends Node2D
 @warning_ignore("unused_signal")
 signal phase_completed
 
+const NOTE_TEXTURE := preload("res://assets/icons/music-note.svg")
+
 @export_group("Trash")
 ## Hoe dicht (in pixels) de vinger bij de prullenbak moet zijn om een sticker te verwijderen bij loslaten
 @export var trash_zone_radius: float = 210.0
@@ -15,9 +17,55 @@ signal phase_completed
 ## Maximaal aantal stickers dat geplaatst mag worden
 @export var max_stickers: int = 30
 
+@export_group("Plaatsing")
+## Aantal random posities dat geprobeerd wordt — de plek het verst van andere stickers wint
+@export var placement_candidates: int = 12
+## Afstand tot de kastrand, als fractie van de sticker-grootte (0 = mag tegen de rand)
+@export_range(0.0, 1.0) var placement_edge_margin: float = 0.5
+## Duur per stap van de demo na het plaatsen (verschuiven, vergroten, draaien)
+@export var slider_demo_duration: float = 1.2
+## Hoe ver de sticker tijdens de demo opzij schuift, in pixels
+@export var sticker_demo_shift: float = 110.0
+## Hoe ver de sliders uitwijken tijdens de demo, als fractie van hun bereik
+@export_range(0.0, 0.5) var slider_demo_shift: float = 0.10
+## Duur van een tik-hint op een knop
+@export var tap_hint_duration: float = 0.9
+## Hoe vaak het handje op de + tikt als je de fase binnenkomt
+@export var entry_tap_count: int = 1
+## Wachttijd na binnenkomst voordat het handje naar de + wijst
+@export var entry_hint_delay: float = 0.8
+## Tot hoeveel instrumenten de plaats-demo nog getoond wordt (daarna wordt het irritant)
+@export var demo_sticker_limit: int = 3
+## Seconden stilte voordat het handje nog eens komt herinneren (0 = uit)
+@export var reminder_delay: float = 10.0
+## Kortere wachttijd voor het eerste +/play-duwtje, vlak na de plaats-demo
+@export var first_reminder_delay: float = 3.0
+## Hoe vaak het handje op de + tikt bij een herinnering
+@export var reminder_tap_count: int = 1
+
+@export_group("Muzieknootjes")
+## Aantal nootjes dat uit de play-knop opstijgt
+@export var note_count: int = 5
+## Grootte van een nootje in pixels
+@export var note_size: float = 70.0
+## Dikte van de witte rand om een nootje
+@export var note_outline: float = 6.0
+## Hoe hoog de nootjes stijgen
+@export var note_rise_height: float = 260.0
+## Hoe lang een nootje onderweg is
+@export var note_rise_duration: float = 1.4
+
+@export_group("Afspelen")
+## Hoelang de machine bij het starten vanzelf speelt om het draaien voor te doen
+@export var auto_play_duration: float = 5.0
+
 @export_group("Opslaan")
 ## Extra pad om foto's naartoe te kopiëren (bijv. /mnt/fotos of Z:\fotos)
 @export var remote_fotos_path: String = ""
+## Hoelang er in totaal aan het wiel gedraaid moet zijn voor de upload-knop verschijnt
+@export var save_button_spin_time: float = 3.0
+## Vanaf welke draaisnelheid het als "draaien" telt (0-1)
+@export var save_button_spin_threshold: float = 0.1
 
 # Scene node references
 @onready var _background: TextureRect = $Background
@@ -29,6 +77,7 @@ signal phase_completed
 @onready var _slider_container: HBoxContainer = $UILayer/StickerSliders
 @onready var _rotate_slider: Control = $UILayer/StickerSliders/RotateSlider
 @onready var _scale_slider: Control = $UILayer/StickerSliders/ScaleSlider
+@onready var _drag_hint: DragHint = $UILayer/DragHint
 
 var _was_dragging: Dictionary = {}  # instance_id -> was dragging last frame
 var _last_touch_pos: Vector2 = Vector2.ZERO  # Laatste vinger/muis positie
@@ -40,6 +89,7 @@ var _tracked_sticker: Sticker = null
 var _updating_sliders: bool = false
 var _organ_polygon_world: PackedVector2Array = PackedVector2Array()
 var _organ_center: Vector2 = Vector2.ZERO
+var _organ_bounds: Rect2 = Rect2()  ## Bounding box van de kast (voor random plaatsing)
 var _audio_player: Node2D = null  ## AudioLayerPlayer
 var _oneshot_player: AudioStreamPlayer = null  ## Instrument one-shot geluiden
 var _current_genre: String = "groove"  ## Huidig genre voor preview geluid
@@ -47,6 +97,14 @@ var _drager_overlay: Node = null  ## Muziekdrager selectie overlay
 var _pending_photo: Dictionary = {}  ## {data: PackedByteArray, path: String}
 var _photo_mutex: Mutex = Mutex.new()
 var _save_thread: Thread = null
+var _spin_time: float = 0.0  ## Opgetelde tijd dat er aan het wiel gedraaid is
+var _hint_tween: Tween = null  ## Schaal- en draai-demo, loopt naast de sleep-hint
+var _idle_time: float = 0.0  ## Stilte sinds de laatste aanraking, voor de herinnering
+var _reminder_wait: float = 10.0  ## Wachttijd tot de eerstvolgende herinnering
+var _hint_sticker: Sticker = null  ## Sticker waarvan de demo de stand mag lenen
+var _hint_position: Vector2 = Vector2.ZERO  ## Echte positie voor de demo, om exact terug te zetten
+var _hint_rotation: float = 0.0  ## Echte rotatie voor de demo, om exact terug te zetten
+var _hint_scale: float = 1.0  ## Echte schaal voor de demo, om exact terug te zetten
 @onready var _playback_layer: CanvasLayer = $PlaybackLayer
 @onready var _draaiwiel: Control = $PlaybackLayer/Draaiwiel
 @onready var _back_button: IconButton = $PlaybackLayer/BackButton
@@ -60,6 +118,7 @@ func _ready() -> void:
 
 	get_tree().root.size_changed.connect(_resize_background)
 	Sticker.reset_statics()
+	_reminder_wait = reminder_delay
 
 	# Runtime setup
 	_trash_button.visible = false
@@ -98,6 +157,17 @@ func _get_sticker_count() -> int:
 	return count
 
 
+func _count_instruments() -> int:
+	## Aantal geplaatste instrumenten — de muziekdrager telt niet mee, en een
+	## sticker die net weggegooid is ook niet (die hangt nog even in de tree)
+	var count = 0
+	for child in _sticker_container.get_children():
+		if child is Sticker and not child.has_meta("is_drager") \
+				and not child.is_queued_for_deletion():
+			count += 1
+	return count
+
+
 func _on_add_pressed() -> void:
 	if _get_sticker_count() >= max_stickers:
 		return
@@ -106,6 +176,8 @@ func _on_add_pressed() -> void:
 
 func _on_picker_opened() -> void:
 	_picker_open = true
+	_drag_hint.hide_hint()
+	_stop_hint_demo()
 	# Deselecteer huidige sticker
 	if Sticker._selected_sticker:
 		Sticker._selected_sticker._deselect()
@@ -139,12 +211,8 @@ func _update_button_visibility() -> void:
 
 	var sticker_count = _get_sticker_count()
 	var at_limit = sticker_count >= max_stickers
-	# Tel alleen instrumenten (niet de muziekdrager) voor play knop
-	var has_instruments = false
-	for child in _sticker_container.get_children():
-		if child is Sticker and not child.has_meta("is_drager"):
-			has_instruments = true
-			break
+	# Play alleen als er echt iets te horen valt: minstens één instrument
+	var has_instruments = _count_instruments() > 0
 
 	_trash_button.visible = _any_dragging
 	_add_button.visible = not _any_dragging and not at_limit
@@ -253,6 +321,7 @@ func set_phase_data(data: Dictionary) -> void:
 		wmin = Vector2(minf(wmin.x, wp.x), minf(wmin.y, wp.y))
 		wmax = Vector2(maxf(wmax.x, wp.x), maxf(wmax.y, wp.y))
 	_organ_center = (wmin + wmax) / 2.0
+	_organ_bounds = Rect2(wmin, wmax - wmin)
 
 	# Achtergrond op volle sterkte houden (zelfde als body builder)
 	_background.modulate = Color.WHITE
@@ -271,6 +340,9 @@ func set_phase_data(data: Dictionary) -> void:
 	if data.has("drager_texture"):
 		_place_drager_sticker(data["drager_texture"])
 
+	# Kast is nog leeg — wijzen naar de + zodra de fase-overgang klaar is
+	get_tree().create_timer(entry_hint_delay).timeout.connect(show_add_hint)
+
 
 func _place_drager_sticker(tex: Texture2D) -> void:
 	## Plaats de muziekdrager als een echte sticker in het midden van de kast
@@ -288,6 +360,179 @@ func _place_drager_sticker(tex: Texture2D) -> void:
 	_update_button_visibility()
 
 
+func _show_placement_hints(sticker: Sticker) -> void:
+	## Eén handje doet achter elkaar drie dingen voor: de sticker een stukje
+	## verschuiven, dan vergroten, dan draaien. Elke stap gaat heen en weer,
+	## dus de sticker staat er daarna weer precies zo bij als hij geplaatst is.
+	## Alleen bij de eerste paar stickers — daarna weet de bezoeker het wel.
+	if _count_instruments() > demo_sticker_limit:
+		return
+	_stop_hint_demo()
+
+	# De echte stand bewaren — de sliderwaarde kan door het heen-en-weer
+	# animeren een fractie afwijken, de sticker zelf niet
+	_hint_sticker = sticker
+	_hint_position = sticker.position
+	_hint_rotation = sticker.rotation
+	_hint_scale = sticker.scale.x
+
+	_hint_tween = create_tween()
+	_append_sticker_demo(_hint_tween, sticker)
+	_append_slider_demo(_hint_tween, _scale_slider, false)
+	_append_slider_demo(_hint_tween, _rotate_slider, true)
+	_hint_tween.tween_callback(_finish_hint_demo)
+	# Kort na deze demo mag het +/play-duwtje komen, daarna in het normale ritme
+	_reminder_wait = first_reminder_delay
+
+
+func show_add_hint(tap_count: int = -1) -> void:
+	## Handje tikt op de + knop, en daarna op play als daar al iets te horen is.
+	## Bij de play-knop stijgen er nootjes op zodat duidelijk is wat die doet.
+	if _picker_open or _is_playing:
+		return
+	if not _add_button.visible and not _play_button.visible:
+		return
+	if tap_count < 0:
+		tap_count = entry_tap_count
+
+	_stop_hint_demo()
+	# Tikken los achter elkaar zetten, niet via set_loops — een callback in een
+	# lussende tween vuurt bij elke ronde en laat de tween verweesd doorlopen
+	_hint_tween = create_tween()
+	_append_next_step_hint(_hint_tween, tap_count)
+	_hint_tween.tween_callback(_finish_hint_demo)
+	# Hierna weer het normale ritme
+	_reminder_wait = reminder_delay
+
+
+func _append_next_step_hint(tween: Tween, tap_count: int) -> void:
+	## Wijst aan waar je hierna klikt: nog een instrument erbij, of afspelen.
+	## Bij de play-knop stijgen er nootjes op zodat duidelijk is wat die doet.
+	if _add_button.visible:
+		var center := _add_button.get_global_rect().get_center()
+		for i in tap_count:
+			_drag_hint.append_tap(tween, center, tap_hint_duration)
+			tween.tween_interval(0.35)
+	if _play_button.visible:
+		tween.tween_callback(_spawn_play_notes)
+		_drag_hint.append_tap(tween, _play_button.get_global_rect().get_center(), tap_hint_duration)
+		tween.tween_interval(note_rise_duration * 0.6)
+
+
+func _spawn_play_notes() -> void:
+	## Muzieknootjes stijgen op uit de play-knop
+	var origin := _play_button.get_global_rect().get_center()
+	for i in note_count:
+		var note := OutlinedIcon.create(NOTE_TEXTURE, note_size, note_outline)
+		note.z_index = 109  # net onder het handje, wel boven de knoppen
+		note.position = origin + Vector2(randf_range(-45.0, 45.0), randf_range(-10.0, 10.0))
+		note.rotation = randf_range(-0.25, 0.25)
+		note.modulate.a = 0.0
+		$UILayer.add_child(note)
+
+		# Elk nootje z'n eigen hoogte en tempo, anders stijgen ze als één blok op
+		var drift := randf_range(-90.0, 90.0)
+		var hoogte := note_rise_height * randf_range(0.7, 1.3)
+		var duur := note_rise_duration * randf_range(0.8, 1.2)
+
+		var tween := create_tween().set_parallel()
+		tween.tween_property(note, "position",
+			note.position + Vector2(drift, -hoogte), duur) \
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+		tween.tween_property(note, "rotation", note.rotation + drift * 0.006, duur)
+		tween.tween_property(note, "modulate:a", 1.0, duur * 0.25)
+		tween.chain().tween_property(note, "modulate:a", 0.0, duur * 0.45)
+		tween.chain().tween_callback(note.queue_free)
+
+
+func _append_sticker_demo(tween: Tween, sticker: Sticker) -> void:
+	## Handje pakt de sticker op, schuift 'm een stukje opzij en weer terug
+	var from_pos: Vector2 = sticker.position
+	# Naar het midden van de kast toe, zodat hij niet over de rand piept
+	var dir := 1.0 if from_pos.x <= _organ_center.x else -1.0
+	var to_pos := from_pos + Vector2(sticker_demo_shift * dir, 0.0)
+
+	_drag_hint.append_drag(
+		tween, from_pos, to_pos, slider_demo_duration,
+		_apply_sticker_demo.bind(sticker, from_pos, to_pos),
+		true  # heen en weer
+	)
+	tween.tween_callback(_drag_hint.hide_now)
+
+
+func _apply_sticker_demo(t: float, sticker: Sticker, from_pos: Vector2, to_pos: Vector2) -> void:
+	## De sticker schuift mee met het handje
+	if is_instance_valid(sticker):
+		sticker.position = from_pos.lerp(to_pos, t)
+
+
+func _append_slider_demo(tween: Tween, slider: Control, is_rotation: bool) -> void:
+	## Handje schuift de thumb een klein stukje op en zet 'm weer precies terug
+	var from_value: float = slider.value
+	var span: float = slider.max_value - slider.min_value
+	var shift: float = span * slider_demo_shift
+	# Uitwijken naar de kant waar de meeste ruimte is
+	if from_value + shift > slider.max_value:
+		shift = -shift
+	var to_value: float = clampf(from_value + shift, slider.min_value, slider.max_value)
+	var origin: Vector2 = slider.global_position
+
+	_drag_hint.append_drag(
+		tween,
+		origin + slider.get_thumb_position(from_value),
+		origin + slider.get_thumb_position(to_value),
+		slider_demo_duration,
+		_apply_slider_demo.bind(slider, from_value, to_value, is_rotation),
+		true  # heen en weer, dus de sticker komt weer terug waar hij stond
+	)
+	tween.tween_callback(_drag_hint.hide_now)
+
+
+func _stop_hint_demo() -> void:
+	## Breek de demo af en zet de sticker terug zoals hij stond — anders blijft
+	## hij scheef of te groot staan als er middenin een beweging aangeraakt wordt
+	if _hint_tween:
+		_hint_tween.kill()
+		_hint_tween = null
+	_drag_hint.hide_hint()
+	_restore_hint_sticker()
+
+
+func _finish_hint_demo() -> void:
+	## Demo netjes uitgelopen — toch exact terugzetten, want de sliderwaarde
+	## kan een fractie afwijken van waar de sticker echt stond
+	_hint_tween = null
+	_drag_hint.hide_now()
+	_restore_hint_sticker()
+
+
+func _restore_hint_sticker() -> void:
+	if is_instance_valid(_hint_sticker):
+		_hint_sticker.position = _hint_position
+		_hint_sticker.rotation = _hint_rotation
+		_hint_sticker.scale = Vector2(_hint_scale, _hint_scale)
+		_hint_sticker._target_scale = Vector2(_hint_scale, _hint_scale)
+		if _tracked_sticker == _hint_sticker:
+			_update_slider_values(_hint_sticker)
+	_hint_sticker = null
+
+
+func _apply_slider_demo(t: float, slider: Control, from_value: float,
+		to_value: float, is_rotation: bool) -> void:
+	## De slider-setter stuurt geen signaal, dus de sticker wordt hier zelf bijgewerkt
+	var v := lerpf(from_value, to_value, t)
+	_updating_sliders = true
+	slider.value = v
+	_updating_sliders = false
+	if not is_instance_valid(_tracked_sticker):
+		return
+	if is_rotation:
+		_tracked_sticker.rotation = deg_to_rad(v)
+	else:
+		_tracked_sticker.scale = Vector2(v, v)
+		_tracked_sticker._target_scale = Vector2(v, v)
+
+
 func _play_oneshot(instrument_id: String) -> void:
 	## Speel het one-shot geluid van een instrument
 	var path = "res://audio/oneshots/" + instrument_id + ".wav"
@@ -298,8 +543,9 @@ func _play_oneshot(instrument_id: String) -> void:
 
 
 func _on_sticker_selected(scene: PackedScene, from_position: Vector2) -> void:
-	var target = _organ_center if _organ_polygon_world.size() > 0 else get_viewport_rect().size / 2
 	var sticker = scene.instantiate()
+	# Random plek in de kast — spreidt de instrumenten i.p.v. alles op het midden
+	var target = _random_position_in_organ(sticker)
 	sticker.position = from_position
 	_sticker_container.add_child(sticker)
 	sticker.selection_changed.connect(_on_sticker_selection_changed.bind(sticker))
@@ -317,6 +563,8 @@ func _on_sticker_selected(scene: PackedScene, from_position: Vector2) -> void:
 	tween.tween_property(sticker, "position", target, 0.4)
 	tween.tween_property(sticker, "scale", start_scale / 0.3, 0.4)
 	tween.tween_property(sticker, "modulate:a", 1.0, 0.15).set_trans(Tween.TRANS_LINEAR)
+	# Hints tonen zodra de sticker geland is
+	tween.chain().tween_callback(func(): _show_placement_hints(sticker))
 
 	# Speel instrument geluid + cooldown zodat selectie niet ook speelt
 	var instrument_id = sticker.scene_file_path.get_file().get_basename()
@@ -332,8 +580,23 @@ func _process(delta: float) -> void:
 		return
 	_check_trash_zone()
 	_update_sliders()
+	_update_reminder(delta)
 	if _is_playing:
 		_update_sticker_pulse(delta)
+		_update_save_button(delta)
+
+
+func _update_reminder(delta: float) -> void:
+	## Blijft het stil? Dan nog eens wijzen waar je instrumenten vandaan haalt
+	## en waar je klikt om te horen wat je gemaakt hebt. Dit blijft komen,
+	## ongeacht hoeveel instrumenten er al staan.
+	if reminder_delay <= 0.0 or _is_playing or _picker_open or _hint_tween != null:
+		_idle_time = 0.0
+		return
+	_idle_time += delta
+	if _idle_time >= _reminder_wait:
+		_idle_time = 0.0
+		show_add_hint(reminder_tap_count)
 
 
 func _input(event: InputEvent) -> void:
@@ -346,6 +609,10 @@ func _input(event: InputEvent) -> void:
 		_last_touch_pos = event.position
 	# Voorkom dat touch events door UI heen naar stickers gaan
 	if event is InputEventScreenTouch and event.pressed:
+		# Bezoeker raakt iets aan (sticker, knop of slider) — hints zijn niet meer nodig
+		_idle_time = 0.0
+		_drag_hint.hide_hint()
+		_stop_hint_demo()
 		if _is_touch_over_ui(event.position):
 			get_viewport().set_input_as_handled()
 	# Bij loslaten: selecteer sticker onder de vinger (als er niet gedragged werd)
@@ -372,6 +639,9 @@ func _check_trash_zone() -> void:
 	# Toon/verberg knoppen bij drag state wijziging
 	if _any_dragging != any_dragging_now:
 		_any_dragging = any_dragging_now
+		# Bezoeker sleept zelf — hint heeft zijn werk gedaan
+		if any_dragging_now:
+			_drag_hint.hide_hint()
 		_update_button_visibility()
 
 	# Alleen trash zone checken als er daadwerkelijk gesleept wordt of net losgelaten is
@@ -420,6 +690,8 @@ func _delete_sticker(sticker: Sticker, trash_center: Vector2) -> void:
 	tween.tween_property(sticker, "modulate:a", 0.0, 0.2).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 	tween.chain().tween_callback(func():
 		sticker.queue_free()
+		# Knoppen bijwerken: zonder instrumenten hoort de play-knop weg te zijn
+		_update_button_visibility()
 		if is_drager:
 			_show_drager_selection()
 	)
@@ -462,6 +734,9 @@ func _show_drager_selection() -> void:
 		_drager_overlay.queue_free()
 		_drager_overlay = null
 
+		# Zowel de tracks als het preview-geluid moeten mee — anders hoor je bij
+		# het aantikken van de nieuwe drager nog het genre van de oude
+		_current_genre = genre
 		_audio_player.set_genre(genre)
 		if tex:
 			_place_drager_sticker(tex)
@@ -705,6 +980,8 @@ func _start_playback() -> void:
 		return
 	_is_playing = true
 	_set_stickers_input(false)
+	_drag_hint.hide_hint()
+	_stop_hint_demo()
 	if Sticker._selected_sticker:
 		Sticker._selected_sticker._deselect()
 
@@ -719,11 +996,15 @@ func _start_playback() -> void:
 	tween.tween_property(_slider_container, "modulate:a", 0.0, 0.2)
 	tween.tween_property(_playback_layer.get_node("Draaiwiel"), "modulate:a", 1.0, 0.3).set_delay(0.1)
 	tween.tween_property(_playback_layer.get_node("BackButton"), "modulate:a", 1.0, 0.2).set_delay(0.1)
-	tween.tween_property(_playback_layer.get_node("SaveButton"), "modulate:a", 1.0, 0.2).set_delay(0.1)
 	tween.chain().tween_callback(func():
 		_slider_container.visible = false
 		_slider_container.modulate.a = 1.0
 	)
+
+	# Upload-knop verdienen: verschijnt pas na genoeg draaien aan het wiel
+	_spin_time = 0.0
+	_save_button.visible = false
+	_save_button.modulate.a = 0.0
 
 	# Start muziek gedempt — het wiel bepaalt het volume
 	_audio_player.play_layers(active)
@@ -731,7 +1012,27 @@ func _start_playback() -> void:
 		var player: AudioStreamPlayer = _audio_player._players[instrument_id]
 		player.volume_db = -80.0
 	_draaiwiel.reset()
+	# Even vanzelf draaien zodat duidelijk is wat de bedoeling is; daarna
+	# loopt het wiel uit en moet de bezoeker het overnemen
+	_draaiwiel.start_auto_spin(auto_play_duration)
 	_update_button_visibility()
+
+
+func _update_save_button(delta: float) -> void:
+	## De upload-knop verschijnt pas als er echt een tijdje gedraaid is.
+	## Het voordoen telt niet mee — de teller loopt pas vanaf het moment dat
+	## de bezoeker zelf aan het wiel draait.
+	if _save_button.visible:
+		return
+	if _draaiwiel.is_auto_spinning() or not _draaiwiel.has_user_spun():
+		return
+	if _draaiwiel.get_speed_factor() < save_button_spin_threshold:
+		return
+	_spin_time += delta
+	if _spin_time >= save_button_spin_time:
+		_save_button.visible = true
+		_save_button.modulate.a = 0.0
+		create_tween().tween_property(_save_button, "modulate:a", 1.0, 0.3)
 
 
 func _stop_playback() -> void:
@@ -817,6 +1118,9 @@ func _on_sticker_selection_changed(is_selected: bool, sticker: Sticker) -> void:
 					_play_oneshot(instrument_id)
 	elif _tracked_sticker == sticker:
 		_tracked_sticker = null
+		# Sticker niet meer geselecteerd — geen witte rand, dus ook geen hint
+		_drag_hint.hide_hint()
+		_stop_hint_demo()
 	_update_button_visibility()
 
 
@@ -887,6 +1191,55 @@ func _constrain_to_organ(pos: Vector2) -> Vector2:
 	if _point_in_polygon(pos, _organ_polygon_world):
 		return pos
 	return _nearest_point_on_edge(pos, _organ_polygon_world)
+
+
+func _random_position_in_organ(sticker: Sticker) -> Vector2:
+	## Zoek een random plek binnen de kast, zo ver mogelijk van de al geplaatste stickers
+	if _organ_polygon_world.size() < 3:
+		return get_viewport_rect().size / 2.0
+
+	# Marge tot de rand zodat de sticker er niet half overheen hangt
+	var margin := 0.0
+	if sticker.texture:
+		var half := minf(sticker.texture.get_width(), sticker.texture.get_height()) \
+			* absf(sticker.scale.x) * 0.5
+		margin = half * placement_edge_margin
+
+	var existing := PackedVector2Array()
+	for child in _sticker_container.get_children():
+		if child is Sticker:
+			existing.append(child.position)
+
+	var best := _organ_center
+	var best_score := -1.0
+	var fallback := _organ_center
+	var has_fallback := false
+
+	for i in placement_candidates:
+		var p := Vector2(
+			randf_range(_organ_bounds.position.x, _organ_bounds.end.x),
+			randf_range(_organ_bounds.position.y, _organ_bounds.end.y)
+		)
+		if not _point_in_polygon(p, _organ_polygon_world):
+			continue
+		# Eerste punt binnen de kast bewaren voor als de marge nergens past
+		if not has_fallback:
+			fallback = p
+			has_fallback = true
+		if margin > 0.0 and _nearest_point_on_edge(p, _organ_polygon_world).distance_to(p) < margin:
+			continue
+		# Score = afstand tot de dichtstbijzijnde bestaande sticker (verder weg = beter)
+		var score := INF
+		for other in existing:
+			score = minf(score, p.distance_squared_to(other))
+		if score > best_score:
+			best_score = score
+			best = p
+
+	# Smalle kast: geen enkel punt haalde de marge — pak dan een punt zonder marge
+	if best_score < 0.0:
+		return fallback
+	return best
 
 
 static func _point_in_polygon(point: Vector2, polygon: PackedVector2Array) -> bool:

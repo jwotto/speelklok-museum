@@ -1,0 +1,18 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scenes/fase_sticker_placer/onderdelen/drag_hint.gd" id="1_script"]
+[ext_resource type="Texture2D" path="res://assets/icons/hand-pointing.svg" id="2_hand"]
+[ext_resource type="Shader" path="res://scenes/fase_sticker_placer/onderdelen/sticker_outline.gdshader" id="3_outline"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_hand"]
+shader = ExtResource("3_outline")
+shader_parameter/show_outline = true
+shader_parameter/outline_width = 18.0
+shader_parameter/outline_color = Color(1, 1, 1, 1)
+
+[node name="DragHint" type="Node2D"]
+script = ExtResource("1_script")
+
+[node name="Hand" type="Sprite2D" parent="."]
+material = SubResource("ShaderMaterial_hand")
+texture = ExtResource("2_hand")

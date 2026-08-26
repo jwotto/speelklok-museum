@@ -27,6 +27,7 @@
 [ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/stickers/toeter.tscn" id="27_toeter"]
 [ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/play_button.tscn" id="28_play"]
 [ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/draaiwiel.tscn" id="29_draaiwiel"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/drag_hint.tscn" id="30_drag_hint"]
 
 [sub_resource type="Gradient" id="Gradient_bg"]
 offsets = PackedFloat32Array(0, 0.5, 1)
@@ -120,6 +121,10 @@ texture = SubResource("GradientTexture2D_bg")
 
 [node name="UILayer" type="CanvasLayer" parent="." unique_id=923885639]
 layer = 10
+
+[node name="DragHint" parent="UILayer" instance=ExtResource("30_drag_hint")]
+visible = false
+z_index = 110
 
 [node name="StickerPicker" parent="UILayer" unique_id=1920061030 instance=ExtResource("12_picker")]
 sticker_scenes = Array[PackedScene]([ExtResource("4_snaredrum"), ExtResource("18_hihat"), ExtResource("5_bongo"), ExtResource("6_contrabas"), ExtResource("7_gitaar"), ExtResource("8_orgelpijp"), ExtResource("19_orgelpijp_metaal"), ExtResource("9_viool"), ExtResource("10_xylofoon"), ExtResource("11_bellen"), ExtResource("16_trompet"), ExtResource("17_speelkam"), ExtResource("20_castagnettes"), ExtResource("21_elektrische_gitaar"), ExtResource("22_tuba"), ExtResource("23_accordeon"), ExtResource("24_piano"), ExtResource("25_banjo"), ExtResource("26_fietsbel"), ExtResource("27_toeter")])

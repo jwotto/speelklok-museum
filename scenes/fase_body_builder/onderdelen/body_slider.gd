@@ -95,22 +95,28 @@ func _update_minimum_size() -> void:
 		custom_minimum_size = Vector2(thumb_radius * 2.0, track_length + thumb_radius * 2.0)
 
 
-func _draw() -> void:
-	var t = inverse_lerp(min_value, max_value, value) if max_value > min_value else 0.5
-	var thumb_pos: Vector2
+## Lokale positie van de thumb voor een gegeven waarde.
+## Zo kan een demo-animatie het handje precies op de thumb zetten.
+func get_thumb_position(for_value: float) -> Vector2:
+	var t = inverse_lerp(min_value, max_value, for_value) if max_value > min_value else 0.5
+	if horizontal:
+		var left_x = (size.x - track_length) / 2.0
+		return Vector2(lerpf(left_x, left_x + track_length, t), size.y / 2.0)
+	var top_y = (size.y - track_length) / 2.0
+	return Vector2(size.x / 2.0, lerpf(top_y + track_length, top_y, t))
 
+
+func _draw() -> void:
 	if horizontal:
 		var cy = size.y / 2.0
 		var left_x = (size.x - track_length) / 2.0
-		var right_x = left_x + track_length
-		draw_line(Vector2(left_x, cy), Vector2(right_x, cy), track_color, track_width, true)
-		thumb_pos = Vector2(lerpf(left_x, right_x, t), cy)
+		draw_line(Vector2(left_x, cy), Vector2(left_x + track_length, cy), track_color, track_width, true)
 	else:
 		var cx = size.x / 2.0
 		var top_y = (size.y - track_length) / 2.0
-		var bottom_y = top_y + track_length
-		draw_line(Vector2(cx, top_y), Vector2(cx, bottom_y), track_color, track_width, true)
-		thumb_pos = Vector2(cx, lerpf(bottom_y, top_y, t))
+		draw_line(Vector2(cx, top_y), Vector2(cx, top_y + track_length), track_color, track_width, true)
+
+	var thumb_pos := get_thumb_position(value)
 
 	# Thumb cirkel — kleur-slider thumb past mee met de hue
 	var draw_color = Color.from_hsv(value, 0.7, 0.95) if icon_type == IconType.KLEUR else thumb_color

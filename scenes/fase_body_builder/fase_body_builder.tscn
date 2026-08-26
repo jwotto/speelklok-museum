@@ -7,6 +7,7 @@
 [ext_resource type="Texture2D" uid="uid://dx14tse6ik7am" path="res://textures/wood texture.png" id="5_wood_tex"]
 [ext_resource type="Texture2D" uid="uid://embntmj3uxi8" path="res://textures/copper texture.png" id="6_copper_tex"]
 [ext_resource type="Script" uid="uid://86ayw0mchtn0" path="res://scenes/fase_sticker_placer/onderdelen/icon_button.gd" id="7_icon_button"]
+[ext_resource type="PackedScene" path="res://scenes/fase_sticker_placer/onderdelen/drag_hint.tscn" id="8_drag_hint"]
 
 [sub_resource type="Gradient" id="Gradient_bg"]
 offsets = PackedFloat32Array(0, 0.5, 1)
@@ -190,3 +191,7 @@ offset_left = 315.0
 offset_top = 1674.0
 offset_right = 765.0
 offset_bottom = 1854.0
+
+[node name="DragHint" parent="UILayer" instance=ExtResource("8_drag_hint")]
+visible = false
+hand_offset = Vector2(10, 55)

@@ -14,6 +14,23 @@ signal phase_completed
 @onready var _rok_slider: Control = $UILayer/SliderContainer/RightSliders/RokSlider
 @onready var _kleur_slider: Control = $UILayer/SliderContainer/RightSliders/KleurSlider
 @onready var _done_button: IconButton = $UILayer/SliderContainer/DoneButton
+@onready var _drag_hint: DragHint = $UILayer/DragHint
+
+@export_group("Hints")
+## Duur van een tik-hint op een knop
+@export var tap_hint_duration: float = 0.9
+## Pauze tussen twee tikken op de START knop
+@export var start_tap_pause: float = 1.5
+## Verschuiving van het handje t.o.v. het midden van de START knop
+@export var start_tap_offset: Vector2 = Vector2(100.0, 20.0)
+## Seconden stilte voordat de sliders nog eens voorgedaan worden (0 = uit)
+@export var reminder_delay: float = 10.0
+
+@export_group("Slider Demo")
+## Duur per slider — het handje gaat ze één voor één langs
+@export var demo_duration: float = 0.8
+## Hoeveel de sliders verschuiven tijdens de demo (0-1)
+@export var demo_shift: float = 0.4
 
 var _shape_data: Dictionary = {}
 var _demo_mode: bool = true
@@ -23,6 +40,10 @@ var _start_delay: float = 4.0  ## Vertraging voordat START knop verschijnt (alti
 var _start_button_ready: bool = false  ## Pulse pas na pop-in animatie
 var _floating_container: Node2D = null
 var _spawn_timer: float = 0.0
+var _demo_tween: Tween = null  ## Demo-zwiepje van de sliders na START
+var _start_hint_tween: Tween = null  ## Handje dat op START blijft tikken
+var _demo_restore: Array = []  ## [[slider, prop, beginwaarde], ...] bij een herinnering
+var _idle_time: float = 0.0  ## Stilte sinds de laatste aanraking, voor de herinnering
 
 const INSTRUMENT_TEXTURES = [
 	preload("res://afbeeldingen instrumenten/accordeon.png"),
@@ -148,13 +169,28 @@ func _create_start_button() -> void:
 	tween.tween_property(_start_button, "scale", Vector2(1.0, 1.0), 0.4) \
 		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	tween.tween_property(_start_button, "modulate:a", 1.0, 0.3)
-	tween.chain().tween_callback(func(): _start_button_ready = true)
+	tween.chain().tween_callback(func():
+		_start_button_ready = true
+		_start_tap_hint()
+	)
+
+
+func _start_tap_hint() -> void:
+	## Handje tikt op START en blijft dat doen tot iemand hem indrukt —
+	## dit is het aantrekscherm, er is niemand die het anders ziet
+	if _start_hint_tween:
+		_start_hint_tween.kill()
+	_start_hint_tween = create_tween().set_loops()
+	var doel := _start_button.get_global_rect().get_center() + start_tap_offset
+	_drag_hint.append_tap(_start_hint_tween, doel, tap_hint_duration)
+	_start_hint_tween.tween_interval(start_tap_pause)
 
 
 func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 	if not _demo_mode:
+		_update_reminder(delta)
 		return
 
 	_demo_time += delta
@@ -229,6 +265,12 @@ func _spawn_floating_sticker(_instant: bool = false) -> void:
 func _on_start_pressed() -> void:
 	_demo_mode = false
 
+	# Tik-hint op START is klaar
+	if _start_hint_tween:
+		_start_hint_tween.kill()
+		_start_hint_tween = null
+	_drag_hint.hide_now()
+
 	# Verwijder start knop met animatie
 	if _start_button:
 		var tween = create_tween().set_parallel()
@@ -248,24 +290,95 @@ func _on_start_pressed() -> void:
 			_floating_container = null
 		)
 
-	# Toon sliders met fade-in
-	_slider_container.visible = true
-	_slider_container.modulate.a = 0.0
-	var tween2 = create_tween()
-	tween2.tween_property(_slider_container, "modulate:a", 1.0, 0.3)
-
 	# Zet slider waarden op de huidige kast vorm
 	_dak_slider.value = _body_shape.dak
 	_buik_slider.value = _body_shape.buik
 	_rok_slider.value = _body_shape.rok
 	_kleur_slider.value = _body_shape.kleur
 
+	# Toon sliders met fade-in, daarna even laten zien dat je eraan kunt slepen
+	_slider_container.visible = true
+	_slider_container.modulate.a = 0.0
+	var tween2 = create_tween()
+	tween2.tween_property(_slider_container, "modulate:a", 1.0, 0.3)
+	tween2.tween_callback(_demo_sliders)
+
+
+func _update_reminder(delta: float) -> void:
+	## Blijft het stil bij de schuifknoppen? Dan nog eens voordoen wat ze doen —
+	## heen en weer, dus de kast blijft staan zoals de bezoeker hem gemaakt heeft
+	if reminder_delay <= 0.0 or _demo_tween != null:
+		_idle_time = 0.0
+		return
+	_idle_time += delta
+	if _idle_time >= reminder_delay:
+		_idle_time = 0.0
+		_demo_sliders(true)
+
+
+func _demo_sliders(bounce: bool = false) -> void:
+	## Het handje gaat de sliders één voor één langs en sleept elke thumb naar een
+	## andere stand, zodat meteen duidelijk is dat je hieraan kunt slepen.
+	## Met `bounce` komt elke slider weer terug — voor de herinnering later,
+	## zodat de kast van de bezoeker blijft staan zoals hij hem gemaakt heeft.
+	_demo_restore.clear()
+	_demo_tween = create_tween()
+	for entry in [
+		[_dak_slider, "dak"], [_buik_slider, "buik"],
+		[_rok_slider, "rok"], [_kleur_slider, "kleur"],
+	]:
+		var slider: BodySlider = entry[0]
+		var prop: String = entry[1]
+		var from_value: float = slider.value
+		var to_value := _demo_target(from_value)
+		var origin := slider.global_position
+		if bounce:
+			_demo_restore.append([slider, prop, from_value])
+		_drag_hint.append_drag(
+			_demo_tween,
+			origin + slider.get_thumb_position(from_value),
+			origin + slider.get_thumb_position(to_value),
+			demo_duration,
+			_apply_demo_value.bind(slider, prop, from_value, to_value),
+			bounce
+		)
+
+	# Tot slot wijzen waar je klikt als je tevreden bent
+	_drag_hint.append_tap(_demo_tween, _done_button.get_global_rect().get_center(), tap_hint_duration)
+	_demo_tween.tween_callback(func():
+		_drag_hint.hide_now()
+		_demo_tween = null
+	)
+
+
+func _apply_demo_value(t: float, slider: BodySlider, prop: String,
+		from_value: float, to_value: float) -> void:
+	## De slider-setter stuurt geen signaal, dus de kast wordt hier zelf bijgewerkt
+	var v := lerpf(from_value, to_value, t)
+	slider.value = v
+	_body_shape.set(prop, v)
+
+
+func _demo_target(current: float) -> float:
+	## Kies een duidelijk zichtbare andere waarde, altijd weg van het midden
+	var shifted := current - demo_shift if current > 0.5 else current + demo_shift
+	return clampf(shifted, 0.05, 0.95)
+
 
 func _input(event: InputEvent) -> void:
 	if Engine.is_editor_hint():
 		return
-	# Alleen ESC in demo mode
-	pass
+	# Bezoeker doet zelf iets — demo stoppen zodat die niet met de vinger vecht
+	if event is InputEventScreenTouch and event.pressed:
+		_idle_time = 0.0
+		_drag_hint.hide_hint()
+		if _demo_tween:
+			_demo_tween.kill()
+			_demo_tween = null
+			# Was het een herinnering? Dan de sliders exact terugzetten
+			for entry in _demo_restore:
+				_apply_demo_value(0.0, entry[0], entry[1], entry[2], entry[2])
+			_demo_restore.clear()
 
 
 func _on_dak_changed(val: float) -> void:
@@ -324,6 +437,7 @@ func _animate_transition() -> void:
 
 	# Stap 1: UI direct weg, foto maken (1 frame)
 	_slider_container.visible = false
+	_drag_hint.hide_now()  # zonder fade, anders staat het handje op de foto
 	_background.visible = false
 	get_viewport().transparent_bg = true
 	await RenderingServer.frame_post_draw
